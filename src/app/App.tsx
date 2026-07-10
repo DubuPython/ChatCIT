@@ -384,12 +384,26 @@ export default function App() {
           )}
 
           {!gearMode && (
-            <aside style={{ width: RAIL_W, flexShrink: 0, background: sbBg, position: isMobile ? "fixed" : "relative", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
+            <aside style={{ 
+              width: RAIL_W, 
+              flexShrink: 0, 
+              background: sbBg, 
+              position: isMobile ? "fixed" : "relative", 
+              top: 0, 
+              bottom: 0, 
+              left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : "auto", 
+              marginLeft: !isMobile && !sidebarOpen ? -RAIL_W : 0, // This gracefully hides the sidebar on desktop!
+              zIndex: 60, 
+              transition: "all 0.3s ease", 
+              boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", 
+              overflow: "hidden" 
+            }}>
               <div style={{ width: 256, height: "100%", display: "flex", flexDirection: "column" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 24, height: 24, position: "relative", display: "flex", justifyContent: "center", alignItems: "center" }}>
-                      <div style={{ position: "absolute", transform: 'scale(0.15)' }}><GearboxLoader /></div>
+                    <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}>
+                      {/* RESTORED: The original blue spinning gear inside the normal sidebar! */}
+                      <Settings color="#4285f4" className="animate-spin" style={{ animationDuration: '3s' }} size={24} />
                     </div>
                     <ChatCITLogo dark={dark} onBlue />
                   </div>
@@ -438,26 +452,55 @@ export default function App() {
             </aside>
           )}
 
-          <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "relative" }}>
-            <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: isMobile ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 10 }}>
+          <main style={{ 
+            flex: 1, 
+            display: "flex", 
+            flexDirection: "column", 
+            overflow: "hidden", 
+            minWidth: 0, 
+            position: "relative",
+            // This padding protects the chat area from sliding under the fixed rails on desktop!
+            paddingLeft: gearMode && !isMobile ? RAIL_W : 0,
+            paddingRight: gearMode && !isMobile ? RAIL_W : 0,
+          }}>
+            <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: isMobile ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 10 }}>
+              
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center" }}><Menu size={22} /></button>}
-                {(!isMobile || !sidebarOpen) && (
+                {/* Shows hamburger on mobile OR on desktop if normal sidebar is closed */}
+                {(isMobile || (!gearMode && !sidebarOpen)) && (
+                  <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                    <Menu size={22} />
+                  </button>
+                )}
+                {/* Shows logo on left ONLY in normal mode, and ONLY when the sidebar is hidden (to prevent duplicate logos) */}
+                {(!gearMode && (isMobile || !sidebarOpen)) && (
                   <>
                     <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}>
-                      {/* RESTORED: Your original blue spinning gear for the header */}
-                      <Settings color="#4285f4" className="animate-spin" size={24} />
+                      <Settings color="#4285f4" className="animate-spin" style={{ animationDuration: '3s' }} size={24} />
                     </div>
                     <ChatCITLogo dark={dark} />
                   </>
                 )}
               </div>
               
-              {isMobile && (
-                <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}>
-                  <MoreVertical size={20} />
-                </button>
+              {/* Perfectly centers the Logo in the middle of the screen when Gear Mode is active */}
+              {gearMode && (
+                <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}>
+                    <Settings color="#4285f4" className="animate-spin" style={{ animationDuration: '3s' }} size={24} />
+                  </div>
+                  <ChatCITLogo dark={dark} />
+                </div>
               )}
+              
+              {/* Mobile Right Rail Toggle */}
+              <div style={{ display: "flex", alignItems: "center" }}>
+                {isMobile && (
+                  <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}>
+                    <MoreVertical size={20} />
+                  </button>
+                )}
+              </div>
             </header>
 
             <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
@@ -492,7 +535,6 @@ export default function App() {
                     <div key={msg.id} className="group" style={{ display: "flex", gap: 10, flexDirection: msg.role === "user" ? "row-reverse" : "row", alignItems: "flex-start" }}>
                       {msg.role === "model" && (
                         <div style={{ flexShrink: 0, marginTop: 4, width: 28, height: 28, display: "flex", justifyContent: "center", alignItems: "center" }}>
-                          {/* RESTORED: Your original blue bot logo for the AI messages */}
                           <Bot color="#4285f4" size={28} />
                         </div>
                       )}
@@ -519,7 +561,6 @@ export default function App() {
                   {isTyping && (
                     <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                       <div style={{ flexShrink: 0, marginTop: 4, width: 28, height: 28, display: "flex", justifyContent: "center", alignItems: "center" }}>
-                        {/* Adding the bot logo with a pulse animation for the typing indicator! */}
                         <Bot color="#4285f4" size={28} className="animate-pulse" />
                       </div>
                       <div style={{ paddingTop: 3 }}><ChatLoader /></div>
