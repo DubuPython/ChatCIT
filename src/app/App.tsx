@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Settings, Send, Database, Trash2, LogOut, Bug, CheckCircle, AlertCircle, Info, ArrowLeft, Menu, UserCog, X, MoreVertical } from "lucide-react";
+import { Plus, Settings, Send, Database, Trash2, LogOut, Bug, CheckCircle, AlertCircle, Info, ArrowLeft, Menu, UserCog, X, MoreVertical, Bot } from "lucide-react";
 
 import { AuthScreen } from "../components/authmodal";
 import { AdminPanel } from "../components/admindashboard";
@@ -104,7 +104,9 @@ function CanvasPDFViewer({ fileUrl, dark, onEnlarge, onLoad, isMobile }: { fileU
       <div style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 250, position: 'relative' }}>
         {loading && (
           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}>
-            <div style={{ transform: 'scale(0.4)' }}><GearboxLoader /></div>
+            <div style={{ position: "relative", width: 40, height: 40, display: "flex", justifyContent: "center", alignItems: "center" }}>
+              <div style={{ position: "absolute", transform: 'scale(0.3)' }}><GearboxLoader /></div>
+            </div>
           </div>
         )}
         <canvas ref={canvasRef} onClick={() => { if(canvasRef.current) { try { onEnlarge(canvasRef.current.toDataURL()); } catch(e) {} } }} style={{ width: '100%', height: 'auto', display: 'block', opacity: loading ? 0.3 : 1, transition: 'opacity 0.3s', cursor: 'zoom-in' }} />
@@ -127,10 +129,7 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 768);
   const [appLoading, setAppLoading] = useState(true); 
   const [dark, setDark] = useState(true);
-  
-  // FIXED: Explicitly added "auth" to the union type to fix the Line 448 comparison error
-  const [viewMode, setViewMode] = useState<"auth" | "chat" | "admin">("auth");
-  
+  const [viewMode, setViewMode] = useState<"auth" | "chat" | "admin">("auth"); 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const [chats, setChats] = useState<Chat[]>([]);
@@ -297,8 +296,7 @@ export default function App() {
     const isOpen = gearsRight ? rightRailOpen : sidebarOpen;
     const railStyle: React.CSSProperties = {
       width: RAIL_W, flexShrink: 0, background: bg, 
-      position: isMobile ? "fixed" : "relative",
-      top: 0, bottom: 0,
+      position: "fixed", top: 0, bottom: 0,
       left: !gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
       right: gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
       zIndex: 60, transition: "all 0.3s ease",
@@ -330,10 +328,13 @@ export default function App() {
 
   if (appLoading) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100vh", width: "100vw", background: dark ? "#1c1b22" : "#f8f9fa", alignItems: "center", justifyContent: "center", gap: 30 }}>
-        {/* FIXED: Removed prop and wrapped in div */}
-        <div style={{ transform: 'scale(1.2)' }}><GearboxLoader /></div>
-        <div style={{ color: dark ? "#e8eaed" : "#1a1a2e", fontSize: 14, fontWeight: 700, letterSpacing: "0.2em", marginTop: 20 }}>
+      <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: dark ? "#1c1b22" : "#f8f9fa", alignItems: "center", justifyContent: "center", zIndex: 99999 }}>
+        <div style={{ width: 100, height: 100, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ position: "absolute", transform: 'scale(1.2)' }}>
+            <GearboxLoader />
+          </div>
+        </div>
+        <div style={{ color: dark ? "#e8eaed" : "#1a1a2e", fontSize: 14, fontWeight: 700, letterSpacing: "0.2em", marginTop: 40 }}>
           INITIALIZING SYSTEM...
         </div>
       </div>
@@ -341,7 +342,7 @@ export default function App() {
   }
 
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100%", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary, position: "relative" }}>
+    <div style={{ position: "fixed", top: 0, bottom: 0, left: 0, right: 0, display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary }}>
       
       <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, display: "flex", flexDirection: "column", gap: 10 }}>
         {toasts.map((t: ToastMsg) => (
@@ -387,8 +388,9 @@ export default function App() {
               <div style={{ width: 256, height: "100%", display: "flex", flexDirection: "column" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {/* FIXED: Removed prop and wrapped in div */}
-                    <div style={{ transform: 'scale(0.15)', display: 'flex' }}><GearboxLoader /></div>
+                    <div style={{ width: 24, height: 24, position: "relative", display: "flex", justifyContent: "center", alignItems: "center" }}>
+                      <div style={{ position: "absolute", transform: 'scale(0.15)' }}><GearboxLoader /></div>
+                    </div>
                     <ChatCITLogo dark={dark} onBlue />
                   </div>
                   <button onClick={() => setSidebarOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: sb.muted }}><ArrowLeft size={15} /></button>
@@ -437,18 +439,25 @@ export default function App() {
           )}
 
           <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "relative" }}>
-            <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "14px 16px 0", flexShrink: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}><Menu size={18} /></button>}
-                {/* FIXED: Removed prop and wrapped in div */}
-                {(!isMobile || !sidebarOpen) && <><div style={{ transform: 'scale(0.15)', display: 'flex' }}><GearboxLoader /></div><ChatCITLogo dark={dark} /></>}
+            <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: isMobile ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center" }}><Menu size={22} /></button>}
+                {(!isMobile || !sidebarOpen) && (
+                  <>
+                    <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}>
+                      {/* RESTORED: Your original blue spinning gear for the header */}
+                      <Settings color="#4285f4" className="animate-spin" size={24} />
+                    </div>
+                    <ChatCITLogo dark={dark} />
+                  </>
+                )}
               </div>
               
-             {isMobile && (
-  <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}>
-    <MoreVertical size={20} />
-  </button>
-)}
+              {isMobile && (
+                <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}>
+                  <MoreVertical size={20} />
+                </button>
+              )}
             </header>
 
             <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
@@ -456,10 +465,12 @@ export default function App() {
                 <AdminPanel dark={dark} showToast={showToast} />
               ) : !activeChat || activeChat.messages.length === 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100%", padding: "48px 16px" }}>
-                  <div style={{ transform: isMobile ? "scale(0.65)" : "scale(0.85)" }}>
-                    <GearboxLoader />
+                  <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+                    <div style={{ position: "absolute", transform: isMobile ? "scale(0.65)" : "scale(0.85)" }}>
+                      <GearboxLoader />
+                    </div>
                   </div>
-                  <h1 style={{ fontSize: isMobile ? 24 : 30, fontWeight: 300, color: textPrimary, marginTop: 40, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{currentUser?.id === -1 ? "Guest" : currentUser?.username || currentUser?.email.split('@')[0] || "Bulsuan"}!</strong></h1>
+                  <h1 style={{ fontSize: isMobile ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{currentUser?.id === -1 ? "Guest" : currentUser?.username || currentUser?.email.split('@')[0] || "Bulsuan"}!</strong></h1>
                   <p style={{ color: textMuted, fontSize: 15, marginBottom: 32, textAlign: "center" }}>How can I help you today?</p>
                   
                   {topFaqs.length > 0 && (
@@ -479,8 +490,12 @@ export default function App() {
                 <div style={{ maxWidth: 768, margin: "0 auto", padding: isMobile ? "16px 12px" : "24px 16px", display: "flex", flexDirection: "column", gap: 24 }}>
                   {activeChat.messages.map((msg: Message) => (
                     <div key={msg.id} className="group" style={{ display: "flex", gap: 10, flexDirection: msg.role === "user" ? "row-reverse" : "row", alignItems: "flex-start" }}>
-                      {/* FIXED: Removed prop and wrapped in div */}
-                      {msg.role === "model" && <div style={{ flexShrink: 0, marginTop: 4, transform: 'scale(0.2)' }}><GearboxLoader /></div>}
+                      {msg.role === "model" && (
+                        <div style={{ flexShrink: 0, marginTop: 4, width: 28, height: 28, display: "flex", justifyContent: "center", alignItems: "center" }}>
+                          {/* RESTORED: Your original blue bot logo for the AI messages */}
+                          <Bot color="#4285f4" size={28} />
+                        </div>
+                      )}
                       {msg.role === "user" && <div style={{ flexShrink: 0, marginTop: 2 }}><Avatar name={currentUser?.username || currentUser?.email || "U"} size={28} bg="#7c3aed" /></div>}
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: isMobile ? "90%" : "82%", alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
                         {msg.role === "user" ? (
@@ -503,8 +518,10 @@ export default function App() {
                   
                   {isTyping && (
                     <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                      {/* FIXED: Removed prop and wrapped in div */}
-                      <div style={{ flexShrink: 0, marginTop: 4, transform: 'scale(0.2)' }}><GearboxLoader /></div>
+                      <div style={{ flexShrink: 0, marginTop: 4, width: 28, height: 28, display: "flex", justifyContent: "center", alignItems: "center" }}>
+                        {/* Adding the bot logo with a pulse animation for the typing indicator! */}
+                        <Bot color="#4285f4" size={28} className="animate-pulse" />
+                      </div>
                       <div style={{ paddingTop: 3 }}><ChatLoader /></div>
                     </div>
                   )}
