@@ -7,4 +7,4 @@ export const MID_CHOICES   = ["+ New chat", "Change taskbar mode"];
 // export const API_URL = "http://localhost:5000/api";
 
 // To this:
-export const API_URL = "https://chatcit-backend-xyz.onrender.com/api";
+export const API_URL = "https://chatcit-backend.onrender.com/api";
