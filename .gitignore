@@ -1,0 +1,11 @@
+# Node modules
+node_modules/
+ChatCIT-Frontend/node_modules/
+ChatCIT-Backend/node_modules/
+
+# Environment variables
+.env
+ChatCIT-Backend/.env
+
+# Database files (Optional: prevents uploading test data)
+chatcit.db
