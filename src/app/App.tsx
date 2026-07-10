@@ -392,7 +392,7 @@ export default function App() {
               top: 0, 
               bottom: 0, 
               left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : "auto", 
-              marginLeft: !isMobile && !sidebarOpen ? -RAIL_W : 0, // This gracefully hides the sidebar on desktop!
+              marginLeft: !isMobile && !sidebarOpen ? -RAIL_W : 0,
               zIndex: 60, 
               transition: "all 0.3s ease", 
               boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", 
@@ -402,7 +402,6 @@ export default function App() {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}>
-                      {/* RESTORED: The original blue spinning gear inside the normal sidebar! */}
                       <Settings color="#4285f4" className="animate-spin" style={{ animationDuration: '3s' }} size={24} />
                     </div>
                     <ChatCITLogo dark={dark} onBlue />
@@ -459,20 +458,19 @@ export default function App() {
             overflow: "hidden", 
             minWidth: 0, 
             position: "relative",
-            // This padding protects the chat area from sliding under the fixed rails on desktop!
+            // FIXED: The Right Rail is permanently fixed to the right side on Desktop! 
+            // So we MUST always pad the right side of the main container, regardless of gearMode.
             paddingLeft: gearMode && !isMobile ? RAIL_W : 0,
-            paddingRight: gearMode && !isMobile ? RAIL_W : 0,
+            paddingRight: !isMobile ? RAIL_W : 0,
           }}>
             <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: isMobile ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 10 }}>
               
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {/* Shows hamburger on mobile OR on desktop if normal sidebar is closed */}
                 {(isMobile || (!gearMode && !sidebarOpen)) && (
                   <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center" }}>
                     <Menu size={22} />
                   </button>
                 )}
-                {/* Shows logo on left ONLY in normal mode, and ONLY when the sidebar is hidden (to prevent duplicate logos) */}
                 {(!gearMode && (isMobile || !sidebarOpen)) && (
                   <>
                     <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -483,7 +481,6 @@ export default function App() {
                 )}
               </div>
               
-              {/* Perfectly centers the Logo in the middle of the screen when Gear Mode is active */}
               {gearMode && (
                 <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -493,7 +490,6 @@ export default function App() {
                 </div>
               )}
               
-              {/* Mobile Right Rail Toggle */}
               <div style={{ display: "flex", alignItems: "center" }}>
                 {isMobile && (
                   <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}>
