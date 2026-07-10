@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Settings, Send, Database, Trash2, LogOut, Bug, CheckCircle, AlertCircle, Info, ArrowLeft, Menu, UserCog, X } from "lucide-react";
+import { Plus, Settings, Send, Database, Trash2, LogOut, Bug, CheckCircle, AlertCircle, Info, ArrowLeft, Menu, UserCog, X, MoreVertical } from "lucide-react";
 
 import { AuthScreen } from "../components/authmodal";
 import { AdminPanel } from "../components/admindashboard";
@@ -7,7 +7,7 @@ import { ProfileModal } from "../components/modals/profilemodal";
 import { BugModal } from "../components/modals/bugsmodal";
 
 import { 
-  SpinningGear, ChatCITLogo, Avatar, MarkdownText, GearAbs, DayNightToggle, GearboxLoader,
+  ChatCITLogo, Avatar, MarkdownText, GearAbs, DayNightToggle, GearboxLoader,
   RATIO, N_SM, OR_SM, CENTER_D, TOP_H, GEAR_VIS, RAIL_W, STEP_DEG, OR_LG,
   PANEL_W, IR_SM, IR_LG, N_LG
 } from "../components/ui/helpers";
@@ -103,8 +103,8 @@ function CanvasPDFViewer({ fileUrl, dark, onEnlarge, onLoad, isMobile }: { fileU
       </div>
       <div style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 250, position: 'relative' }}>
         {loading && (
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) scale(0.4)', zIndex: 10 }}>
-            <GearboxLoader />
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}>
+            <div style={{ transform: 'scale(0.4)' }}><GearboxLoader /></div>
           </div>
         )}
         <canvas ref={canvasRef} onClick={() => { if(canvasRef.current) { try { onEnlarge(canvasRef.current.toDataURL()); } catch(e) {} } }} style={{ width: '100%', height: 'auto', display: 'block', opacity: loading ? 0.3 : 1, transition: 'opacity 0.3s', cursor: 'zoom-in' }} />
@@ -113,7 +113,6 @@ function CanvasPDFViewer({ fileUrl, dark, onEnlarge, onLoad, isMobile }: { fileU
   );
 }
 
-// --- <LOADING/> CHAT COMPONENT ---
 function ChatLoader() {
   return (
     <div className="chat-loader">
@@ -125,12 +124,13 @@ function ChatLoader() {
 }
 
 export default function App() {
-  // --- RESPONSIVE ENGINE STATE ---
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 768);
-
   const [appLoading, setAppLoading] = useState(true); 
   const [dark, setDark] = useState(true);
-  const [viewMode, setViewMode] = useState<"auth" | "chat" | "admin">("auth"); 
+  
+  // FIXED: Explicitly added "auth" to the union type to fix the Line 448 comparison error
+  const [viewMode, setViewMode] = useState<"auth" | "chat" | "admin">("auth");
+  
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const [chats, setChats] = useState<Chat[]>([]);
@@ -140,8 +140,8 @@ export default function App() {
   
   const [fullScreenMedia, setFullScreenMedia] = useState<string | null>(null);
 
-  // Default sidebar state depends on whether it loads on mobile or desktop
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  const [rightRailOpen, setRightRailOpen] = useState(false); 
   const [gearMode, setGearMode] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showBugModal, setShowBugModal] = useState(false);
@@ -162,15 +162,14 @@ export default function App() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const activeChat = chats.find((c) => c.id === activeChatId) ?? null;
 
-  // --- RESPONSIVE EVENT LISTENER ---
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
       if (mobile && sidebarOpen) {
-         setSidebarOpen(false); // Auto-collapse when snapping to mobile
+         setSidebarOpen(false); 
       } else if (!mobile && !sidebarOpen) {
-         setSidebarOpen(true); // Auto-open when snapping back to desktop
+         setSidebarOpen(true); 
       }
     };
     window.addEventListener("resize", handleResize);
@@ -285,18 +284,30 @@ export default function App() {
 
     const panels = gearsRight
       ? [
-          { y: y1, label: "Organizations", value: ORGANIZATIONS[orgIdx], onPick: () => sendMessage(`Tell me about ${ORGANIZATIONS[orgIdx]}`), onGear: () => { setRightAngle(a => a + STEP_DEG); setOrgIdx(i => (i + 1) % ORGANIZATIONS.length); } },
-          { y: y2, label: "Majors", value: MAJORS[majIdx], onPick: () => sendMessage(`Tell me about the ${MAJORS[majIdx]} program`), onGear: () => { setRightAngle(a => a + STEP_DEG); setMajIdx(i => (i + 1) % MAJORS.length); } },
-          { y: y3, label: "Documents", value: DOCUMENTS[docIdx], onPick: () => { sendMessage(`Show me the ${DOCUMENTS[docIdx]}`); }, onGear: () => { setRightAngle(a => a + STEP_DEG); setDocIdx(i => (i + 1) % DOCUMENTS.length); } },
+          { y: y1, label: "Organizations", value: ORGANIZATIONS[orgIdx], onPick: () => { sendMessage(`Tell me about ${ORGANIZATIONS[orgIdx]}`); if(isMobile) setRightRailOpen(false); }, onGear: () => { setRightAngle(a => a + STEP_DEG); setOrgIdx(i => (i + 1) % ORGANIZATIONS.length); } },
+          { y: y2, label: "Majors", value: MAJORS[majIdx], onPick: () => { sendMessage(`Tell me about the ${MAJORS[majIdx]} program`); if(isMobile) setRightRailOpen(false); }, onGear: () => { setRightAngle(a => a + STEP_DEG); setMajIdx(i => (i + 1) % MAJORS.length); } },
+          { y: y3, label: "Documents", value: DOCUMENTS[docIdx], onPick: () => { sendMessage(`Show me the ${DOCUMENTS[docIdx]}`); if(isMobile) setRightRailOpen(false); }, onGear: () => { setRightAngle(a => a + STEP_DEG); setDocIdx(i => (i + 1) % DOCUMENTS.length); } },
         ]
       : [
-          { y: y1, label: "Quick Prompts", value: QUICK_PROMPTS[quickIdx], onPick: () => sendMessage(QUICK_PROMPTS[quickIdx]), onGear: () => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => (i + 1) % QUICK_PROMPTS.length); } },
-          { y: y2, label: "", value: MID_CHOICES[midIdx], onPick: () => { if (midIdx === 0) { setActiveChatId(null); setViewMode("chat"); } else setGearMode(g => !g); }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setMidIdx(i => (i + 1) % MID_CHOICES.length); }, mid: true },
-          { y: y3, label: "Recent", value: chats.length > 0 ? chats[recentsIdx].title : "No chats", onPick: () => { if(chats.length) { setActiveChatId(chats[recentsIdx].id); setViewMode("chat"); } }, onGear: () => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => (i + 1) % chats.length); }, sub: chats.length > 0 ? "Past Conversation" : "" },
+          { y: y1, label: "Quick Prompts", value: QUICK_PROMPTS[quickIdx], onPick: () => { sendMessage(QUICK_PROMPTS[quickIdx]); if(isMobile) setSidebarOpen(false); }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => (i + 1) % QUICK_PROMPTS.length); } },
+          { y: y2, label: "", value: MID_CHOICES[midIdx], onPick: () => { if (midIdx === 0) { setActiveChatId(null); setViewMode("chat"); } else setGearMode(g => !g); if(isMobile) setSidebarOpen(false); }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setMidIdx(i => (i + 1) % MID_CHOICES.length); }, mid: true },
+          { y: y3, label: "Recent", value: chats.length > 0 ? chats[recentsIdx].title : "No chats", onPick: () => { if(chats.length) { setActiveChatId(chats[recentsIdx].id); setViewMode("chat"); if(isMobile) setSidebarOpen(false); } }, onGear: () => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => (i + 1) % chats.length); }, sub: chats.length > 0 ? "Past Conversation" : "" },
         ];
 
+    const isOpen = gearsRight ? rightRailOpen : sidebarOpen;
+    const railStyle: React.CSSProperties = {
+      width: RAIL_W, flexShrink: 0, background: bg, 
+      position: isMobile ? "fixed" : "relative",
+      top: 0, bottom: 0,
+      left: !gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
+      right: gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
+      zIndex: 60, transition: "all 0.3s ease",
+      boxShadow: isMobile && isOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none",
+      overflow: "hidden"
+    };
+
     return (
-      <aside style={{ width: isMobile && gearsRight ? 0 : RAIL_W, flexShrink: 0, background: bg, position: "relative", overflow: "hidden", display: isMobile && gearsRight ? "none" : "block" }}>
+      <aside style={railStyle}>
         <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, ...(gearsRight ? { right: 0 } : { left: 0 }) }}>
           <GearAbs id={`g-${side}-top`} side={side} OR={OR_SM} IR={IR_SM} n={N_SM} tint={grayTint} holeColor={bg} centerY={y1} rotation={r.sm} onClick={panels[0].onGear} />
           <GearAbs id={`g-${side}-mid`} side={side} OR={OR_LG} IR={IR_LG} n={N_LG} tint={blueTint} holeColor={bg} centerY={y2} rotation={r.mid} onClick={panels[1].onGear} />
@@ -320,7 +331,8 @@ export default function App() {
   if (appLoading) {
     return (
       <div style={{ display: "flex", flexDirection: "column", height: "100vh", width: "100vw", background: dark ? "#1c1b22" : "#f8f9fa", alignItems: "center", justifyContent: "center", gap: 30 }}>
-        <GearboxLoader />
+        {/* FIXED: Removed prop and wrapped in div */}
+        <div style={{ transform: 'scale(1.2)' }}><GearboxLoader /></div>
         <div style={{ color: dark ? "#e8eaed" : "#1a1a2e", fontSize: 14, fontWeight: 700, letterSpacing: "0.2em", marginTop: 20 }}>
           INITIALIZING SYSTEM...
         </div>
@@ -331,7 +343,6 @@ export default function App() {
   return (
     <div style={{ display: "flex", height: "100vh", width: "100%", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary, position: "relative" }}>
       
-      {/* Toast Notifications */}
       <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, display: "flex", flexDirection: "column", gap: 10 }}>
         {toasts.map((t: ToastMsg) => (
           <div key={t.id} style={{ background: dark ? '#25242c' : '#fff', border: `1px solid ${t.type === 'error' ? '#ef4444' : t.type === 'success' ? '#10b981' : '#4285f4'}`, color: textPrimary, padding: "12px 16px", borderRadius: 8, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.2)", fontSize: 14, fontWeight: 500, minWidth: 280, animation: "badgePop 0.3s cubic-bezier(0.2, 1.5, 0.5, 1)" }}>
@@ -343,7 +354,6 @@ export default function App() {
         ))}
       </div>
 
-      {/* Fullscreen Media Overlay */}
       {fullScreenMedia && (
         <div onClick={() => setFullScreenMedia(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', padding: 24 }}>
           <img src={fullScreenMedia} alt="Fullscreen View" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }} />
@@ -351,12 +361,11 @@ export default function App() {
         </div>
       )}
 
-      {/* MOBILE DIMMED OVERLAY FOR SIDEBAR */}
-      {isMobile && sidebarOpen && !gearMode && (
-        <div 
-          onClick={() => setSidebarOpen(false)} 
-          style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} 
-        />
+      {isMobile && sidebarOpen && (
+        <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />
+      )}
+      {isMobile && rightRailOpen && (
+        <div onClick={() => setRightRailOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />
       )}
 
       {viewMode === "auth" ? (
@@ -368,16 +377,20 @@ export default function App() {
               <Avatar name={currentUser?.username || currentUser?.email || "User"} size={30} bg="#7c3aed" />
               <div style={{ fontSize: 13, fontWeight: 600, color: textPrimary, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentUser?.username || currentUser?.email.split('@')[0]}</div>
               {currentUser?.id !== -1 && <button onClick={() => setShowProfileModal(true)} style={{ color: textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Edit Profile"><UserCog size={15} /></button>}
-              {currentUser?.role === 'admin' && <button onClick={() => setViewMode(viewMode === 'admin' ? 'chat' : 'admin')} style={{ color: viewMode === "admin" ? "#4285f4" : textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Admin Panel"><Database size={15} /></button>}
+              {currentUser?.role === 'admin' && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(isMobile) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#4285f4" : textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Admin Panel"><Database size={15} /></button>}
               <button onClick={handleLogout} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Logout"><LogOut size={15} /></button>
             </div>
           )}
 
           {!gearMode && (
-            <aside style={{ width: sidebarOpen ? 256 : 0, flexShrink: 0, background: sbBg, overflow: "hidden", display: "flex", flexDirection: "column", transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)", position: isMobile ? "fixed" : "relative", zIndex: 50, height: "100%", boxShadow: isMobile && sidebarOpen ? "4px 0 24px rgba(0,0,0,0.5)" : "none" }}>
+            <aside style={{ width: RAIL_W, flexShrink: 0, background: sbBg, position: isMobile ? "fixed" : "relative", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
               <div style={{ width: 256, height: "100%", display: "flex", flexDirection: "column" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}><SpinningGear size={18} color="#c0dcff" /><ChatCITLogo dark={dark} onBlue /></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {/* FIXED: Removed prop and wrapped in div */}
+                    <div style={{ transform: 'scale(0.15)', display: 'flex' }}><GearboxLoader /></div>
+                    <ChatCITLogo dark={dark} onBlue />
+                  </div>
                   <button onClick={() => setSidebarOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: sb.muted }}><ArrowLeft size={15} /></button>
                 </div>
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -424,9 +437,20 @@ export default function App() {
           )}
 
           <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "relative" }}>
-            <header style={{ display: "flex", alignItems: "center", height: TOP_H, padding: "14px 16px 0", flexShrink: 0 }}>
-              {gearMode ? ( <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}><SpinningGear size={22} color="#4285f4" /><ChatCITLogo dark={dark} size={24} /></div> ) : ( <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10 }}>{!sidebarOpen && <button onClick={() => setSidebarOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}><Menu size={18} /></button>}{!sidebarOpen && <><SpinningGear size={18} color="#4285f4" /><ChatCITLogo dark={dark} /></>}</div> )}
+            <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "14px 16px 0", flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {isMobile && <button onClick={() => setSidebarOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}><Menu size={18} /></button>}
+                {/* FIXED: Removed prop and wrapped in div */}
+                {(!isMobile || !sidebarOpen) && <><div style={{ transform: 'scale(0.15)', display: 'flex' }}><GearboxLoader /></div><ChatCITLogo dark={dark} /></>}
+              </div>
+              
+             {isMobile && (
+  <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}>
+    <MoreVertical size={20} />
+  </button>
+)}
             </header>
+
             <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
               {viewMode === "admin" ? (
                 <AdminPanel dark={dark} showToast={showToast} />
@@ -455,7 +479,8 @@ export default function App() {
                 <div style={{ maxWidth: 768, margin: "0 auto", padding: isMobile ? "16px 12px" : "24px 16px", display: "flex", flexDirection: "column", gap: 24 }}>
                   {activeChat.messages.map((msg: Message) => (
                     <div key={msg.id} className="group" style={{ display: "flex", gap: 10, flexDirection: msg.role === "user" ? "row-reverse" : "row", alignItems: "flex-start" }}>
-                      {msg.role === "model" && <div style={{ flexShrink: 0, marginTop: 2 }}><SpinningGear size={22} color="#4285f4" /></div>}
+                      {/* FIXED: Removed prop and wrapped in div */}
+                      {msg.role === "model" && <div style={{ flexShrink: 0, marginTop: 4, transform: 'scale(0.2)' }}><GearboxLoader /></div>}
                       {msg.role === "user" && <div style={{ flexShrink: 0, marginTop: 2 }}><Avatar name={currentUser?.username || currentUser?.email || "U"} size={28} bg="#7c3aed" /></div>}
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: isMobile ? "90%" : "82%", alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
                         {msg.role === "user" ? (
@@ -478,7 +503,8 @@ export default function App() {
                   
                   {isTyping && (
                     <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                      <div style={{ flexShrink: 0, marginTop: 2 }}><SpinningGear size={22} color="#4285f4" /></div>
+                      {/* FIXED: Removed prop and wrapped in div */}
+                      <div style={{ flexShrink: 0, marginTop: 4, transform: 'scale(0.2)' }}><GearboxLoader /></div>
                       <div style={{ paddingTop: 3 }}><ChatLoader /></div>
                     </div>
                   )}
