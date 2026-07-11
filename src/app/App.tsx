@@ -129,10 +129,45 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 768);
   const [appLoading, setAppLoading] = useState(true); 
   const [dark, setDark] = useState(true);
-  const [viewMode, setViewMode] = useState<"auth" | "chat" | "admin">("auth"); 
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  
+  // LocalStorage state management to persist session upon refresh
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('chatcit_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [viewMode, setViewMode] = useState<"auth" | "chat" | "admin">(() => {
+    const saved = localStorage.getItem('chatcit_viewMode');
+    return (saved as "auth" | "chat" | "admin") || "auth";
+  });
+  const [chats, setChats] = useState<Chat[]>(() => {
+    const saved = localStorage.getItem('chatcit_chats');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.map((c: any) => ({
+          ...c,
+          timestamp: new Date(c.timestamp),
+          messages: c.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }))
+        }));
+      } catch (e) { return []; }
+    }
+    return [];
+  });
 
-  const [chats, setChats] = useState<Chat[]>([]);
+  // Sync state to local storage when it changes
+  useEffect(() => {
+    if (currentUser) localStorage.setItem('chatcit_user', JSON.stringify(currentUser));
+    else localStorage.removeItem('chatcit_user');
+  }, [currentUser]);
+
+  useEffect(() => {
+    localStorage.setItem('chatcit_viewMode', viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    localStorage.setItem('chatcit_chats', JSON.stringify(chats));
+  }, [chats]);
+
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -258,7 +293,6 @@ export default function App() {
       const mMsg: Message = { id: `msg-${Date.now()}`, role: "model", content: data.reply || "Sorry, I encountered an error communicating with my database.", timestamp: new Date(), picture: data.picture };
       setChats((p) => p.map((c) => c.id === chatId ? { ...c, messages: [...c.messages, mMsg] } : c));
     } catch (error: any) {
-      // Handles Rate Limiting errors from the backend gracefully
       const errorMessage = error.message === "Unexpected end of JSON input" || error.message.includes("failed") 
         ? "⚠️ Connection failed. Is the Node.js backend server running?" 
         : `⚠️ ${error.message}`;
@@ -277,7 +311,13 @@ export default function App() {
   };
 
   const handleLogout = () => { 
-    setCurrentUser(null); setChats([]); setActiveChatId(null); setViewMode("auth"); 
+    setCurrentUser(null); 
+    setChats([]); 
+    setActiveChatId(null); 
+    setViewMode("auth"); 
+    localStorage.removeItem('chatcit_user');
+    localStorage.removeItem('chatcit_chats');
+    localStorage.removeItem('chatcit_viewMode');
     showToast("Logged out successfully.", "info");
   };
 
@@ -528,7 +568,8 @@ export default function App() {
                   
                   {topFaqs.length > 0 && (
                     <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, maxWidth: 700 }}>
-                      {topFaqs.map((faq, idx) => {
+                      {/* Only renders top 3 if on Mobile, otherwise renders all 5 */}
+                      {topFaqs.slice(0, isMobile ? 3 : topFaqs.length).map((faq, idx) => {
                         const primaryTag = faq.keyword ? faq.keyword.split(',')[0].trim() : "Question";
                         return (
                           <button key={idx} onClick={() => sendMessage(primaryTag)} style={{ padding: "10px 18px", borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? "rgba(255,255,255,0.03)" : "#fff", color: textPrimary, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s ease" }} onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.08)" : "#f8fafc"} onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.03)" : "#fff"}>
