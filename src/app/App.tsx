@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Settings, Send, Database, Trash2, LogOut, Bug, CheckCircle, AlertCircle, Info, ArrowLeft, Menu, UserCog, X, MoreVertical, Bot } from "lucide-react";
+import { Plus, Settings, Send, Database, Trash2, LogOut, Bug, CheckCircle, AlertCircle, Info, ArrowLeft, Menu, UserCog, X, MoreVertical, Bot, Copy } from "lucide-react";
 
 import { AuthScreen } from "../components/authmodal";
 import { AdminPanel } from "../components/admindashboard";
@@ -136,6 +136,7 @@ export default function App() {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   
   const [fullScreenMedia, setFullScreenMedia] = useState<string | null>(null);
 
@@ -187,6 +188,12 @@ export default function App() {
   };
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
+
+  const handleCopy = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   useEffect(() => {
     fetch(`${API_URL}/faqs/top`).then(res => res.json()).then(data => setTopFaqs(data)).catch(() => {});
@@ -244,10 +251,19 @@ export default function App() {
       });
       const data = await response.json();
       
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
       const mMsg: Message = { id: `msg-${Date.now()}`, role: "model", content: data.reply || "Sorry, I encountered an error communicating with my database.", timestamp: new Date(), picture: data.picture };
       setChats((p) => p.map((c) => c.id === chatId ? { ...c, messages: [...c.messages, mMsg] } : c));
-    } catch (error) {
-      const errorMsg: Message = { id: `msg-${Date.now()}`, role: "model", content: "⚠️ Connection failed. Is the Node.js backend server running?", timestamp: new Date() };
+    } catch (error: any) {
+      // Handles Rate Limiting errors from the backend gracefully
+      const errorMessage = error.message === "Unexpected end of JSON input" || error.message.includes("failed") 
+        ? "⚠️ Connection failed. Is the Node.js backend server running?" 
+        : `⚠️ ${error.message}`;
+        
+      const errorMsg: Message = { id: `msg-${Date.now()}`, role: "model", content: errorMessage, timestamp: new Date() };
       setChats((p) => p.map((c) => c.id === chatId ? { ...c, messages: [...c.messages, errorMsg] } : c));
     } finally {
       setIsTyping(false);
@@ -458,8 +474,6 @@ export default function App() {
             overflow: "hidden", 
             minWidth: 0, 
             position: "relative",
-            // FIXED: The Right Rail is permanently fixed to the right side on Desktop! 
-            // So we MUST always pad the right side of the main container, regardless of gearMode.
             paddingLeft: gearMode && !isMobile ? RAIL_W : 0,
             paddingRight: !isMobile ? RAIL_W : 0,
           }}>
@@ -548,6 +562,16 @@ export default function App() {
                                 <img src={msg.picture} alt="Reference" onClick={() => setFullScreenMedia(msg.picture!)} onLoad={scrollToBottom} style={{ marginTop: 8, maxWidth: isMobile ? '100%' : 380, maxHeight: 480, objectFit: 'contain', borderRadius: 8, border: `1px solid ${dark ? '#334155' : '#e2e8f0'}`, cursor: 'zoom-in' }} />
                               )
                             )}
+                            
+                            <div style={{ marginTop: 6, display: "flex" }}>
+                              <button 
+                                onClick={() => handleCopy(msg.content, msg.id)}
+                                style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: "none", color: textMuted, fontSize: 12, fontWeight: 500, cursor: "pointer", transition: "color 0.2s" }}
+                              >
+                                {copiedId === msg.id ? <CheckCircle size={14} color="#10b981" /> : <Copy size={14} />}
+                                {copiedId === msg.id ? <span style={{ color: "#10b981" }}>Copied!</span> : "Copy"}
+                              </button>
+                            </div>
                           </> 
                         )}
                       </div>
