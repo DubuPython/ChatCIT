@@ -31,8 +31,8 @@ export function AdminPanel({ dark, showToast }: { dark: boolean, showToast: (msg
     onConfirm: (val?: string) => void
   }>({ isOpen: false, type: 'confirm', title: '', message: '', inputValue: '', onConfirm: () => {} });
 
-  const CLOUD_NAME = "YOUR_CLOUD_NAME";       
-  const UPLOAD_PRESET = "YOUR_UPLOAD_PRESET"; 
+  const CLOUD_NAME = "xjzuq0fq";       
+  const UPLOAD_PRESET = "chatcit_preset"; 
 
   const fetchData = async () => {
     try {
