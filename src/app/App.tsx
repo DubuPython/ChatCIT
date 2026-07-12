@@ -21,8 +21,27 @@ declare global {
   }
 }
 
-// --- DYNAMIC COSMIC CSS STYLES (ENHANCED VISIBILITY FOR LIGHT MODE) ---
-const getCosmicStyles = (dark: boolean) => `
+// --- DYNAMIC GLOBAL & COSMIC CSS STYLES ---
+const getGlobalStyles = (dark: boolean) => `
+/* -- ADMIN DASHBOARD TABLE HEADER FIX -- */
+thead th {
+  position: sticky;
+  top: 0;
+  background-color: ${dark ? '#1c1b22' : '#f9fafb'} !important;
+  z-index: 20;
+  box-shadow: 0 1px 2px ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'};
+}
+
+/* -- GEARBOX LOADER LIGHT/DARK MODE FIX -- */
+.gearbox {
+  background: ${dark ? '#111' : '#e2e8f0'} !important;
+  box-shadow: 0px 0px 0px 1px ${dark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'} !important;
+}
+.gearbox .overlay {
+  box-shadow: inset 0px 0px 20px ${dark ? 'black' : 'rgba(0,0,0,0.1)'} !important;
+}
+
+/* -- COSMIC INPUT BAR -- */
 .cosmic-wrapper {
   position: relative; width: 100%; border-radius: 10px; isolation: isolate;
 }
@@ -169,8 +188,7 @@ function CanvasPDFViewer({ fileUrl, dark, onEnlarge, onLoad, isMobile }: { fileU
       <div style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 250, position: 'relative' }}>
         {loading && (
           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}>
-            {/* FORCE DARK GREY IN LIGHT MODE */}
-            <div style={{ position: "relative", width: 40, height: 40, display: "flex", justifyContent: "center", alignItems: "center", filter: dark ? 'none' : 'brightness(0.1) opacity(0.7)' }}>
+            <div style={{ position: "relative", width: 40, height: 40, display: "flex", justifyContent: "center", alignItems: "center" }}>
               <div style={{ position: "absolute", transform: 'scale(0.3)' }}><GearboxLoader /></div>
             </div>
           </div>
@@ -326,7 +344,8 @@ export default function App() {
 
   useEffect(() => { if (viewMode === "chat") scrollToBottom(); }, [activeChat?.messages, isTyping, viewMode]);
 
-  const bg = dark ? "#1c1b22" : "#f8f9fa";
+  // FIXED: Adjusted to a warmer, premium light-mode off-white background
+  const bg = dark ? "#1c1b22" : "#f9fafb";
   const sbBg = dark ? "#0d2460" : "#1558d6";
   const textPrimary = dark ? "#e8eaed" : "#1a1a2e";
   const textMuted = dark ? "#9aa0a6" : "#6b7280";
@@ -472,10 +491,7 @@ export default function App() {
       <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: dark ? "#1c1b22" : "#f8f9fa", alignItems: "center", justifyContent: "center", zIndex: 99999 }}>
         <div style={{ width: 100, height: 100, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ position: "absolute", transform: 'scale(1.2)' }}>
-            {/* FORCE DARK GREY IN LIGHT MODE */}
-            <div style={{ filter: dark ? 'none' : 'brightness(0.1) opacity(0.7)' }}>
-              <GearboxLoader />
-            </div>
+            <GearboxLoader />
           </div>
         </div>
         <div style={{ color: dark ? "#e8eaed" : "#1a1a2e", fontSize: 14, fontWeight: 700, letterSpacing: "0.2em", marginTop: 40 }}>
@@ -488,8 +504,8 @@ export default function App() {
   return (
     <div style={{ position: "fixed", top: 0, bottom: 0, left: 0, right: 0, display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary }}>
       
-      {/* INJECTED CSS FOR THE COSMIC INPUT BAR */}
-      <style>{getCosmicStyles(dark)}</style>
+      {/* INJECTED CSS FOR THE COSMIC INPUT BAR & GLOBAL FIXES */}
+      <style>{getGlobalStyles(dark)}</style>
 
       {/* AUTHENTICATION POPUP OVERLAY */}
       {showAuthPopup && (
@@ -573,7 +589,8 @@ export default function App() {
             boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", 
             overflow: "hidden" 
           }}>
-            <div style={{ width: 256, height: "100%", display: "flex", flexDirection: "column" }}>
+            {/* FIXED: Removed fixed 256px width to stop dead space on the right side */}
+            <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -585,9 +602,15 @@ export default function App() {
               </div>
               <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                 <div style={{ padding: "12px 12px 0 12px", display: "flex", flexDirection: "column", height: "100%", overflowY: "auto" }}>
-                  <button onClick={() => {setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false);}} style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", marginBottom: 32, borderRadius: 12, border: "none", cursor: "pointer", background: "rgba(255,255,255,0.12)", color: sb.text, fontSize: 13, fontWeight: 500 }}>
+                  <button onClick={() => {setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false);}} style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", marginBottom: 12, borderRadius: 12, border: "none", cursor: "pointer", background: "rgba(255,255,255,0.12)", color: sb.text, fontSize: 13, fontWeight: 500 }}>
                     <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}><Plus size={13} /></div>New chat
                   </button>
+                  
+                  {/* FIXED: Taskbar toggle moved directly under the New Chat button */}
+                  <button onClick={() => { setGearMode(true); if(isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", marginBottom: 32, borderRadius: 12, border: `1px solid ${sb.border}`, background: "transparent", color: sb.text, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+                    <Settings size={14} /> Change taskbar mode
+                  </button>
+
                   <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Quick Prompts</span></div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 24 }}>
                     {QUICK_PROMPTS.map((lbl: string) => (
@@ -608,8 +631,6 @@ export default function App() {
                 </div>
               </div>
               <div style={{ padding: "16px 12px 18px", borderTop: `1px solid ${sb.border}`, flexShrink: 0 }}>
-                <button onClick={() => { setGearMode(true); if(isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "9px 12px", borderRadius: 12, border: `1px solid ${sb.border}`, background: "transparent", color: sb.text, fontSize: 12, cursor: "pointer", marginBottom: 14 }}><Settings size={12} /> Change taskbar mode</button>
-                
                 {currentUser?.id === -1 ? (
                   <div style={{ display: "flex", gap: 8, width: "100%" }}>
                     <button onClick={() => { setAuthMode("login"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "#fff", color: "#1a1a2e", fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", transition: "opacity 0.2s" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.9"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Log in</button>
@@ -687,9 +708,7 @@ export default function App() {
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100%", padding: "48px 16px" }}>
                 <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
                   <div style={{ position: "absolute", transform: isMobile ? "scale(0.65)" : "scale(0.85)" }}>
-                    <div style={{ filter: dark ? 'none' : 'brightness(0.1) opacity(0.7)' }}>
-                      <GearboxLoader />
-                    </div>
+                    <GearboxLoader />
                   </div>
                 </div>
                 <h1 style={{ fontSize: isMobile ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{currentUser?.id === -1 ? "Guest" : currentUser?.username || currentUser?.email?.split('@')[0] || "Bulsuan"}!</strong></h1>
@@ -812,13 +831,13 @@ export default function App() {
                         </svg>
                       </button>
                       <div className="cosmic-search-icon">
-                        <svg strokeLinejoin="round" strokeLinecap="round" strokeWidth={2} stroke="url(#cosmic-search)" fill="none" height={24} width={24} viewBox="0 0 24 24">
+                        <svg strokeLinejoin="round" strokeLinecap="round" strokeWidth={2} stroke={dark ? "url(#cosmic-search)" : "#3b82f6"} fill="none" height={24} width={24} viewBox="0 0 24 24">
                           <circle r={8} cy={11} cx={11} />
                           <line y2="16.65" x2="16.65" y1={21} x1={21} />
                           <defs>
                             <linearGradient gradientTransform="rotate(45)" id="cosmic-search">
-                              <stop stopColor={dark ? "#a9c7ff" : "#3b82f6"} offset="0%" />
-                              <stop stopColor={dark ? "#6e8cff" : "#1d4ed8"} offset="100%" />
+                              <stop stopColor="#a9c7ff" offset="0%" />
+                              <stop stopColor="#6e8cff" offset="100%" />
                             </linearGradient>
                           </defs>
                         </svg>
