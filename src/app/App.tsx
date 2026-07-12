@@ -17,8 +17,17 @@ import { QUICK_PROMPTS, ORGANIZATIONS, MAJORS, DOCUMENTS, MID_CHOICES, API_URL }
 
 const getGlobalStyles = (dark: boolean) => `
 /* -- ADMIN DASHBOARD TABLE HEADER FIX -- */
+/* Strips overflow from inner table wrappers so vertical sticky positioning can function */
+div:has(table):not(#chat-scroll-container) {
+  overflow: visible !important;
+}
+
 thead th {
-  position: sticky; top: 0; background-color: ${dark ? '#1c1b22' : '#ffffff'} !important; z-index: 10; box-shadow: 0 1px 2px ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'};
+  position: sticky !important; 
+  top: 0 !important; 
+  background-color: ${dark ? '#1c1b22' : '#ffffff'} !important; 
+  z-index: 40 !important; 
+  box-shadow: 0 2px 4px ${dark ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.05)'} !important;
 }
 
 /* -- NATIVE LIGHT MODE OVERRIDES FOR THE GEARBOX -- */
@@ -154,7 +163,6 @@ export default function App() {
 
   useEffect(() => { if (viewMode === "chat") scrollToBottom(); }, [activeChat?.messages, isTyping, viewMode]);
 
-  // Premium Light Mode off-white background instead of pure #ffffff
   const bg = dark ? "#1c1b22" : "#f4f5f7";
   const sbBg = dark ? "#0d2460" : "#1558d6";
   const textPrimary = dark ? "#e8eaed" : "#1a1a2e";
@@ -379,8 +387,6 @@ export default function App() {
               </div>
               <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                 <div style={{ padding: "12px 12px 0 12px", display: "flex", flexDirection: "column", height: "100%", overflowY: "auto" }}>
-                  
-                  {/* GROUPED: New Chat & Taskbar Mode */}
                   <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
                     <button onClick={() => {setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false);}} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer", background: dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.25)", color: sb.text, fontSize: 13, fontWeight: 500, boxShadow: dark ? "none" : "0 2px 5px rgba(0,0,0,0.05)" }}>
                       <div style={{ width: 22, height: 22, borderRadius: "50%", background: dark ? "rgba(255,255,255,0.18)" : "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", color: dark ? "#fff" : "#1558d6" }}><Plus size={13} /></div>New chat
@@ -397,7 +403,6 @@ export default function App() {
                     ))}
                   </div>
                   
-                  {/* FLAWLESS STRICT GUARD: Ensures Guests absolutely never see the Recent tab */}
                   {currentUser && Number(currentUser.id) !== -1 && chats.length > 0 && (
                     <>
                       <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Recent</span></div>
@@ -441,10 +446,7 @@ export default function App() {
           </aside>
         )}
 
-        {/* FIXED: Removed padding from <main> so the inner div can push the scrollbar to the exact right edge of the screen */}
         <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "relative" }}>
-          
-          {/* FIXED: z-index increased to 50 so it absolutely covers the scrolling admin panel tables */}
           <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: isMobile ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {(isMobile || (!gearMode && !sidebarOpen)) && (
@@ -464,8 +466,7 @@ export default function App() {
             </div>
           </header>
 
-          {/* FIXED: Padding moved here. It dodges the gear-rails but keeps the scrollbar on the absolute far right edge! */}
-          <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", paddingLeft: gearMode && !isMobile ? RAIL_W : 0, paddingRight: gearMode && !isMobile ? RAIL_W : 0 }}>
+          <div id="chat-scroll-container" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", paddingLeft: gearMode && !isMobile ? RAIL_W : 0, paddingRight: gearMode && !isMobile ? RAIL_W : 0 }}>
             {viewMode === "admin" ? (
               <AdminPanel dark={dark} showToast={showToast} />
             ) : !activeChat || activeChat.messages.length === 0 ? (
