@@ -21,6 +21,89 @@ declare global {
   }
 }
 
+// --- SCOPED COSMIC CSS STYLES ---
+const cosmicStyles = `
+.cosmic-wrapper {
+  position: relative;
+  width: 100%;
+  border-radius: 10px;
+  isolation: isolate;
+}
+.cosmic-galaxy {
+  height: 100%;
+  width: 100%;
+  background-image: radial-gradient(#ffffff 1px, transparent 1px), radial-gradient(#ffffff 1px, transparent 1px);
+  background-size: 50px 50px;
+  background-position: 0 0, 25px 25px;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  animation: cosmicTwinkle 5s infinite;
+  border-radius: 10px;
+  opacity: 0.15;
+}
+@keyframes cosmicTwinkle { 0%, 100% { opacity: 0.1; } 50% { opacity: 0.3; } }
+.cosmic-stardust, .cosmic-ring, .cosmic-starfield, .cosmic-nebula {
+  height: 100%; width: 100%; position: absolute; inset: 0; overflow: hidden; z-index: -1; border-radius: 12px; filter: blur(3px);
+}
+.cosmic-input {
+  background-color: #05071b; border: none; width: 100%; height: 56px; border-radius: 10px; color: #a9c7ff; padding-inline: 59px; font-size: 15px; font-family: inherit;
+}
+.cosmic-search-container {
+  display: flex; align-items: center; justify-content: center; width: 100%; position: relative;
+}
+.cosmic-input::placeholder { color: #6e8cff; }
+.cosmic-input:focus { outline: none; }
+.cosmic-main { width: 100%; position: relative; }
+.cosmic-main:focus-within > .cosmic-input-mask { display: none; }
+.cosmic-input-mask {
+  pointer-events: none; width: 100px; height: 20px; position: absolute; background: linear-gradient(90deg, transparent, #05071b); top: 18px; left: 70px;
+}
+.cosmic-glow {
+  pointer-events: none; width: 30px; height: 20px; position: absolute; background: #4d6dff; top: 10px; left: 5px; filter: blur(20px); opacity: 0.8; transition: all 2s;
+}
+.cosmic-main:hover > .cosmic-glow { opacity: 0; }
+.cosmic-stardust { border-radius: 10px; filter: blur(2px); }
+.cosmic-stardust::before {
+  content: ""; z-index: -2; text-align: center; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(83deg); position: absolute; width: 2000px; height: 2000px; background-repeat: no-repeat; background-position: 0 0; filter: brightness(1.4);
+  background-image: conic-gradient(rgba(0, 0, 0, 0) 0%, #4d6dff, rgba(0, 0, 0, 0) 8%, rgba(0, 0, 0, 0) 50%, #6e8cff, rgba(0, 0, 0, 0) 58%); transition: all 2s;
+}
+.cosmic-ring { border-radius: 11px; filter: blur(0.5px); }
+.cosmic-ring::before {
+  content: ""; z-index: -2; text-align: center; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(70deg); position: absolute; width: 2000px; height: 2000px; filter: brightness(1.3); background-repeat: no-repeat; background-position: 0 0;
+  background-image: conic-gradient(#05071b, #4d6dff 5%, #05071b 14%, #05071b 50%, #6e8cff 60%, #05071b 64%); transition: all 2s;
+}
+.cosmic-starfield::before {
+  content: ""; z-index: -2; text-align: center; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(82deg); position: absolute; width: 2000px; height: 2000px; background-repeat: no-repeat; background-position: 0 0;
+  background-image: conic-gradient(rgba(0, 0, 0, 0), #1c2452, rgba(0, 0, 0, 0) 10%, rgba(0, 0, 0, 0) 50%, #2a3875, rgba(0, 0, 0, 0) 60%); transition: all 2s;
+}
+.cosmic-search-container:hover > .cosmic-starfield::before { transform: translate(-50%, -50%) rotate(-98deg); }
+.cosmic-search-container:hover > .cosmic-nebula::before { transform: translate(-50%, -50%) rotate(-120deg); }
+.cosmic-search-container:hover > .cosmic-stardust::before { transform: translate(-50%, -50%) rotate(-97deg); }
+.cosmic-search-container:hover > .cosmic-ring::before { transform: translate(-50%, -50%) rotate(-110deg); }
+.cosmic-search-container:focus-within > .cosmic-starfield::before { transform: translate(-50%, -50%) rotate(442deg); transition: all 4s; }
+.cosmic-search-container:focus-within > .cosmic-nebula::before { transform: translate(-50%, -50%) rotate(420deg); transition: all 4s; }
+.cosmic-search-container:focus-within > .cosmic-stardust::before { transform: translate(-50%, -50%) rotate(443deg); transition: all 4s; }
+.cosmic-search-container:focus-within > .cosmic-ring::before { transform: translate(-50%, -50%) rotate(430deg); transition: all 4s; }
+.cosmic-nebula { overflow: hidden; filter: blur(30px); opacity: 0.4; }
+.cosmic-nebula:before {
+  content: ""; z-index: -2; text-align: center; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(60deg); position: absolute; width: 2000px; height: 2000px; background-repeat: no-repeat; background-position: 0 0;
+  background-image: conic-gradient(#000, #4d6dff 5%, #000 38%, #000 50%, #6e8cff 60%, #000 87%); transition: all 2s;
+}
+.cosmic-wormhole-icon {
+  position: absolute; top: 8px; right: 8px; display: flex; align-items: center; justify-content: center; z-index: 2; height: 40px; width: 38px; isolation: isolate; overflow: hidden; border-radius: 10px;
+  background: linear-gradient(180deg, #1c2452, #05071b, #2a3875); border: none; cursor: pointer; padding: 0; outline: none; transition: opacity 0.2s;
+}
+.cosmic-wormhole-icon:disabled { opacity: 0.5; cursor: not-allowed; }
+.cosmic-wormhole-border { height: 42px; width: 40px; position: absolute; overflow: hidden; top: 7px; right: 7px; border-radius: 10px; }
+.cosmic-wormhole-border::before {
+  content: ""; text-align: center; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(90deg); position: absolute; width: 2000px; height: 2000px; background-repeat: no-repeat; background-position: 0 0; filter: brightness(1.35);
+  background-image: conic-gradient(rgba(0, 0, 0, 0), #4d6dff, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0) 50%, #6e8cff, rgba(0, 0, 0, 0) 100%); animation: cosmicRotate 4s linear infinite;
+}
+.cosmic-search-icon { position: absolute; left: 20px; top: 16px; pointer-events: none; }
+@keyframes cosmicRotate { 100% { transform: translate(-50%, -50%) rotate(450deg); } }
+`;
+
 // --- CANVAS-BASED PDF VIEWER ---
 function CanvasPDFViewer({ fileUrl, dark, onEnlarge, onLoad, isMobile }: { fileUrl: string, dark: boolean, onEnlarge: (url: string) => void, onLoad: () => void, isMobile: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -222,7 +305,6 @@ export default function App() {
   const [topFaqs, setTopFaqs] = useState<{keyword: string}[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const activeChat = chats.find((c) => c.id === activeChatId) ?? null;
 
   useEffect(() => {
@@ -265,21 +347,12 @@ export default function App() {
 
   useEffect(() => { if (viewMode === "chat") scrollToBottom(); }, [activeChat?.messages, isTyping, viewMode]);
 
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
-    }
-  }, [input]);
-
   const bg = dark ? "#1c1b22" : "#f8f9fa";
   const sbBg = dark ? "#0d2460" : "#1558d6";
   const textPrimary = dark ? "#e8eaed" : "#1a1a2e";
   const textMuted = dark ? "#9aa0a6" : "#6b7280";
   const textFaint = dark ? "#5f6368" : "#9ca3af";
   const sb = { text: "#fff", muted: "rgba(255,255,255,0.70)", faint: "rgba(255,255,255,0.42)", hover: "rgba(255,255,255,0.10)", active: "rgba(255,255,255,0.20)", border: "rgba(255,255,255,0.14)" };
-  const inputBg = dark ? "#25242c" : "#ffffff";
-  const inputBorder = dark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.12)";
 
   const sendMessage = async (text: string = input) => {
     if (!text.trim() || isTyping) return;
@@ -433,6 +506,9 @@ export default function App() {
   return (
     <div style={{ position: "fixed", top: 0, bottom: 0, left: 0, right: 0, display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary }}>
       
+      {/* INJECTED CSS FOR THE COSMIC INPUT BAR */}
+      <style>{cosmicStyles}</style>
+
       {/* AUTHENTICATION POPUP OVERLAY */}
       {showAuthPopup && (
         <div style={{ position: "fixed", inset: 0, zIndex: 999999, background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)", padding: 20 }}>
@@ -705,11 +781,71 @@ export default function App() {
           {viewMode === "chat" && (
             <div style={{ flexShrink: 0, padding: isMobile ? "8px 12px 12px" : "8px 16px 16px" }}>
               <div style={{ maxWidth: 768, margin: "0 auto" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, borderRadius: 16, background: inputBg, border: `1px solid ${inputBorder}`, padding: "10px 12px", boxShadow: "0 2px 10px rgba(0,0,0,0.08)" }}>
-                  <textarea ref={textareaRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} placeholder="Ask ChatCIT..." rows={1} style={{ flex: 1, resize: "none", background: "transparent", padding: 0, fontSize: 14, color: textPrimary, outline: "none", lineHeight: 1.5, maxHeight: 120, overflowY: "auto", fontFamily: "inherit" }} />
-                  <button onClick={() => sendMessage()} disabled={!input.trim() || isTyping} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 9, border: "none", cursor: input.trim() && !isTyping ? "pointer" : "not-allowed", background: input.trim() && !isTyping ? "#4285f4" : dark ? "rgba(255,255,255,0.1)" : "#e5e7eb", color: input.trim() && !isTyping ? "#fff" : textFaint }}><Send size={14} /></button>
-                </div>
                 
+                {/* --- NEW COSMIC INPUT BAR --- */}
+                <div className="cosmic-wrapper">
+                  <div className="cosmic-galaxy" />
+                  <div className="cosmic-search-container">
+                    <div className="cosmic-nebula" />
+                    <div className="cosmic-starfield" />
+                    <div className="cosmic-dust" />
+                    <div className="cosmic-dust" />
+                    <div className="cosmic-dust" />
+                    <div className="cosmic-stardust" />
+                    <div className="cosmic-ring" />
+                    <div className="cosmic-main">
+                      <input
+                        className="cosmic-input"
+                        name="text"
+                        type="text"
+                        placeholder="Explore ChatCIT..."
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            sendMessage();
+                          }
+                        }}
+                        disabled={isTyping}
+                      />
+                      <div className="cosmic-input-mask" />
+                      <div className="cosmic-glow" />
+                      <div className="cosmic-wormhole-border" />
+                      <button
+                        className="cosmic-wormhole-icon"
+                        onClick={() => sendMessage()}
+                        disabled={!input.trim() || isTyping}
+                        style={{ opacity: (!input.trim() || isTyping) ? 0.5 : 1, cursor: (!input.trim() || isTyping) ? 'not-allowed' : 'pointer' }}
+                      >
+                        <svg strokeLinejoin="round" strokeLinecap="round" strokeWidth={2} stroke="#a9c7ff" fill="none" height={20} width={20} viewBox="0 0 24 24" className={isTyping ? "animate-spin" : ""}>
+                          {isTyping ? (
+                             <circle cx="12" cy="12" r="10" stroke="#a9c7ff" strokeWidth="4" strokeDasharray="32" strokeLinecap="round" />
+                          ) : (
+                             <>
+                               <circle r={10} cy={12} cx={12} />
+                               <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                               <path d="M2 12h20" />
+                             </>
+                          )}
+                        </svg>
+                      </button>
+                      <div className="cosmic-search-icon">
+                        <svg strokeLinejoin="round" strokeLinecap="round" strokeWidth={2} stroke="url(#cosmic-search)" fill="none" height={24} width={24} viewBox="0 0 24 24">
+                          <circle r={8} cy={11} cx={11} />
+                          <line y2="16.65" x2="16.65" y1={21} x1={21} />
+                          <defs>
+                            <linearGradient gradientTransform="rotate(45)" id="cosmic-search">
+                              <stop stopColor="#a9c7ff" offset="0%" />
+                              <stop stopColor="#6e8cff" offset="100%" />
+                            </linearGradient>
+                          </defs>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, color: textFaint, letterSpacing: "0.2px" }}>
                   ChatCIT is AI. By using it, you agree to our <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Terms</span> & <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Privacy Policy</span>.
                 </div>
@@ -718,9 +854,9 @@ export default function App() {
           )}
         </main>
         
-        {/* ADDED GAP: 18px BETWEEN BUG AND TOGGLE */}
         {renderRail("right", 
-          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          // FIXED GAP: Reduced from 18px down to 10px
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <button onClick={() => setShowBugModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#ef4444", cursor: "pointer", transition: "background 0.2s" }} title="Report a Bug"><Bug size={22} /></button>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44 }}>
               <DayNightToggle dark={dark} toggleDark={() => setDark(!dark)} />
