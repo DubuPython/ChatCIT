@@ -21,20 +21,30 @@ thead th {
   position: sticky; top: 0; background-color: ${dark ? '#1c1b22' : '#f9fafb'} !important; z-index: 20; box-shadow: 0 1px 2px ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'};
 }
 
-/* -- NATIVE LIGHT MODE OVERRIDES FOR THE GEARBOX -- */
+/* -- FLAWLESS NATIVE LIGHT MODE OVERRIDES FOR THE GEARBOX -- */
 ${!dark ? `
-  .gearbox { background: transparent !important; box-shadow: none !important; }
-  .gearbox .overlay { box-shadow: inset 0px 0px 20px rgba(0,0,0,0.03) !important; }
-  .gear { box-shadow: 0px -1px 0px 0px #cbd5e1, 0px 1px 0px 0px #94a3b8 !important; }
-  .gear:after {
-    background: #f8f9fa !important;
-    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.05), inset 0px 0px 10px rgba(0, 0, 0, 0.05), inset 0px 2px 0px 0px #ffffff, inset 0px -1px 0px 0px #cbd5e1 !important;
+  .gearbox { 
+    background: #f8fafc !important; 
+    box-shadow: 0px 0px 0px 1px rgba(0, 0, 0, 0.05) !important; 
   }
-  .gear-inner { background: #e2e8f0 !important; border: 1px solid rgba(0, 0, 0, 0.05) !important; }
+  .gearbox .overlay { 
+    box-shadow: inset 0px 0px 20px rgba(0,0,0,0.06) !important; 
+  }
+  .gear { 
+    box-shadow: 0px -1px 0px 0px #ffffff, 0px 1px 0px 0px #cbd5e1 !important; 
+  }
+  .gear:after {
+    background: #f8fafc !important;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.02), inset 0px 0px 10px rgba(0, 0, 0, 0.05), inset 0px 2px 0px 0px #ffffff, inset 0px -1px 0px 0px #cbd5e1 !important;
+  }
+  .gear-inner { 
+    background: #e2e8f0 !important; 
+    border: 1px solid rgba(255, 255, 255, 0.8) !important; 
+  }
   .gear-inner .bar {
     background: #e2e8f0 !important;
-    border-left: 1px solid rgba(0, 0, 0, 0.05) !important;
-    border-right: 1px solid rgba(0, 0, 0, 0.05) !important;
+    border-left: 1px solid #ffffff !important;
+    border-right: 1px solid #ffffff !important;
   }
 ` : ''}
 `;
@@ -50,7 +60,7 @@ export default function App() {
     if (typeof window !== "undefined") {
       const savedUser = localStorage.getItem('chatcit_user');
       if (!savedUser) return true;
-      try { const u = JSON.parse(savedUser); if (u.id === -1) return true; } catch (e) { return true; }
+      try { const u = JSON.parse(savedUser); if (Number(u.id) === -1) return true; } catch (e) { return true; }
     }
     return false;
   });
@@ -62,9 +72,10 @@ export default function App() {
 
   useEffect(() => {
     const savedUser = localStorage.getItem('chatcit_user');
-    const isGuest = !savedUser || JSON.parse(savedUser).id === -1;
+    
+    // Safely check if the user is a guest (Handling string "-1" bugs from local storage)
+    const isGuest = !savedUser || Number(JSON.parse(savedUser).id) === -1;
 
-    // STRICT GUEST CHECK: Never load memory arrays for guests
     if (!isGuest) {
       setCurrentUser(JSON.parse(savedUser!));
       const savedChats = localStorage.getItem('chatcit_chats');
@@ -76,7 +87,7 @@ export default function App() {
       }
     } else {
       setCurrentUser({ id: -1, email: "guest@bulsu.edu.ph", role: "student", username: "Guest User" });
-      setChats([]); // Force clear memory
+      setChats([]); 
     }
 
     const savedMode = localStorage.getItem('chatcit_viewMode');
@@ -87,7 +98,8 @@ export default function App() {
 
   useEffect(() => {
     if (!appLoading) {
-      if (currentUser && currentUser.id !== -1) {
+      // STRICT CHECK: Forces JS to evaluate both strings and numbers mathematically
+      if (currentUser && Number(currentUser.id) !== -1) {
         localStorage.setItem('chatcit_user', JSON.stringify(currentUser));
         localStorage.setItem('chatcit_chats', JSON.stringify(chats));
       } else {
@@ -148,7 +160,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (currentUser && currentUser.id !== -1 && !appLoading) {
+    if (currentUser && Number(currentUser.id) !== -1 && !appLoading) {
       fetch(`${API_URL}/chats/${currentUser.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chats }) }).catch(() => {});
     }
   }, [chats, currentUser, viewMode, appLoading]);
@@ -167,7 +179,7 @@ export default function App() {
     const content = text.trim();
     setInput("");
     
-    if (currentUser?.id === -1) {
+    if (currentUser && Number(currentUser.id) === -1) {
       const newCount = guestMessageCount + 1;
       setGuestMessageCount(newCount);
       if (newCount % 3 === 0) {
@@ -295,8 +307,7 @@ export default function App() {
       <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: dark ? "#1c1b22" : "#f8f9fa", alignItems: "center", justifyContent: "center", zIndex: 99999 }}>
         <div style={{ width: 100, height: 100, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ position: "absolute", transform: 'scale(1.2)' }}>
-             {/* STRIPPED OUT THE OLD INLINE FILTER SO LIGHT MODE CSS CAN APPLY */}
-             <GearboxLoader />
+            <GearboxLoader />
           </div>
         </div>
         <div style={{ color: dark ? "#e8eaed" : "#1a1a2e", fontSize: 14, fontWeight: 700, letterSpacing: "0.2em", marginTop: 40 }}>
@@ -352,7 +363,7 @@ export default function App() {
       <>
         {gearMode && renderRail("left", 
           <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
-            {currentUser?.id !== -1 ? (
+            {currentUser && Number(currentUser.id) !== -1 ? (
               <>
                 <Avatar name={currentUser?.username || currentUser?.email || "User"} size={30} bg="#7c3aed" />
                 <div style={{ fontSize: 13, fontWeight: 600, color: textPrimary, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentUser?.username || currentUser?.email.split('@')[0]}</div>
@@ -395,8 +406,8 @@ export default function App() {
                     ))}
                   </div>
                   
-                  {/* STRICT GUARD: "Recent" tab ONLY renders if the user is verified/logged in! */}
-                  {currentUser?.id !== -1 && (
+                  {/* FLAWLESS STRICT GUARD: Ensures Guests absolutely never see the Recent tab */}
+                  {currentUser && Number(currentUser.id) !== -1 && chats.length > 0 && (
                     <>
                       <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Recent</span></div>
                       <div style={{ maxHeight: 200, overflowY: "auto", padding: "0 4px", display: "flex", flexDirection: "column", gap: 3 }}>
@@ -415,7 +426,7 @@ export default function App() {
                 </div>
               </div>
               <div style={{ padding: "16px 12px 18px", borderTop: `1px solid ${sb.border}`, flexShrink: 0 }}>
-                {currentUser?.id === -1 ? (
+                {currentUser && Number(currentUser.id) === -1 ? (
                   <div style={{ display: "flex", gap: 8, width: "100%" }}>
                     <button onClick={() => { setAuthMode("login"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "#fff", color: "#1a1a2e", fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", transition: "opacity 0.2s" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.9"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Log in</button>
                     <button onClick={() => { setAuthMode("signup"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 13, fontWeight: 600, border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}>Sign up</button>
@@ -466,11 +477,10 @@ export default function App() {
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100%", padding: "48px 16px" }}>
                 <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
                   <div style={{ position: "absolute", transform: isMobile ? "scale(0.65)" : "scale(0.85)" }}>
-                     {/* STRIPPED OUT THE OLD INLINE FILTER SO LIGHT MODE CSS CAN APPLY */}
-                     <GearboxLoader />
+                    <GearboxLoader />
                   </div>
                 </div>
-                <h1 style={{ fontSize: isMobile ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{currentUser?.id === -1 ? "Guest" : currentUser?.username || currentUser?.email?.split('@')[0] || "Bulsuan"}!</strong></h1>
+                <h1 style={{ fontSize: isMobile ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{currentUser && Number(currentUser.id) === -1 ? "Guest" : currentUser?.username || currentUser?.email?.split('@')[0] || "Bulsuan"}!</strong></h1>
                 <p style={{ color: textMuted, fontSize: 15, marginBottom: 32, textAlign: "center" }}>How can I help you today?</p>
                 {topFaqs.length > 0 && (
                   <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, maxWidth: 700 }}>
