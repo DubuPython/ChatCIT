@@ -21,61 +21,45 @@ declare global {
   }
 }
 
-// --- SCOPED COSMIC CSS STYLES ---
-const cosmicStyles = `
+// --- DYNAMIC COSMIC CSS STYLES (Light & Dark Mode) ---
+const getCosmicStyles = (dark: boolean) => `
 .cosmic-wrapper {
-  position: relative;
-  width: 100%;
-  border-radius: 10px;
-  isolation: isolate;
+  position: relative; width: 100%; border-radius: 10px; isolation: isolate;
 }
 .cosmic-galaxy {
-  height: 100%;
-  width: 100%;
-  background-image: radial-gradient(#ffffff 1px, transparent 1px), radial-gradient(#ffffff 1px, transparent 1px);
-  background-size: 50px 50px;
-  background-position: 0 0, 25px 25px;
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  animation: cosmicTwinkle 5s infinite;
-  border-radius: 10px;
-  opacity: 0.15;
+  height: 100%; width: 100%;
+  background-image: radial-gradient(${dark ? '#ffffff' : '#4285f4'} 1px, transparent 1px), radial-gradient(${dark ? '#ffffff' : '#4285f4'} 1px, transparent 1px);
+  background-size: 50px 50px; background-position: 0 0, 25px 25px; position: absolute; inset: 0; z-index: -1; animation: cosmicTwinkle 5s infinite; border-radius: 10px; opacity: 0.15;
 }
 @keyframes cosmicTwinkle { 0%, 100% { opacity: 0.1; } 50% { opacity: 0.3; } }
 .cosmic-stardust, .cosmic-ring, .cosmic-starfield, .cosmic-nebula {
   height: 100%; width: 100%; position: absolute; inset: 0; overflow: hidden; z-index: -1; border-radius: 12px; filter: blur(3px);
 }
 .cosmic-input {
-  background-color: #05071b; border: none; width: 100%; height: 56px; border-radius: 10px; color: #a9c7ff; padding-inline: 59px; font-size: 15px; font-family: inherit;
+  background-color: ${dark ? '#05071b' : '#ffffff'}; border: ${dark ? 'none' : '1px solid rgba(0,0,0,0.15)'}; width: 100%; height: 56px; border-radius: 10px; color: ${dark ? '#a9c7ff' : '#1a1a2e'}; padding-inline: 59px; font-size: 15px; font-family: inherit; transition: background-color 0.3s;
 }
 .cosmic-search-container {
   display: flex; align-items: center; justify-content: center; width: 100%; position: relative;
 }
-.cosmic-input::placeholder { color: #6e8cff; }
-.cosmic-input:focus { outline: none; }
+.cosmic-input::placeholder { color: ${dark ? '#6e8cff' : '#84acf2'}; }
+.cosmic-input:focus { outline: none; border-color: #4285f4; }
 .cosmic-main { width: 100%; position: relative; }
-.cosmic-main:focus-within > .cosmic-input-mask { display: none; }
-.cosmic-input-mask {
-  pointer-events: none; width: 100px; height: 20px; position: absolute; background: linear-gradient(90deg, transparent, #05071b); top: 18px; left: 70px;
-}
-.cosmic-glow {
-  pointer-events: none; width: 30px; height: 20px; position: absolute; background: #4d6dff; top: 10px; left: 5px; filter: blur(20px); opacity: 0.8; transition: all 2s;
-}
-.cosmic-main:hover > .cosmic-glow { opacity: 0; }
+
+/* The text-obscuring masks have been entirely removed! */
+
 .cosmic-stardust { border-radius: 10px; filter: blur(2px); }
 .cosmic-stardust::before {
   content: ""; z-index: -2; text-align: center; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(83deg); position: absolute; width: 2000px; height: 2000px; background-repeat: no-repeat; background-position: 0 0; filter: brightness(1.4);
-  background-image: conic-gradient(rgba(0, 0, 0, 0) 0%, #4d6dff, rgba(0, 0, 0, 0) 8%, rgba(0, 0, 0, 0) 50%, #6e8cff, rgba(0, 0, 0, 0) 58%); transition: all 2s;
+  background-image: conic-gradient(rgba(0, 0, 0, 0) 0%, ${dark ? '#4d6dff' : '#a3bffa'}, rgba(0, 0, 0, 0) 8%, rgba(0, 0, 0, 0) 50%, ${dark ? '#6e8cff' : '#c4d7fa'}, rgba(0, 0, 0, 0) 58%); transition: all 2s;
 }
 .cosmic-ring { border-radius: 11px; filter: blur(0.5px); }
 .cosmic-ring::before {
   content: ""; z-index: -2; text-align: center; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(70deg); position: absolute; width: 2000px; height: 2000px; filter: brightness(1.3); background-repeat: no-repeat; background-position: 0 0;
-  background-image: conic-gradient(#05071b, #4d6dff 5%, #05071b 14%, #05071b 50%, #6e8cff 60%, #05071b 64%); transition: all 2s;
+  background-image: conic-gradient(${dark ? '#05071b' : '#ffffff'}, ${dark ? '#4d6dff' : '#a3bffa'} 5%, ${dark ? '#05071b' : '#ffffff'} 14%, ${dark ? '#05071b' : '#ffffff'} 50%, ${dark ? '#6e8cff' : '#c4d7fa'} 60%, ${dark ? '#05071b' : '#ffffff'} 64%); transition: all 2s;
 }
 .cosmic-starfield::before {
   content: ""; z-index: -2; text-align: center; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(82deg); position: absolute; width: 2000px; height: 2000px; background-repeat: no-repeat; background-position: 0 0;
-  background-image: conic-gradient(rgba(0, 0, 0, 0), #1c2452, rgba(0, 0, 0, 0) 10%, rgba(0, 0, 0, 0) 50%, #2a3875, rgba(0, 0, 0, 0) 60%); transition: all 2s;
+  background-image: conic-gradient(rgba(0, 0, 0, 0), ${dark ? '#1c2452' : '#e0e7ff'}, rgba(0, 0, 0, 0) 10%, rgba(0, 0, 0, 0) 50%, ${dark ? '#2a3875' : '#c7d2fe'}, rgba(0, 0, 0, 0) 60%); transition: all 2s;
 }
 .cosmic-search-container:hover > .cosmic-starfield::before { transform: translate(-50%, -50%) rotate(-98deg); }
 .cosmic-search-container:hover > .cosmic-nebula::before { transform: translate(-50%, -50%) rotate(-120deg); }
@@ -88,17 +72,17 @@ const cosmicStyles = `
 .cosmic-nebula { overflow: hidden; filter: blur(30px); opacity: 0.4; }
 .cosmic-nebula:before {
   content: ""; z-index: -2; text-align: center; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(60deg); position: absolute; width: 2000px; height: 2000px; background-repeat: no-repeat; background-position: 0 0;
-  background-image: conic-gradient(#000, #4d6dff 5%, #000 38%, #000 50%, #6e8cff 60%, #000 87%); transition: all 2s;
+  background-image: conic-gradient(${dark ? '#000' : '#fff'}, ${dark ? '#4d6dff' : '#84acf2'} 5%, ${dark ? '#000' : '#fff'} 38%, ${dark ? '#000' : '#fff'} 50%, ${dark ? '#6e8cff' : '#a3bffa'} 60%, ${dark ? '#000' : '#fff'} 87%); transition: all 2s;
 }
 .cosmic-wormhole-icon {
   position: absolute; top: 8px; right: 8px; display: flex; align-items: center; justify-content: center; z-index: 2; height: 40px; width: 38px; isolation: isolate; overflow: hidden; border-radius: 10px;
-  background: linear-gradient(180deg, #1c2452, #05071b, #2a3875); border: none; cursor: pointer; padding: 0; outline: none; transition: opacity 0.2s;
+  background: ${dark ? 'linear-gradient(180deg, #1c2452, #05071b, #2a3875)' : 'linear-gradient(180deg, #e0e7ff, #ffffff, #c7d2fe)'}; border: none; cursor: pointer; padding: 0; outline: none; transition: opacity 0.2s;
 }
 .cosmic-wormhole-icon:disabled { opacity: 0.5; cursor: not-allowed; }
 .cosmic-wormhole-border { height: 42px; width: 40px; position: absolute; overflow: hidden; top: 7px; right: 7px; border-radius: 10px; }
 .cosmic-wormhole-border::before {
   content: ""; text-align: center; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(90deg); position: absolute; width: 2000px; height: 2000px; background-repeat: no-repeat; background-position: 0 0; filter: brightness(1.35);
-  background-image: conic-gradient(rgba(0, 0, 0, 0), #4d6dff, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0) 50%, #6e8cff, rgba(0, 0, 0, 0) 100%); animation: cosmicRotate 4s linear infinite;
+  background-image: conic-gradient(rgba(0, 0, 0, 0), ${dark ? '#4d6dff' : '#84acf2'}, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0) 50%, ${dark ? '#6e8cff' : '#c4d7fa'}, rgba(0, 0, 0, 0) 100%); animation: cosmicRotate 4s linear infinite;
 }
 .cosmic-search-icon { position: absolute; left: 20px; top: 16px; pointer-events: none; }
 @keyframes cosmicRotate { 100% { transform: translate(-50%, -50%) rotate(450deg); } }
@@ -187,7 +171,8 @@ function CanvasPDFViewer({ fileUrl, dark, onEnlarge, onLoad, isMobile }: { fileU
       <div style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 250, position: 'relative' }}>
         {loading && (
           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}>
-            <div style={{ position: "relative", width: 40, height: 40, display: "flex", justifyContent: "center", alignItems: "center" }}>
+            {/* FORCE DARK GREY IN LIGHT MODE */}
+            <div style={{ position: "relative", width: 40, height: 40, display: "flex", justifyContent: "center", alignItems: "center", filter: dark ? 'none' : 'brightness(0.1) opacity(0.7)' }}>
               <div style={{ position: "absolute", transform: 'scale(0.3)' }}><GearboxLoader /></div>
             </div>
           </div>
@@ -236,13 +221,11 @@ export default function App() {
   const [chats, setChats] = useState<Chat[]>([]);
 
   useEffect(() => {
-    // Hydrate LocalStorage data safely on mount
     const savedUser = localStorage.getItem('chatcit_user');
     
     if (savedUser && JSON.parse(savedUser).id !== -1) {
       setCurrentUser(JSON.parse(savedUser));
     } else {
-      // Default to Guest Identity if no valid user is found
       setCurrentUser({ id: -1, email: "guest@bulsu.edu.ph", role: "student", username: "Guest User" });
     }
 
@@ -264,10 +247,8 @@ export default function App() {
     setTimeout(() => setAppLoading(false), 1200);
   }, []);
 
-  // Sync state back to local storage dynamically
   useEffect(() => {
     if (!appLoading) {
-      // Never save the Guest identity to local storage! 
       if (currentUser && currentUser.id !== -1) {
         localStorage.setItem('chatcit_user', JSON.stringify(currentUser));
       } else {
@@ -493,7 +474,10 @@ export default function App() {
       <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: dark ? "#1c1b22" : "#f8f9fa", alignItems: "center", justifyContent: "center", zIndex: 99999 }}>
         <div style={{ width: 100, height: 100, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ position: "absolute", transform: 'scale(1.2)' }}>
-            <GearboxLoader />
+            {/* FORCE DARK GREY IN LIGHT MODE */}
+            <div style={{ filter: dark ? 'none' : 'brightness(0.1) opacity(0.7)' }}>
+              <GearboxLoader />
+            </div>
           </div>
         </div>
         <div style={{ color: dark ? "#e8eaed" : "#1a1a2e", fontSize: 14, fontWeight: 700, letterSpacing: "0.2em", marginTop: 40 }}>
@@ -506,8 +490,7 @@ export default function App() {
   return (
     <div style={{ position: "fixed", top: 0, bottom: 0, left: 0, right: 0, display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary }}>
       
-      {/* INJECTED CSS FOR THE COSMIC INPUT BAR */}
-      <style>{cosmicStyles}</style>
+      <style>{getCosmicStyles(dark)}</style>
 
       {/* AUTHENTICATION POPUP OVERLAY */}
       {showAuthPopup && (
@@ -705,7 +688,10 @@ export default function App() {
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100%", padding: "48px 16px" }}>
                 <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
                   <div style={{ position: "absolute", transform: isMobile ? "scale(0.65)" : "scale(0.85)" }}>
-                    <GearboxLoader />
+                    {/* FORCE DARK GREY IN LIGHT MODE FOR EMPTY STATE */}
+                    <div style={{ filter: dark ? 'none' : 'brightness(0.1) opacity(0.7)' }}>
+                      <GearboxLoader />
+                    </div>
                   </div>
                 </div>
                 <h1 style={{ fontSize: isMobile ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{currentUser?.id === -1 ? "Guest" : currentUser?.username || currentUser?.email?.split('@')[0] || "Bulsuan"}!</strong></h1>
@@ -782,7 +768,6 @@ export default function App() {
             <div style={{ flexShrink: 0, padding: isMobile ? "8px 12px 12px" : "8px 16px 16px" }}>
               <div style={{ maxWidth: 768, margin: "0 auto" }}>
                 
-                {/* --- NEW COSMIC INPUT BAR --- */}
                 <div className="cosmic-wrapper">
                   <div className="cosmic-galaxy" />
                   <div className="cosmic-search-container">
@@ -809,8 +794,6 @@ export default function App() {
                         }}
                         disabled={isTyping}
                       />
-                      <div className="cosmic-input-mask" />
-                      <div className="cosmic-glow" />
                       <div className="cosmic-wormhole-border" />
                       <button
                         className="cosmic-wormhole-icon"
@@ -855,7 +838,6 @@ export default function App() {
         </main>
         
         {renderRail("right", 
-          // FIXED GAP: Reduced from 18px down to 10px
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <button onClick={() => setShowBugModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#ef4444", cursor: "pointer", transition: "background 0.2s" }} title="Report a Bug"><Bug size={22} /></button>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44 }}>
