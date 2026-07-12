@@ -16,18 +16,28 @@ import { Message, Chat, User, ToastMsg } from "../types";
 import { QUICK_PROMPTS, ORGANIZATIONS, MAJORS, DOCUMENTS, MID_CHOICES, API_URL } from "../config";
 
 const getGlobalStyles = (dark: boolean) => `
-/* -- ADMIN DASHBOARD TABLE HEADER FIX -- */
-/* Strips overflow from inner table wrappers so vertical sticky positioning can function */
-div:has(table):not(#chat-scroll-container) {
-  overflow: visible !important;
+/* -- FLAWLESS ADMIN DASHBOARD HEADER FIX -- */
+/* Detects the Admin Panel and locks the outer page scroll */
+#chat-scroll-container:has(table) {
+  overflow: hidden !important;
+  display: flex;
+  flex-direction: column;
 }
-
+/* Forces the inner Admin wrapper to take exact height */
+#chat-scroll-container:has(table) > div {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+/* Isolates the table and forces it to scroll internally while leaving headers pinned */
+#chat-scroll-container div:has(> table) {
+  flex: 1;
+  overflow-y: auto !important;
+  min-height: 0;
+}
 thead th {
-  position: sticky !important; 
-  top: 0 !important; 
-  background-color: ${dark ? '#1c1b22' : '#ffffff'} !important; 
-  z-index: 40 !important; 
-  box-shadow: 0 2px 4px ${dark ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.05)'} !important;
+  position: sticky; top: 0; background-color: ${dark ? '#1c1b22' : '#ffffff'} !important; z-index: 20; box-shadow: 0 1px 2px ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'};
 }
 
 /* -- NATIVE LIGHT MODE OVERRIDES FOR THE GEARBOX -- */
@@ -446,7 +456,18 @@ export default function App() {
           </aside>
         )}
 
-        <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "relative" }}>
+        {/* FLAWLESS CENTER CHAT FIX: Margin correctly brackets the central view between the sidebars! */}
+        <main style={{ 
+          flex: 1, 
+          display: "flex", 
+          flexDirection: "column", 
+          overflow: "hidden", 
+          minWidth: 0, 
+          position: "relative",
+          marginLeft: gearMode && !isMobile ? RAIL_W : 0,
+          marginRight: !isMobile ? RAIL_W : 0
+        }}>
+          
           <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: isMobile ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {(isMobile || (!gearMode && !sidebarOpen)) && (
@@ -466,7 +487,7 @@ export default function App() {
             </div>
           </header>
 
-          <div id="chat-scroll-container" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", paddingLeft: gearMode && !isMobile ? RAIL_W : 0, paddingRight: gearMode && !isMobile ? RAIL_W : 0 }}>
+          <div id="chat-scroll-container" style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
             {viewMode === "admin" ? (
               <AdminPanel dark={dark} showToast={showToast} />
             ) : !activeChat || activeChat.messages.length === 0 ? (
