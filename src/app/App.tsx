@@ -18,33 +18,23 @@ import { QUICK_PROMPTS, ORGANIZATIONS, MAJORS, DOCUMENTS, MID_CHOICES, API_URL }
 const getGlobalStyles = (dark: boolean) => `
 /* -- ADMIN DASHBOARD TABLE HEADER FIX -- */
 thead th {
-  position: sticky; top: 0; background-color: ${dark ? '#1c1b22' : '#f9fafb'} !important; z-index: 20; box-shadow: 0 1px 2px ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'};
+  position: sticky; top: 0; background-color: ${dark ? '#1c1b22' : '#ffffff'} !important; z-index: 10; box-shadow: 0 1px 2px ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'};
 }
 
-/* -- FLAWLESS NATIVE LIGHT MODE OVERRIDES FOR THE GEARBOX -- */
+/* -- NATIVE LIGHT MODE OVERRIDES FOR THE GEARBOX -- */
 ${!dark ? `
-  .gearbox { 
-    background: #f8fafc !important; 
-    box-shadow: 0px 0px 0px 1px rgba(0, 0, 0, 0.05) !important; 
-  }
-  .gearbox .overlay { 
-    box-shadow: inset 0px 0px 20px rgba(0,0,0,0.06) !important; 
-  }
-  .gear { 
-    box-shadow: 0px -1px 0px 0px #ffffff, 0px 1px 0px 0px #cbd5e1 !important; 
-  }
+  .gearbox { background: transparent !important; box-shadow: none !important; }
+  .gearbox .overlay { box-shadow: inset 0px 0px 20px rgba(0,0,0,0.03) !important; }
+  .gear { box-shadow: 0px -1px 0px 0px #cbd5e1, 0px 1px 0px 0px #94a3b8 !important; }
   .gear:after {
-    background: #f8fafc !important;
-    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.02), inset 0px 0px 10px rgba(0, 0, 0, 0.05), inset 0px 2px 0px 0px #ffffff, inset 0px -1px 0px 0px #cbd5e1 !important;
+    background: #f8f9fa !important;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.05), inset 0px 0px 10px rgba(0, 0, 0, 0.05), inset 0px 2px 0px 0px #ffffff, inset 0px -1px 0px 0px #cbd5e1 !important;
   }
-  .gear-inner { 
-    background: #e2e8f0 !important; 
-    border: 1px solid rgba(255, 255, 255, 0.8) !important; 
-  }
+  .gear-inner { background: #e2e8f0 !important; border: 1px solid rgba(0, 0, 0, 0.05) !important; }
   .gear-inner .bar {
     background: #e2e8f0 !important;
-    border-left: 1px solid #ffffff !important;
-    border-right: 1px solid #ffffff !important;
+    border-left: 1px solid rgba(0, 0, 0, 0.05) !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.05) !important;
   }
 ` : ''}
 `;
@@ -72,8 +62,6 @@ export default function App() {
 
   useEffect(() => {
     const savedUser = localStorage.getItem('chatcit_user');
-    
-    // Safely check if the user is a guest (Handling string "-1" bugs from local storage)
     const isGuest = !savedUser || Number(JSON.parse(savedUser).id) === -1;
 
     if (!isGuest) {
@@ -98,7 +86,6 @@ export default function App() {
 
   useEffect(() => {
     if (!appLoading) {
-      // STRICT CHECK: Forces JS to evaluate both strings and numbers mathematically
       if (currentUser && Number(currentUser.id) !== -1) {
         localStorage.setItem('chatcit_user', JSON.stringify(currentUser));
         localStorage.setItem('chatcit_chats', JSON.stringify(chats));
@@ -167,7 +154,8 @@ export default function App() {
 
   useEffect(() => { if (viewMode === "chat") scrollToBottom(); }, [activeChat?.messages, isTyping, viewMode]);
 
-  const bg = dark ? "#1c1b22" : "#f9fafb";
+  // Premium Light Mode off-white background instead of pure #ffffff
+  const bg = dark ? "#1c1b22" : "#f4f5f7";
   const sbBg = dark ? "#0d2460" : "#1558d6";
   const textPrimary = dark ? "#e8eaed" : "#1a1a2e";
   const textMuted = dark ? "#9aa0a6" : "#6b7280";
@@ -264,20 +252,18 @@ export default function App() {
           { y: y3, label: "Documents", value: DOCUMENTS[docIdx], onPick: () => { sendMessage(`Show me the ${DOCUMENTS[docIdx]}`); if(isMobile) setRightRailOpen(false); }, onGear: () => { setRightAngle(a => a + STEP_DEG); setDocIdx(i => (i + 1) % DOCUMENTS.length); } },
         ]
       : [
-          { y: y1, label: "Quick Prompts", value: QUICK_PROMPTS[quickIdx], onPick: () => { sendMessage(QUICK_PROMPTS[quickIdx]); if(isMobile) setSidebarOpen(false); }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => (i + 1) % QUICK_PROMPTS.length); } },
-          { y: y2, label: "", value: MID_CHOICES[midIdx], onPick: () => { if (midIdx === 0) { setActiveChatId(null); setViewMode("chat"); } else setGearMode(g => !g); if(isMobile) setSidebarOpen(false); }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setMidIdx(i => (i + 1) % MID_CHOICES.length); }, mid: true },
+          { y: y1, label: "", value: "New Chat", onPick: () => { setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false); }, onGear: () => { setLeftAngle(a => a + STEP_DEG); }, isNewChat: true },
+          { y: y2, label: "Quick Prompts", value: QUICK_PROMPTS[quickIdx], onPick: () => { sendMessage(QUICK_PROMPTS[quickIdx]); if(isMobile) setSidebarOpen(false); }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => (i + 1) % QUICK_PROMPTS.length); } },
           { y: y3, label: "Recent", value: chats.length > 0 ? chats[recentsIdx].title : "No chats", onPick: () => { if(chats.length) { setActiveChatId(chats[recentsIdx].id); setViewMode("chat"); if(isMobile) setSidebarOpen(false); } }, onGear: () => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => (i + 1) % chats.length); }, sub: chats.length > 0 ? "Past Conversation" : "" },
         ];
 
     const isOpen = gearsRight ? rightRailOpen : sidebarOpen;
     const railStyle: React.CSSProperties = {
-      width: RAIL_W, flexShrink: 0, background: bg, 
-      position: "fixed", top: 0, bottom: 0,
+      width: RAIL_W, flexShrink: 0, background: bg, position: "fixed", top: 0, bottom: 0,
       left: !gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
       right: gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
       zIndex: 60, transition: "all 0.3s ease",
-      boxShadow: isMobile && isOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none",
-      overflow: "hidden"
+      boxShadow: isMobile && isOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden"
     };
 
     return (
@@ -291,11 +277,11 @@ export default function App() {
         {panels.map((p: any, i: number) => (
           <div key={i} style={{ ...panelBase, top: p.y, zIndex: 10 }}>
             {p.label && <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: textFaint, marginBottom: 8 }}>{p.label}</div>}
-            <button onClick={p.onPick} style={p.mid ? { ...btnStyle, display: "flex", alignItems: "center", gap: 8, justifyContent: gearsRight ? "flex-end" : "flex-start" } : p.sub ? { ...btnStyle, background: "transparent", padding: "2px 0" } : btnStyle}>
-              {p.mid && (midIdx === 0 ? <Plus size={15} /> : <Settings size={15} />)}
+            <button onClick={p.onPick} style={p.isNewChat ? { ...btnStyle, display: "flex", alignItems: "center", gap: 8, justifyContent: gearsRight ? "flex-end" : "flex-start", background: dark ? "rgba(255,255,255,0.1)" : "#e2e8f0" } : p.sub ? { ...btnStyle, background: "transparent", padding: "2px 0" } : btnStyle}>
+              {p.isNewChat && <Plus size={15} />}
               {p.sub ? (<><div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.value}</div><div style={{ fontSize: 11, color: textFaint, marginTop: 3 }}>{p.sub}</div></>) : p.value}
             </button>
-            <div style={{ fontSize: 10, color: textFaint, marginTop: 6, opacity: 0.75 }}>{p.mid ? "click gear to cycle" : "click text to open"}</div>
+            <div style={{ fontSize: 10, color: textFaint, marginTop: 6, opacity: 0.75 }}>click gear to cycle</div>
           </div>
         ))}
       </aside>
@@ -304,13 +290,13 @@ export default function App() {
 
   if (appLoading) {
     return (
-      <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: dark ? "#1c1b22" : "#f8f9fa", alignItems: "center", justifyContent: "center", zIndex: 99999 }}>
+      <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: bg, alignItems: "center", justifyContent: "center", zIndex: 99999 }}>
         <div style={{ width: 100, height: 100, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ position: "absolute", transform: 'scale(1.2)' }}>
             <GearboxLoader />
           </div>
         </div>
-        <div style={{ color: dark ? "#e8eaed" : "#1a1a2e", fontSize: 14, fontWeight: 700, letterSpacing: "0.2em", marginTop: 40 }}>
+        <div style={{ color: textPrimary, fontSize: 14, fontWeight: 700, letterSpacing: "0.2em", marginTop: 40 }}>
           INITIALIZING SYSTEM...
         </div>
       </div>
@@ -365,8 +351,8 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
             {currentUser && Number(currentUser.id) !== -1 ? (
               <>
-                <Avatar name={currentUser?.username || currentUser?.email || "User"} size={30} bg="#7c3aed" />
-                <div style={{ fontSize: 13, fontWeight: 600, color: textPrimary, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentUser?.username || currentUser?.email.split('@')[0]}</div>
+                <button onClick={() => setGearMode(false)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 8, background: dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)", border: "none", color: textPrimary, cursor: "pointer", marginRight: 4 }} title="Exit Taskbar Mode"><ArrowLeft size={16} /></button>
+                <Avatar name={currentUser?.username || currentUser?.email || "User"} size={28} bg="#7c3aed" />
                 <button onClick={() => setShowProfileModal(true)} style={{ color: textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Edit Profile"><UserCog size={15} /></button>
                 {currentUser?.role === 'admin' && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(isMobile) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#4285f4" : textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Admin Panel"><Database size={15} /></button>}
                 <button onClick={handleLogout} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Logout"><LogOut size={15} /></button>
@@ -385,7 +371,7 @@ export default function App() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}>
-                    <Settings color="#4285f4" className="animate-spin" style={{ animationDuration: '3s' }} size={24} />
+                    <Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} />
                   </div>
                   <ChatCITLogo dark={dark} onBlue />
                 </div>
@@ -393,12 +379,17 @@ export default function App() {
               </div>
               <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                 <div style={{ padding: "12px 12px 0 12px", display: "flex", flexDirection: "column", height: "100%", overflowY: "auto" }}>
-                  <button onClick={() => {setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false);}} style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", marginBottom: 12, borderRadius: 12, border: "none", cursor: "pointer", background: "rgba(255,255,255,0.12)", color: sb.text, fontSize: 13, fontWeight: 500 }}>
-                    <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}><Plus size={13} /></div>New chat
-                  </button>
-                  <button onClick={() => { setGearMode(true); if(isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", marginBottom: 32, borderRadius: 12, border: `1px solid ${sb.border}`, background: "transparent", color: sb.text, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
-                    <Settings size={14} /> Change taskbar mode
-                  </button>
+                  
+                  {/* GROUPED: New Chat & Taskbar Mode */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
+                    <button onClick={() => {setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false);}} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer", background: dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.25)", color: sb.text, fontSize: 13, fontWeight: 500, boxShadow: dark ? "none" : "0 2px 5px rgba(0,0,0,0.05)" }}>
+                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: dark ? "rgba(255,255,255,0.18)" : "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", color: dark ? "#fff" : "#1558d6" }}><Plus size={13} /></div>New chat
+                    </button>
+                    <button onClick={() => { setGearMode(true); if(isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: `1px solid ${sb.border}`, background: "transparent", color: sb.text, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+                      <Settings size={14} /> Change taskbar mode
+                    </button>
+                  </div>
+
                   <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Quick Prompts</span></div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 24 }}>
                     {QUICK_PROMPTS.map((lbl: string) => (
@@ -450,19 +441,22 @@ export default function App() {
           </aside>
         )}
 
-        <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "relative", paddingLeft: gearMode && !isMobile ? RAIL_W : 0, paddingRight: !isMobile ? RAIL_W : 0 }}>
-          <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: isMobile ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 10 }}>
+        {/* FIXED: Removed padding from <main> so the inner div can push the scrollbar to the exact right edge of the screen */}
+        <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "relative" }}>
+          
+          {/* FIXED: z-index increased to 50 so it absolutely covers the scrolling admin panel tables */}
+          <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: isMobile ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {(isMobile || (!gearMode && !sidebarOpen)) && (
                 <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center" }}><Menu size={22} /></button>
               )}
               {(!gearMode && (isMobile || !sidebarOpen)) && (
-                <><div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}><Settings color="#4285f4" className="animate-spin" style={{ animationDuration: '3s' }} size={24} /></div><ChatCITLogo dark={dark} /></>
+                <><div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}><Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} /></div><ChatCITLogo dark={dark} /></>
               )}
             </div>
             {gearMode && (
               <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}><Settings color="#4285f4" className="animate-spin" style={{ animationDuration: '3s' }} size={24} /></div><ChatCITLogo dark={dark} />
+                <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}><Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} /></div><ChatCITLogo dark={dark} />
               </div>
             )}
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -470,7 +464,8 @@ export default function App() {
             </div>
           </header>
 
-          <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+          {/* FIXED: Padding moved here. It dodges the gear-rails but keeps the scrollbar on the absolute far right edge! */}
+          <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", paddingLeft: gearMode && !isMobile ? RAIL_W : 0, paddingRight: gearMode && !isMobile ? RAIL_W : 0 }}>
             {viewMode === "admin" ? (
               <AdminPanel dark={dark} showToast={showToast} />
             ) : !activeChat || activeChat.messages.length === 0 ? (
@@ -487,7 +482,7 @@ export default function App() {
                     {topFaqs.slice(0, isMobile ? 3 : topFaqs.length).map((faq, idx) => {
                       const primaryTag = faq.keyword ? faq.keyword.split(',')[0].trim() : "Question";
                       return (
-                        <button key={idx} onClick={() => sendMessage(primaryTag)} style={{ padding: "10px 18px", borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? "rgba(255,255,255,0.03)" : "#fff", color: textPrimary, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s ease" }} onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.08)" : "#f8fafc"} onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.03)" : "#fff"}>
+                        <button key={idx} onClick={() => sendMessage(primaryTag)} style={{ padding: "10px 18px", borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? "rgba(255,255,255,0.03)" : "#fff", color: textPrimary, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s ease" }} onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.08)" : "#ffffff"} onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.03)" : "#fff"}>
                           {primaryTag}
                         </button>
                       );
