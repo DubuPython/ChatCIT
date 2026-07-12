@@ -4,8 +4,8 @@ import { SpinningGear } from "./ui/helpers";
 import { User, Chat } from "../types";
 import { API_URL } from "../config";
 
-export function AuthScreen({ dark, onSuccess }: { dark: boolean, onSuccess: (u: User, c: Chat[]) => void }) {
-  const [isLogin, setIsLogin] = useState(true);
+export function AuthScreen({ dark, onSuccess, initialIsLogin = true }: { dark: boolean, onSuccess: (u: User, c: Chat[]) => void, initialIsLogin?: boolean }) {
+  const [isLogin, setIsLogin] = useState(initialIsLogin);
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -94,7 +94,8 @@ export function AuthScreen({ dark, onSuccess }: { dark: boolean, onSuccess: (u: 
 
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <h2 style={{ margin: '0 0 8px', fontSize: 24, fontWeight: 600, color: textPrimary }}>
-          {isLogin ? "Welcome back" : "Create an account"}
+          {/* FIXED: Changed to "Welcome to ChatCIT" */}
+          {isLogin ? "Welcome to ChatCIT" : "Create an account"}
         </h2>
         <p style={{ margin: 0, fontSize: 14, color: textMuted }}>
           {isLogin ? "Log in to access your ChatCIT history." : "Register with your BulSU student email."}

@@ -130,7 +130,9 @@ export default function App() {
   const [appLoading, setAppLoading] = useState(true); 
   const [dark, setDark] = useState(true);
   
-  // FIX: Synchronously determine if the pop-up should show immediately on load
+  // FIX: Added authMode to track if we should open on "login" or "signup"
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+
   const [showAuthPopup, setShowAuthPopup] = useState(() => {
     if (typeof window !== "undefined") {
       const savedUser = localStorage.getItem('chatcit_user');
@@ -289,6 +291,7 @@ export default function App() {
       const newCount = guestMessageCount + 1;
       setGuestMessageCount(newCount);
       if (newCount % 3 === 0) {
+        setAuthMode("login");
         setShowAuthPopup(true);
       }
     }
@@ -348,7 +351,8 @@ export default function App() {
     localStorage.removeItem('chatcit_user');
     localStorage.removeItem('chatcit_chats');
     showToast("Logged out successfully.", "info");
-    // Show pop up again upon manual logout
+    
+    setAuthMode("login");
     setShowAuthPopup(true);
   };
 
@@ -440,6 +444,7 @@ export default function App() {
               
               <AuthScreen 
                 dark={dark} 
+                initialIsLogin={authMode === "login"}
                 onSuccess={(userData: User, userChats: Chat[]) => { 
                   setCurrentUser(userData); 
                   setChats(userChats); 
@@ -490,7 +495,7 @@ export default function App() {
               </>
             ) : (
               <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
-                <button onClick={() => setShowAuthPopup(true)} style={{ padding: "6px 16px", borderRadius: 20, background: dark ? "#fff" : "#1a1a2e", color: dark ? "#1a1a2e" : "#fff", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}>Log in to Save Chats</button>
+                <button onClick={() => { setAuthMode("login"); setShowAuthPopup(true); }} style={{ padding: "6px 16px", borderRadius: 20, background: dark ? "#fff" : "#1a1a2e", color: dark ? "#1a1a2e" : "#fff", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}>Log in to Save Chats</button>
               </div>
             )}
           </div>
@@ -550,8 +555,9 @@ export default function App() {
                 
                 {currentUser?.id === -1 ? (
                   <div style={{ display: "flex", gap: 8, width: "100%" }}>
-                    <button onClick={() => setShowAuthPopup(true)} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "#fff", color: "#1a1a2e", fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", transition: "opacity 0.2s" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.9"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Log in</button>
-                    <button onClick={() => setShowAuthPopup(true)} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 13, fontWeight: 600, border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}>Sign up for free</button>
+                    <button onClick={() => { setAuthMode("login"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "#fff", color: "#1a1a2e", fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", transition: "opacity 0.2s" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.9"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Log in</button>
+                    {/* FIXED: Changed button text to "Sign up" and connected it to the "signup" mode */}
+                    <button onClick={() => { setAuthMode("signup"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 13, fontWeight: 600, border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}>Sign up</button>
                   </div>
                 ) : (
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
