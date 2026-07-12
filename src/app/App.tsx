@@ -130,7 +130,6 @@ export default function App() {
   const [appLoading, setAppLoading] = useState(true); 
   const [dark, setDark] = useState(true);
   
-  // FIX: Added authMode to track if we should open on "login" or "signup"
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
 
   const [showAuthPopup, setShowAuthPopup] = useState(() => {
@@ -556,7 +555,6 @@ export default function App() {
                 {currentUser?.id === -1 ? (
                   <div style={{ display: "flex", gap: 8, width: "100%" }}>
                     <button onClick={() => { setAuthMode("login"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "#fff", color: "#1a1a2e", fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", transition: "opacity 0.2s" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.9"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Log in</button>
-                    {/* FIXED: Changed button text to "Sign up" and connected it to the "signup" mode */}
                     <button onClick={() => { setAuthMode("signup"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 13, fontWeight: 600, border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}>Sign up</button>
                   </div>
                 ) : (
@@ -720,10 +718,11 @@ export default function App() {
           )}
         </main>
         
+        {/* ADDED GAP: 18px BETWEEN BUG AND TOGGLE */}
         {renderRail("right", 
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
             <button onClick={() => setShowBugModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#ef4444", cursor: "pointer", transition: "background 0.2s" }} title="Report a Bug"><Bug size={22} /></button>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44 }}>
               <DayNightToggle dark={dark} toggleDark={() => setDark(!dark)} />
             </div>
           </div>
