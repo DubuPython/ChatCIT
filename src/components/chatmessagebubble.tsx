@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Bot, CheckCircle, Copy } from "lucide-react";
 import { Avatar, MarkdownText } from "./ui/helpers";
-import { CanvasPDFViewer } from "./ui/CanvasPDFViewer";
+import { CanvasPDFViewer } from "./ui/canvaspdfviewer";
 import { Message, User } from "../types";
 
 interface Props {

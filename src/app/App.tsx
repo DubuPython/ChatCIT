@@ -62,22 +62,26 @@ export default function App() {
 
   useEffect(() => {
     const savedUser = localStorage.getItem('chatcit_user');
-    if (savedUser && JSON.parse(savedUser).id !== -1) {
-      setCurrentUser(JSON.parse(savedUser));
+    const isGuest = !savedUser || JSON.parse(savedUser).id === -1;
+
+    // STRICT GUEST CHECK: Never load memory arrays for guests
+    if (!isGuest) {
+      setCurrentUser(JSON.parse(savedUser!));
+      const savedChats = localStorage.getItem('chatcit_chats');
+      if (savedChats) {
+        try {
+          const parsed = JSON.parse(savedChats);
+          setChats(parsed.map((c: any) => ({ ...c, timestamp: new Date(c.timestamp), messages: c.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })) })));
+        } catch (e) { }
+      }
     } else {
       setCurrentUser({ id: -1, email: "guest@bulsu.edu.ph", role: "student", username: "Guest User" });
+      setChats([]); // Force clear memory
     }
 
     const savedMode = localStorage.getItem('chatcit_viewMode');
-    const savedChats = localStorage.getItem('chatcit_chats');
-
     if (savedMode && savedMode !== "auth") setViewMode(savedMode as "chat" | "admin");
-    if (savedChats) {
-      try {
-        const parsed = JSON.parse(savedChats);
-        setChats(parsed.map((c: any) => ({ ...c, timestamp: new Date(c.timestamp), messages: c.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })) })));
-      } catch (e) { }
-    }
+    
     setTimeout(() => setAppLoading(false), 1200);
   }, []);
 
@@ -85,11 +89,12 @@ export default function App() {
     if (!appLoading) {
       if (currentUser && currentUser.id !== -1) {
         localStorage.setItem('chatcit_user', JSON.stringify(currentUser));
+        localStorage.setItem('chatcit_chats', JSON.stringify(chats));
       } else {
         localStorage.removeItem('chatcit_user');
+        localStorage.removeItem('chatcit_chats');
       }
       localStorage.setItem('chatcit_viewMode', viewMode);
-      localStorage.setItem('chatcit_chats', JSON.stringify(chats));
     }
   }, [currentUser, viewMode, chats, appLoading]);
 
@@ -290,7 +295,8 @@ export default function App() {
       <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: dark ? "#1c1b22" : "#f8f9fa", alignItems: "center", justifyContent: "center", zIndex: 99999 }}>
         <div style={{ width: 100, height: 100, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ position: "absolute", transform: 'scale(1.2)' }}>
-            <GearboxLoader />
+             {/* STRIPPED OUT THE OLD INLINE FILTER SO LIGHT MODE CSS CAN APPLY */}
+             <GearboxLoader />
           </div>
         </div>
         <div style={{ color: dark ? "#e8eaed" : "#1a1a2e", fontSize: 14, fontWeight: 700, letterSpacing: "0.2em", marginTop: 40 }}>
@@ -389,7 +395,7 @@ export default function App() {
                     ))}
                   </div>
                   
-                  {/* FIXED: "Recent" tab ONLY renders if the user is verified/logged in! */}
+                  {/* STRICT GUARD: "Recent" tab ONLY renders if the user is verified/logged in! */}
                   {currentUser?.id !== -1 && (
                     <>
                       <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Recent</span></div>
@@ -460,7 +466,8 @@ export default function App() {
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100%", padding: "48px 16px" }}>
                 <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
                   <div style={{ position: "absolute", transform: isMobile ? "scale(0.65)" : "scale(0.85)" }}>
-                    <GearboxLoader />
+                     {/* STRIPPED OUT THE OLD INLINE FILTER SO LIGHT MODE CSS CAN APPLY */}
+                     <GearboxLoader />
                   </div>
                 </div>
                 <h1 style={{ fontSize: isMobile ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{currentUser?.id === -1 ? "Guest" : currentUser?.username || currentUser?.email?.split('@')[0] || "Bulsuan"}!</strong></h1>
