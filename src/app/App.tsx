@@ -21,45 +21,43 @@ declare global {
   }
 }
 
-// --- DYNAMIC COSMIC CSS STYLES (Light & Dark Mode) ---
+// --- DYNAMIC COSMIC CSS STYLES (ENHANCED VISIBILITY FOR LIGHT MODE) ---
 const getCosmicStyles = (dark: boolean) => `
 .cosmic-wrapper {
   position: relative; width: 100%; border-radius: 10px; isolation: isolate;
 }
 .cosmic-galaxy {
   height: 100%; width: 100%;
-  background-image: radial-gradient(${dark ? '#ffffff' : '#4285f4'} 1px, transparent 1px), radial-gradient(${dark ? '#ffffff' : '#4285f4'} 1px, transparent 1px);
-  background-size: 50px 50px; background-position: 0 0, 25px 25px; position: absolute; inset: 0; z-index: -1; animation: cosmicTwinkle 5s infinite; border-radius: 10px; opacity: 0.15;
+  background-image: radial-gradient(${dark ? '#ffffff' : '#94a3b8'} 1px, transparent 1px), radial-gradient(${dark ? '#ffffff' : '#94a3b8'} 1px, transparent 1px);
+  background-size: 50px 50px; background-position: 0 0, 25px 25px; position: absolute; inset: 0; z-index: -1; animation: cosmicTwinkle 5s infinite; border-radius: 10px; opacity: ${dark ? 0.15 : 0.3};
 }
-@keyframes cosmicTwinkle { 0%, 100% { opacity: 0.1; } 50% { opacity: 0.3; } }
+@keyframes cosmicTwinkle { 0%, 100% { opacity: ${dark ? 0.1 : 0.2}; } 50% { opacity: ${dark ? 0.3 : 0.5}; } }
 .cosmic-stardust, .cosmic-ring, .cosmic-starfield, .cosmic-nebula {
   height: 100%; width: 100%; position: absolute; inset: 0; overflow: hidden; z-index: -1; border-radius: 12px; filter: blur(3px);
 }
 .cosmic-input {
-  background-color: ${dark ? '#05071b' : '#ffffff'}; border: ${dark ? 'none' : '1px solid rgba(0,0,0,0.15)'}; width: 100%; height: 56px; border-radius: 10px; color: ${dark ? '#a9c7ff' : '#1a1a2e'}; padding-inline: 59px; font-size: 15px; font-family: inherit; transition: background-color 0.3s;
+  background-color: ${dark ? '#05071b' : '#ffffff'}; border: ${dark ? 'none' : '1px solid rgba(0,0,0,0.15)'}; width: 100%; height: 56px; border-radius: 10px; color: ${dark ? '#a9c7ff' : '#1a1a2e'}; padding-inline: 59px; font-size: 15px; font-family: inherit; transition: background-color 0.3s, border-color 0.3s;
 }
 .cosmic-search-container {
   display: flex; align-items: center; justify-content: center; width: 100%; position: relative;
 }
-.cosmic-input::placeholder { color: ${dark ? '#6e8cff' : '#84acf2'}; }
+.cosmic-input::placeholder { color: ${dark ? '#6e8cff' : '#64748b'}; }
 .cosmic-input:focus { outline: none; border-color: #4285f4; }
 .cosmic-main { width: 100%; position: relative; }
-
-/* The text-obscuring masks have been entirely removed! */
 
 .cosmic-stardust { border-radius: 10px; filter: blur(2px); }
 .cosmic-stardust::before {
   content: ""; z-index: -2; text-align: center; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(83deg); position: absolute; width: 2000px; height: 2000px; background-repeat: no-repeat; background-position: 0 0; filter: brightness(1.4);
-  background-image: conic-gradient(rgba(0, 0, 0, 0) 0%, ${dark ? '#4d6dff' : '#a3bffa'}, rgba(0, 0, 0, 0) 8%, rgba(0, 0, 0, 0) 50%, ${dark ? '#6e8cff' : '#c4d7fa'}, rgba(0, 0, 0, 0) 58%); transition: all 2s;
+  background-image: conic-gradient(rgba(0, 0, 0, 0) 0%, ${dark ? '#4d6dff' : '#2563eb'}, rgba(0, 0, 0, 0) 8%, rgba(0, 0, 0, 0) 50%, ${dark ? '#6e8cff' : '#60a5fa'}, rgba(0, 0, 0, 0) 58%); transition: all 2s;
 }
 .cosmic-ring { border-radius: 11px; filter: blur(0.5px); }
 .cosmic-ring::before {
   content: ""; z-index: -2; text-align: center; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(70deg); position: absolute; width: 2000px; height: 2000px; filter: brightness(1.3); background-repeat: no-repeat; background-position: 0 0;
-  background-image: conic-gradient(${dark ? '#05071b' : '#ffffff'}, ${dark ? '#4d6dff' : '#a3bffa'} 5%, ${dark ? '#05071b' : '#ffffff'} 14%, ${dark ? '#05071b' : '#ffffff'} 50%, ${dark ? '#6e8cff' : '#c4d7fa'} 60%, ${dark ? '#05071b' : '#ffffff'} 64%); transition: all 2s;
+  background-image: conic-gradient(${dark ? '#05071b' : '#ffffff'}, ${dark ? '#4d6dff' : '#3b82f6'} 5%, ${dark ? '#05071b' : '#ffffff'} 14%, ${dark ? '#05071b' : '#ffffff'} 50%, ${dark ? '#6e8cff' : '#2563eb'} 60%, ${dark ? '#05071b' : '#ffffff'} 64%); transition: all 2s;
 }
 .cosmic-starfield::before {
   content: ""; z-index: -2; text-align: center; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(82deg); position: absolute; width: 2000px; height: 2000px; background-repeat: no-repeat; background-position: 0 0;
-  background-image: conic-gradient(rgba(0, 0, 0, 0), ${dark ? '#1c2452' : '#e0e7ff'}, rgba(0, 0, 0, 0) 10%, rgba(0, 0, 0, 0) 50%, ${dark ? '#2a3875' : '#c7d2fe'}, rgba(0, 0, 0, 0) 60%); transition: all 2s;
+  background-image: conic-gradient(rgba(0, 0, 0, 0), ${dark ? '#1c2452' : '#93c5fd'}, rgba(0, 0, 0, 0) 10%, rgba(0, 0, 0, 0) 50%, ${dark ? '#2a3875' : '#3b82f6'}, rgba(0, 0, 0, 0) 60%); transition: all 2s;
 }
 .cosmic-search-container:hover > .cosmic-starfield::before { transform: translate(-50%, -50%) rotate(-98deg); }
 .cosmic-search-container:hover > .cosmic-nebula::before { transform: translate(-50%, -50%) rotate(-120deg); }
@@ -69,20 +67,20 @@ const getCosmicStyles = (dark: boolean) => `
 .cosmic-search-container:focus-within > .cosmic-nebula::before { transform: translate(-50%, -50%) rotate(420deg); transition: all 4s; }
 .cosmic-search-container:focus-within > .cosmic-stardust::before { transform: translate(-50%, -50%) rotate(443deg); transition: all 4s; }
 .cosmic-search-container:focus-within > .cosmic-ring::before { transform: translate(-50%, -50%) rotate(430deg); transition: all 4s; }
-.cosmic-nebula { overflow: hidden; filter: blur(30px); opacity: 0.4; }
+.cosmic-nebula { overflow: hidden; filter: blur(30px); opacity: ${dark ? 0.4 : 0.6}; }
 .cosmic-nebula:before {
   content: ""; z-index: -2; text-align: center; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(60deg); position: absolute; width: 2000px; height: 2000px; background-repeat: no-repeat; background-position: 0 0;
-  background-image: conic-gradient(${dark ? '#000' : '#fff'}, ${dark ? '#4d6dff' : '#84acf2'} 5%, ${dark ? '#000' : '#fff'} 38%, ${dark ? '#000' : '#fff'} 50%, ${dark ? '#6e8cff' : '#a3bffa'} 60%, ${dark ? '#000' : '#fff'} 87%); transition: all 2s;
+  background-image: conic-gradient(${dark ? '#000' : '#fff'}, ${dark ? '#4d6dff' : '#3b82f6'} 5%, ${dark ? '#000' : '#fff'} 38%, ${dark ? '#000' : '#fff'} 50%, ${dark ? '#6e8cff' : '#2563eb'} 60%, ${dark ? '#000' : '#fff'} 87%); transition: all 2s;
 }
 .cosmic-wormhole-icon {
   position: absolute; top: 8px; right: 8px; display: flex; align-items: center; justify-content: center; z-index: 2; height: 40px; width: 38px; isolation: isolate; overflow: hidden; border-radius: 10px;
-  background: ${dark ? 'linear-gradient(180deg, #1c2452, #05071b, #2a3875)' : 'linear-gradient(180deg, #e0e7ff, #ffffff, #c7d2fe)'}; border: none; cursor: pointer; padding: 0; outline: none; transition: opacity 0.2s;
+  background: ${dark ? 'linear-gradient(180deg, #1c2452, #05071b, #2a3875)' : 'linear-gradient(180deg, #eff6ff, #f8fafc, #dbeafe)'}; border: ${dark ? 'none' : '1px solid rgba(59, 130, 246, 0.2)'}; cursor: pointer; padding: 0; outline: none; transition: opacity 0.2s;
 }
 .cosmic-wormhole-icon:disabled { opacity: 0.5; cursor: not-allowed; }
 .cosmic-wormhole-border { height: 42px; width: 40px; position: absolute; overflow: hidden; top: 7px; right: 7px; border-radius: 10px; }
 .cosmic-wormhole-border::before {
   content: ""; text-align: center; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(90deg); position: absolute; width: 2000px; height: 2000px; background-repeat: no-repeat; background-position: 0 0; filter: brightness(1.35);
-  background-image: conic-gradient(rgba(0, 0, 0, 0), ${dark ? '#4d6dff' : '#84acf2'}, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0) 50%, ${dark ? '#6e8cff' : '#c4d7fa'}, rgba(0, 0, 0, 0) 100%); animation: cosmicRotate 4s linear infinite;
+  background-image: conic-gradient(rgba(0, 0, 0, 0), ${dark ? '#4d6dff' : '#2563eb'}, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0) 50%, ${dark ? '#6e8cff' : '#60a5fa'}, rgba(0, 0, 0, 0) 100%); animation: cosmicRotate 4s linear infinite;
 }
 .cosmic-search-icon { position: absolute; left: 20px; top: 16px; pointer-events: none; }
 @keyframes cosmicRotate { 100% { transform: translate(-50%, -50%) rotate(450deg); } }
@@ -490,6 +488,7 @@ export default function App() {
   return (
     <div style={{ position: "fixed", top: 0, bottom: 0, left: 0, right: 0, display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary }}>
       
+      {/* INJECTED CSS FOR THE COSMIC INPUT BAR */}
       <style>{getCosmicStyles(dark)}</style>
 
       {/* AUTHENTICATION POPUP OVERLAY */}
@@ -688,7 +687,6 @@ export default function App() {
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100%", padding: "48px 16px" }}>
                 <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
                   <div style={{ position: "absolute", transform: isMobile ? "scale(0.65)" : "scale(0.85)" }}>
-                    {/* FORCE DARK GREY IN LIGHT MODE FOR EMPTY STATE */}
                     <div style={{ filter: dark ? 'none' : 'brightness(0.1) opacity(0.7)' }}>
                       <GearboxLoader />
                     </div>
@@ -801,9 +799,9 @@ export default function App() {
                         disabled={!input.trim() || isTyping}
                         style={{ opacity: (!input.trim() || isTyping) ? 0.5 : 1, cursor: (!input.trim() || isTyping) ? 'not-allowed' : 'pointer' }}
                       >
-                        <svg strokeLinejoin="round" strokeLinecap="round" strokeWidth={2} stroke="#a9c7ff" fill="none" height={20} width={20} viewBox="0 0 24 24" className={isTyping ? "animate-spin" : ""}>
+                        <svg strokeLinejoin="round" strokeLinecap="round" strokeWidth={2} stroke={dark ? "#a9c7ff" : "#2563eb"} fill="none" height={20} width={20} viewBox="0 0 24 24" className={isTyping ? "animate-spin" : ""}>
                           {isTyping ? (
-                             <circle cx="12" cy="12" r="10" stroke="#a9c7ff" strokeWidth="4" strokeDasharray="32" strokeLinecap="round" />
+                             <circle cx="12" cy="12" r="10" stroke={dark ? "#a9c7ff" : "#2563eb"} strokeWidth="4" strokeDasharray="32" strokeLinecap="round" />
                           ) : (
                              <>
                                <circle r={10} cy={12} cx={12} />
@@ -819,8 +817,8 @@ export default function App() {
                           <line y2="16.65" x2="16.65" y1={21} x1={21} />
                           <defs>
                             <linearGradient gradientTransform="rotate(45)" id="cosmic-search">
-                              <stop stopColor="#a9c7ff" offset="0%" />
-                              <stop stopColor="#6e8cff" offset="100%" />
+                              <stop stopColor={dark ? "#a9c7ff" : "#3b82f6"} offset="0%" />
+                              <stop stopColor={dark ? "#6e8cff" : "#1d4ed8"} offset="100%" />
                             </linearGradient>
                           </defs>
                         </svg>
