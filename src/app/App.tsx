@@ -130,12 +130,23 @@ export default function App() {
   const [appLoading, setAppLoading] = useState(true); 
   const [dark, setDark] = useState(true);
   
-  // NEW: State to control the Authentication Popup Modal
-  const [showAuthPopup, setShowAuthPopup] = useState(false);
-  // NEW: Tracker to count messages sent by guests
+  // FIX: Synchronously determine if the pop-up should show immediately on load
+  const [showAuthPopup, setShowAuthPopup] = useState(() => {
+    if (typeof window !== "undefined") {
+      const savedUser = localStorage.getItem('chatcit_user');
+      if (!savedUser) return true;
+      try {
+        const u = JSON.parse(savedUser);
+        if (u.id === -1) return true;
+      } catch (e) {
+        return true;
+      }
+    }
+    return false;
+  });
+
   const [guestMessageCount, setGuestMessageCount] = useState(0);
 
-  // Safe Initialization: Hydrate securely via useEffect
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [viewMode, setViewMode] = useState<"chat" | "admin">("chat"); 
   const [chats, setChats] = useState<Chat[]>([]);
@@ -143,17 +154,16 @@ export default function App() {
   useEffect(() => {
     // Hydrate LocalStorage data safely on mount
     const savedUser = localStorage.getItem('chatcit_user');
-    const savedMode = localStorage.getItem('chatcit_viewMode');
-    const savedChats = localStorage.getItem('chatcit_chats');
-
-    if (savedUser) {
+    
+    if (savedUser && JSON.parse(savedUser).id !== -1) {
       setCurrentUser(JSON.parse(savedUser));
     } else {
-      // DEFAULT: Automatically establish the user as a Guest if not logged in
+      // Default to Guest Identity if no valid user is found
       setCurrentUser({ id: -1, email: "guest@bulsu.edu.ph", role: "student", username: "Guest User" });
-      // Show the Auth Popup on the very first visit
-      setShowAuthPopup(true);
     }
+
+    const savedMode = localStorage.getItem('chatcit_viewMode');
+    const savedChats = localStorage.getItem('chatcit_chats');
 
     if (savedMode && savedMode !== "auth") setViewMode(savedMode as "chat" | "admin");
     if (savedChats) {
@@ -167,13 +177,13 @@ export default function App() {
       } catch (e) { }
     }
     
-    // Clear Loading Screen ONLY after hydration is complete
     setTimeout(() => setAppLoading(false), 1200);
   }, []);
 
   // Sync state back to local storage dynamically
   useEffect(() => {
     if (!appLoading) {
+      // Never save the Guest identity to local storage! 
       if (currentUser && currentUser.id !== -1) {
         localStorage.setItem('chatcit_user', JSON.stringify(currentUser));
       } else {
@@ -275,7 +285,6 @@ export default function App() {
     const content = text.trim();
     setInput("");
     
-    // Check if Guest needs to see the Auth Popup (Every 3rd message)
     if (currentUser?.id === -1) {
       const newCount = guestMessageCount + 1;
       setGuestMessageCount(newCount);
@@ -339,6 +348,8 @@ export default function App() {
     localStorage.removeItem('chatcit_user');
     localStorage.removeItem('chatcit_chats');
     showToast("Logged out successfully.", "info");
+    // Show pop up again upon manual logout
+    setShowAuthPopup(true);
   };
 
   const renderRail = (side: "left" | "right", topSlot?: React.ReactNode) => {
@@ -421,10 +432,9 @@ export default function App() {
       
       {/* AUTHENTICATION POPUP OVERLAY */}
       {showAuthPopup && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 999999, background: "rgba(0,0,0,0.75)", display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(5px)" }}>
-           <div style={{ position: "relative", width: "100%", maxWidth: 420, maxHeight: "90vh", overflowY: "auto", borderRadius: 16, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)" }}>
-              {/* Close Button to dismiss and continue as guest */}
-              <button onClick={() => setShowAuthPopup(false)} style={{ position: "absolute", top: 16, right: 16, zIndex: 50, background: "rgba(255,255,255,0.1)", border: "none", color: "#fff", width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 999999, background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)", padding: 20 }}>
+           <div style={{ position: "relative", width: "100%", maxWidth: 380, background: dark ? "#1e1e24" : "#ffffff", borderRadius: 20, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", border: dark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.05)" }}>
+              <button onClick={() => setShowAuthPopup(false)} style={{ position: "absolute", top: 16, right: 16, zIndex: 50, background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", border: "none", color: textPrimary, width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"} onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}>
                 <X size={18} />
               </button>
               
@@ -437,7 +447,6 @@ export default function App() {
                   setShowAuthPopup(false); 
                   showToast(`Welcome back, ${userData.username || 'Bulsuan'}!`, "success"); 
                 }} 
-                onGuest={() => setShowAuthPopup(false)} 
               />
            </div>
         </div>
@@ -468,7 +477,6 @@ export default function App() {
         <div onClick={() => setRightRailOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />
       )}
 
-      {/* Main Interface Wrapper */}
       <>
         {gearMode && renderRail("left", 
           <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
@@ -540,7 +548,6 @@ export default function App() {
               <div style={{ padding: "16px 12px 18px", borderTop: `1px solid ${sb.border}`, flexShrink: 0 }}>
                 <button onClick={() => { setGearMode(true); if(isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "9px 12px", borderRadius: 12, border: `1px solid ${sb.border}`, background: "transparent", color: sb.text, fontSize: 12, cursor: "pointer", marginBottom: 14 }}><Settings size={12} /> Change taskbar mode</button>
                 
-                {/* NEW: Render Pill Buttons for Guests, Profile for Logged in Users */}
                 {currentUser?.id === -1 ? (
                   <div style={{ display: "flex", gap: 8, width: "100%" }}>
                     <button onClick={() => setShowAuthPopup(true)} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "#fff", color: "#1a1a2e", fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", transition: "opacity 0.2s" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.9"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Log in</button>
@@ -603,12 +610,6 @@ export default function App() {
             )}
             
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {/* Added a subtle Login button to the top right for Guests, mimicking standard SaaS tools */}
-              {!isMobile && currentUser?.id === -1 && (
-                <button onClick={() => setShowAuthPopup(true)} style={{ padding: "6px 14px", borderRadius: 16, background: "transparent", color: textPrimary, fontSize: 13, fontWeight: 500, border: `1px solid ${inputBorder}`, cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                  Log in
-                </button>
-              )}
               {isMobile && (
                 <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}>
                   <MoreVertical size={20} />
@@ -705,7 +706,6 @@ export default function App() {
                   <button onClick={() => sendMessage()} disabled={!input.trim() || isTyping} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 9, border: "none", cursor: input.trim() && !isTyping ? "pointer" : "not-allowed", background: input.trim() && !isTyping ? "#4285f4" : dark ? "rgba(255,255,255,0.1)" : "#e5e7eb", color: input.trim() && !isTyping ? "#fff" : textFaint }}><Send size={14} /></button>
                 </div>
                 
-                {/* NEW: ChatGPT-style disclaimer beneath the chat box */}
                 <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, color: textFaint, letterSpacing: "0.2px" }}>
                   ChatCIT is AI. By using it, you agree to our <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Terms</span> & <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Privacy Policy</span>.
                 </div>
