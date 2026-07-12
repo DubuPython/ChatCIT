@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from "react";
-// FIXED: Added 'Bot' back to the import list
 import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, Menu, UserCog, X, MoreVertical, Bot } from "lucide-react";
 
 import { AuthScreen } from "../components/authmodal";
@@ -20,13 +19,6 @@ const getGlobalStyles = (dark: boolean) => `
 /* -- ADMIN DASHBOARD TABLE HEADER FIX -- */
 thead th {
   position: sticky; top: 0; background-color: ${dark ? '#1c1b22' : '#f9fafb'} !important; z-index: 20; box-shadow: 0 1px 2px ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'};
-}
-/* -- GEARBOX LOADER LIGHT/DARK MODE FIX -- */
-.gearbox {
-  background: ${dark ? '#111' : '#e2e8f0'} !important; box-shadow: 0px 0px 0px 1px ${dark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'} !important;
-}
-.gearbox .overlay {
-  box-shadow: inset 0px 0px 20px ${dark ? 'black' : 'rgba(0,0,0,0.1)'} !important;
 }
 `;
 
@@ -53,22 +45,33 @@ export default function App() {
 
   useEffect(() => {
     const savedUser = localStorage.getItem('chatcit_user');
-    if (savedUser && JSON.parse(savedUser).id !== -1) {
-      setCurrentUser(JSON.parse(savedUser));
-    } else {
+    let isGuest = true;
+
+    if (savedUser) {
+      try {
+        const u = JSON.parse(savedUser);
+        if (u.id !== -1) {
+          setCurrentUser(u);
+          isGuest = false;
+          
+          // ONLY load chats if the user is a verified, logged-in account
+          const savedChats = localStorage.getItem('chatcit_chats');
+          if (savedChats) {
+            const parsed = JSON.parse(savedChats);
+            setChats(parsed.map((c: any) => ({ ...c, timestamp: new Date(c.timestamp), messages: c.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })) })));
+          }
+        }
+      } catch (e) { }
+    }
+
+    if (isGuest) {
       setCurrentUser({ id: -1, email: "guest@bulsu.edu.ph", role: "student", username: "Guest User" });
+      setChats([]); // Guarantee chats are empty for guests on load
     }
 
     const savedMode = localStorage.getItem('chatcit_viewMode');
-    const savedChats = localStorage.getItem('chatcit_chats');
-
     if (savedMode && savedMode !== "auth") setViewMode(savedMode as "chat" | "admin");
-    if (savedChats) {
-      try {
-        const parsed = JSON.parse(savedChats);
-        setChats(parsed.map((c: any) => ({ ...c, timestamp: new Date(c.timestamp), messages: c.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })) })));
-      } catch (e) { }
-    }
+    
     setTimeout(() => setAppLoading(false), 1200);
   }, []);
 
@@ -76,11 +79,12 @@ export default function App() {
     if (!appLoading) {
       if (currentUser && currentUser.id !== -1) {
         localStorage.setItem('chatcit_user', JSON.stringify(currentUser));
+        localStorage.setItem('chatcit_chats', JSON.stringify(chats)); // Save only for logged in users
       } else {
         localStorage.removeItem('chatcit_user');
+        localStorage.removeItem('chatcit_chats'); // Ensure guest data is purged from storage
       }
       localStorage.setItem('chatcit_viewMode', viewMode);
-      localStorage.setItem('chatcit_chats', JSON.stringify(chats));
     }
   }, [currentUser, viewMode, chats, appLoading]);
 
@@ -281,7 +285,8 @@ export default function App() {
       <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: dark ? "#1c1b22" : "#f8f9fa", alignItems: "center", justifyContent: "center", zIndex: 99999 }}>
         <div style={{ width: 100, height: 100, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ position: "absolute", transform: 'scale(1.2)' }}>
-            <div style={{ filter: dark ? 'none' : 'brightness(0.1) opacity(0.7)' }}>
+            {/* CSS Filter perfectly inverts the dark gearbox into a beautiful white/grey theme */}
+            <div style={{ filter: dark ? 'none' : 'invert(0.92) hue-rotate(180deg)' }}>
               <GearboxLoader />
             </div>
           </div>
@@ -381,17 +386,23 @@ export default function App() {
                       <button key={lbl} onClick={() => { sendMessage(lbl); if(isMobile) setSidebarOpen(false); }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: "transparent", color: sb.muted, border: `1px solid ${sb.border}`, fontSize: 13, cursor: "pointer" }} onMouseEnter={(e) => { e.currentTarget.style.background = sb.hover; e.currentTarget.style.color = sb.text; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = sb.muted; }}>{lbl}</button>
                     ))}
                   </div>
-                  <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Recent</span></div>
-                  <div style={{ maxHeight: 200, overflowY: "auto", padding: "0 4px", display: "flex", flexDirection: "column", gap: 3 }}>
-                    {chats.slice(0, 5).map((chat: Chat) => (
-                      <div key={chat.id} className="group" style={{ display: "flex", alignItems: "center", width: "100%", borderRadius: 10, background: activeChatId === chat.id && viewMode === "chat" ? sb.active : "transparent" }}>
-                        <button onClick={() => { setActiveChatId(chat.id); setViewMode("chat"); if(isMobile) setSidebarOpen(false); }} style={{ flex: 1, textAlign: "left", padding: "9px 12px", background: "transparent", border: "none", cursor: "pointer", color: sb.text, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chat.title}</div>
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); deleteChat(chat.id); }} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ padding: "8px 10px", background: "transparent", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer" }}><Trash2 size={13} /></button>
+                  
+                  {/* FIXED: "Recent" tab ONLY renders if the user is verified/logged in! */}
+                  {currentUser?.id !== -1 && (
+                    <>
+                      <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Recent</span></div>
+                      <div style={{ maxHeight: 200, overflowY: "auto", padding: "0 4px", display: "flex", flexDirection: "column", gap: 3 }}>
+                        {chats.slice(0, 5).map((chat: Chat) => (
+                          <div key={chat.id} className="group" style={{ display: "flex", alignItems: "center", width: "100%", borderRadius: 10, background: activeChatId === chat.id && viewMode === "chat" ? sb.active : "transparent" }}>
+                            <button onClick={() => { setActiveChatId(chat.id); setViewMode("chat"); if(isMobile) setSidebarOpen(false); }} style={{ flex: 1, textAlign: "left", padding: "9px 12px", background: "transparent", border: "none", cursor: "pointer", color: sb.text, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chat.title}</div>
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); deleteChat(chat.id); }} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ padding: "8px 10px", background: "transparent", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer" }}><Trash2 size={13} /></button>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </>
+                  )}
                 </div>
               </div>
               <div style={{ padding: "16px 12px 18px", borderTop: `1px solid ${sb.border}`, flexShrink: 0 }}>
@@ -446,7 +457,8 @@ export default function App() {
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100%", padding: "48px 16px" }}>
                 <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
                   <div style={{ position: "absolute", transform: isMobile ? "scale(0.65)" : "scale(0.85)" }}>
-                    <div style={{ filter: dark ? 'none' : 'brightness(0.1) opacity(0.7)' }}><GearboxLoader /></div>
+                    {/* CSS Filter perfectly inverts the dark gearbox into a beautiful white/grey theme */}
+                    <div style={{ filter: dark ? 'none' : 'invert(0.92) hue-rotate(180deg)' }}><GearboxLoader /></div>
                   </div>
                 </div>
                 <h1 style={{ fontSize: isMobile ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{currentUser?.id === -1 ? "Guest" : currentUser?.username || currentUser?.email?.split('@')[0] || "Bulsuan"}!</strong></h1>
