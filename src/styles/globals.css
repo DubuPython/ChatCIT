@@ -159,11 +159,12 @@ thead th {
    LIGHT MODE GEARBOX OVERRIDES (BLUE GEARS)
    ========================================= */
 .light-mode .gearbox { 
-  background: transparent !important; 
-  box-shadow: none !important; 
+  background: #cbd5e1 !important; /* Deep slate grey for the cutout illusion */
+  box-shadow: inset 0px 4px 12px rgba(0, 0, 0, 0.15), inset 0px 0px 10px rgba(0,0,0,0.05), 0px 1px 0px rgba(255,255,255,0.8) !important; 
+  border: 1px solid rgba(0,0,0,0.05) !important; 
 }
 .light-mode .gearbox .overlay { 
-  box-shadow: inset 0px 0px 20px rgba(0,0,0,0.05) !important; 
+  box-shadow: inset 0px 0px 20px rgba(0,0,0,0.1) !important; 
 }
 
 /* Base Gear Shadows */
