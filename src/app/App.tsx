@@ -15,49 +15,6 @@ import { ChatMessageBubble } from "../components/chatmessagebubble";
 import { Message, Chat, User, ToastMsg } from "../types";
 import { QUICK_PROMPTS, ORGANIZATIONS, MAJORS, DOCUMENTS, MID_CHOICES, API_URL } from "../config";
 
-const getGlobalStyles = (dark: boolean) => `
-/* -- FLAWLESS ADMIN DASHBOARD HEADER FIX -- */
-/* Detects the Admin Panel and locks the outer page scroll */
-#chat-scroll-container:has(table) {
-  overflow: hidden !important;
-  display: flex;
-  flex-direction: column;
-}
-/* Forces the inner Admin wrapper to take exact height */
-#chat-scroll-container:has(table) > div {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
-/* Isolates the table and forces it to scroll internally while leaving headers pinned */
-#chat-scroll-container div:has(> table) {
-  flex: 1;
-  overflow-y: auto !important;
-  min-height: 0;
-}
-thead th {
-  position: sticky; top: 0; background-color: ${dark ? '#1c1b22' : '#ffffff'} !important; z-index: 20; box-shadow: 0 1px 2px ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'};
-}
-
-/* -- NATIVE LIGHT MODE OVERRIDES FOR THE GEARBOX (BLACK SILHOUETTE) -- */
-${!dark ? `
-  .gearbox { background: transparent !important; box-shadow: none !important; }
-  .gearbox .overlay { box-shadow: inset 0px 0px 20px rgba(0,0,0,0.05) !important; }
-  .gear { box-shadow: 0px -1px 0px 0px rgba(0,0,0,0.2), 0px 1px 0px 0px #000 !important; }
-  .gear:after {
-    background: #0a0a0a !important;
-    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2), inset 0px 0px 10px rgba(0, 0, 0, 0.8), inset 0px 2px 0px 0px #222, inset 0px -1px 0px 0px #000 !important;
-  }
-  .gear-inner { background: #1a1a1a !important; border: 1px solid rgba(255, 255, 255, 0.05) !important; }
-  .gear-inner .bar {
-    background: #1a1a1a !important;
-    border-left: 1px solid rgba(255, 255, 255, 0.05) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
-  }
-` : ''}
-`;
-
 export default function App() {
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 768);
   const [appLoading, setAppLoading] = useState(true); 
@@ -308,7 +265,7 @@ export default function App() {
 
   if (appLoading) {
     return (
-      <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: bg, alignItems: "center", justifyContent: "center", zIndex: 99999 }}>
+      <div className={dark ? "dark-mode" : "light-mode"} style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: bg, alignItems: "center", justifyContent: "center", zIndex: 99999 }}>
         <div style={{ width: 100, height: 100, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ position: "absolute", transform: 'scale(1.2)' }}>
             <GearboxLoader />
@@ -322,8 +279,7 @@ export default function App() {
   }
 
   return (
-    <div style={{ position: "fixed", top: 0, bottom: 0, left: 0, right: 0, display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary }}>
-      <style>{getGlobalStyles(dark)}</style>
+    <div className={dark ? "dark-mode" : "light-mode"} style={{ position: "fixed", top: 0, bottom: 0, left: 0, right: 0, display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary }}>
 
       {showAuthPopup && (
         <div style={{ position: "fixed", inset: 0, zIndex: 999999, background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)", padding: 20 }}>
@@ -369,7 +325,6 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
             {currentUser && Number(currentUser.id) !== -1 ? (
               <>
-                <button onClick={() => setGearMode(false)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 8, background: dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)", border: "none", color: textPrimary, cursor: "pointer", marginRight: 4 }} title="Exit Taskbar Mode"><ArrowLeft size={16} /></button>
                 <Avatar name={currentUser?.username || currentUser?.email || "User"} size={30} bg="#7c3aed" />
                 <div style={{ fontSize: 13, fontWeight: 600, color: textPrimary, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentUser?.username || currentUser?.email.split('@')[0]}</div>
                 <button onClick={() => setShowProfileModal(true)} style={{ color: textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Edit Profile"><UserCog size={15} /></button>
@@ -398,11 +353,14 @@ export default function App() {
               </div>
               <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                 <div style={{ padding: "12px 12px 0 12px", display: "flex", flexDirection: "column", height: "100%", overflowY: "auto" }}>
-                  
-                  {/* REVERTED: New Chat & Taskbar Mode restored to the original UI layout structure */}
-                  <button onClick={() => {setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false);}} style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", marginBottom: 32, borderRadius: 12, border: "none", cursor: "pointer", background: "rgba(255,255,255,0.12)", color: sb.text, fontSize: 13, fontWeight: 500 }}>
-                    <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}><Plus size={13} /></div>New chat
-                  </button>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
+                    <button onClick={() => {setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false);}} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer", background: dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.25)", color: sb.text, fontSize: 13, fontWeight: 500, boxShadow: dark ? "none" : "0 2px 5px rgba(0,0,0,0.05)" }}>
+                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: dark ? "rgba(255,255,255,0.18)" : "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", color: dark ? "#fff" : "#1558d6" }}><Plus size={13} /></div>New chat
+                    </button>
+                    <button onClick={() => { setGearMode(true); if(isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: `1px solid ${sb.border}`, background: "transparent", color: sb.text, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+                      <Settings size={14} /> Change taskbar mode
+                    </button>
+                  </div>
 
                   <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Quick Prompts</span></div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 24 }}>
@@ -430,10 +388,6 @@ export default function App() {
                 </div>
               </div>
               <div style={{ padding: "16px 12px 18px", borderTop: `1px solid ${sb.border}`, flexShrink: 0 }}>
-                
-                {/* REVERTED: Change taskbar mode button restored to the bottom area above profile */}
-                <button onClick={() => { setGearMode(true); if(isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "9px 12px", borderRadius: 12, border: `1px solid ${sb.border}`, background: "transparent", color: sb.text, fontSize: 12, cursor: "pointer", marginBottom: 14 }}><Settings size={12} /> Change taskbar mode</button>
-
                 {currentUser && Number(currentUser.id) === -1 ? (
                   <div style={{ display: "flex", gap: 8, width: "100%" }}>
                     <button onClick={() => { setAuthMode("login"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "#fff", color: "#1a1a2e", fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", transition: "opacity 0.2s" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.9"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Log in</button>
