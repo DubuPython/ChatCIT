@@ -42,18 +42,29 @@ thead th {
 
 /* -- NATIVE LIGHT MODE OVERRIDES FOR THE GEARBOX -- */
 ${!dark ? `
-  .gearbox { background: transparent !important; box-shadow: none !important; }
-  .gearbox .overlay { box-shadow: inset 0px 0px 20px rgba(0,0,0,0.03) !important; }
-  .gear { box-shadow: 0px -1px 0px 0px #cbd5e1, 0px 1px 0px 0px #94a3b8 !important; }
+  .gearbox { 
+    background: #cbd5e1 !important; 
+    box-shadow: inset 0px 4px 12px rgba(0, 0, 0, 0.15), 0px 1px 0px rgba(255,255,255,0.8) !important; 
+    border: 1px solid rgba(0,0,0,0.05) !important; 
+  }
+  .gearbox .overlay { 
+    box-shadow: inset 0px 0px 15px rgba(0,0,0,0.1) !important; 
+  }
+  .gear { 
+    box-shadow: 0px -1px 0px 0px #ffffff, 0px 1px 0px 0px #94a3b8 !important; 
+  }
   .gear:after {
-    background: #f8f9fa !important;
+    background: #f1f5f9 !important;
     box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.05), inset 0px 0px 10px rgba(0, 0, 0, 0.05), inset 0px 2px 0px 0px #ffffff, inset 0px -1px 0px 0px #cbd5e1 !important;
   }
-  .gear-inner { background: #e2e8f0 !important; border: 1px solid rgba(0, 0, 0, 0.05) !important; }
+  .gear-inner { 
+    background: #f8fafc !important; 
+    border: 1px solid rgba(255, 255, 255, 0.8) !important; 
+  }
   .gear-inner .bar {
-    background: #e2e8f0 !important;
-    border-left: 1px solid rgba(0, 0, 0, 0.05) !important;
-    border-right: 1px solid rgba(0, 0, 0, 0.05) !important;
+    background: #f8fafc !important;
+    border-left: 1px solid #ffffff !important;
+    border-right: 1px solid #ffffff !important;
   }
 ` : ''}
 `;
@@ -270,8 +281,8 @@ export default function App() {
           { y: y3, label: "Documents", value: DOCUMENTS[docIdx], onPick: () => { sendMessage(`Show me the ${DOCUMENTS[docIdx]}`); if(isMobile) setRightRailOpen(false); }, onGear: () => { setRightAngle(a => a + STEP_DEG); setDocIdx(i => (i + 1) % DOCUMENTS.length); } },
         ]
       : [
-          { y: y1, label: "", value: "New Chat", onPick: () => { setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false); }, onGear: () => { setLeftAngle(a => a + STEP_DEG); }, isNewChat: true },
-          { y: y2, label: "Quick Prompts", value: QUICK_PROMPTS[quickIdx], onPick: () => { sendMessage(QUICK_PROMPTS[quickIdx]); if(isMobile) setSidebarOpen(false); }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => (i + 1) % QUICK_PROMPTS.length); } },
+          { y: y1, label: "Quick Prompts", value: QUICK_PROMPTS[quickIdx], onPick: () => { sendMessage(QUICK_PROMPTS[quickIdx]); if(isMobile) setSidebarOpen(false); }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => (i + 1) % QUICK_PROMPTS.length); } },
+          { y: y2, label: "", value: MID_CHOICES[midIdx], onPick: () => { if (midIdx === 0) { setActiveChatId(null); setViewMode("chat"); } else setGearMode(g => !g); if(isMobile) setSidebarOpen(false); }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setMidIdx(i => (i + 1) % MID_CHOICES.length); }, mid: true },
           { y: y3, label: "Recent", value: chats.length > 0 ? chats[recentsIdx].title : "No chats", onPick: () => { if(chats.length) { setActiveChatId(chats[recentsIdx].id); setViewMode("chat"); if(isMobile) setSidebarOpen(false); } }, onGear: () => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => (i + 1) % chats.length); }, sub: chats.length > 0 ? "Past Conversation" : "" },
         ];
 
@@ -295,8 +306,8 @@ export default function App() {
         {panels.map((p: any, i: number) => (
           <div key={i} style={{ ...panelBase, top: p.y, zIndex: 10 }}>
             {p.label && <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: textFaint, marginBottom: 8 }}>{p.label}</div>}
-            <button onClick={p.onPick} style={p.isNewChat ? { ...btnStyle, display: "flex", alignItems: "center", gap: 8, justifyContent: gearsRight ? "flex-end" : "flex-start", background: dark ? "rgba(255,255,255,0.1)" : "#e2e8f0" } : p.sub ? { ...btnStyle, background: "transparent", padding: "2px 0" } : btnStyle}>
-              {p.isNewChat && <Plus size={15} />}
+            <button onClick={p.onPick} style={p.mid ? { ...btnStyle, display: "flex", alignItems: "center", gap: 8, justifyContent: gearsRight ? "flex-end" : "flex-start" } : p.sub ? { ...btnStyle, background: "transparent", padding: "2px 0" } : btnStyle}>
+              {p.mid && (midIdx === 0 ? <Plus size={15} /> : <Settings size={15} />)}
               {p.sub ? (<><div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.value}</div><div style={{ fontSize: 11, color: textFaint, marginTop: 3 }}>{p.sub}</div></>) : p.value}
             </button>
             <div style={{ fontSize: 10, color: textFaint, marginTop: 6, opacity: 0.75 }}>click gear to cycle</div>
@@ -369,8 +380,8 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
             {currentUser && Number(currentUser.id) !== -1 ? (
               <>
-                <button onClick={() => setGearMode(false)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 8, background: dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)", border: "none", color: textPrimary, cursor: "pointer", marginRight: 4 }} title="Exit Taskbar Mode"><ArrowLeft size={16} /></button>
-                <Avatar name={currentUser?.username || currentUser?.email || "User"} size={28} bg="#7c3aed" />
+                <Avatar name={currentUser?.username || currentUser?.email || "User"} size={30} bg="#7c3aed" />
+                <div style={{ fontSize: 13, fontWeight: 600, color: textPrimary, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentUser?.username || currentUser?.email.split('@')[0]}</div>
                 <button onClick={() => setShowProfileModal(true)} style={{ color: textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Edit Profile"><UserCog size={15} /></button>
                 {currentUser?.role === 'admin' && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(isMobile) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#4285f4" : textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Admin Panel"><Database size={15} /></button>}
                 <button onClick={handleLogout} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Logout"><LogOut size={15} /></button>
@@ -456,7 +467,6 @@ export default function App() {
           </aside>
         )}
 
-        {/* FLAWLESS CENTER CHAT FIX: Margin correctly brackets the central view between the sidebars! */}
         <main style={{ 
           flex: 1, 
           display: "flex", 
