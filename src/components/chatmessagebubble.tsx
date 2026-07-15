@@ -35,7 +35,7 @@ export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onEnlarge,
           <Avatar name={currentUser?.id === -1 ? "G" : currentUser?.username || currentUser?.email || "U"} size={28} bg={currentUser?.id === -1 ? "#6b7280" : "#7c3aed"} />
         </div>
       )}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: isMobile ? "90%" : "82%", alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: isMobile ? "90%" : "82%", width: "100%", alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
         {msg.role === "user" ? (
           <div style={{ padding: "10px 16px", borderRadius: "18px 4px 18px 18px", background: dark ? "rgba(255,255,255,0.07)" : "#dce8fc", border: `1px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(21,88,214,0.2)"}`, color: dark ? "#e8eaed" : "#1a1a2e", fontSize: 14, lineHeight: 1.65 }}>
             {msg.content}
@@ -44,12 +44,36 @@ export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onEnlarge,
           <>
             <div style={{ paddingTop: 2 }}><MarkdownText text={msg.content} dark={dark} /></div>
             
-            {msg.picture && msg.picture.trim() !== "" && (
-              msg.picture.toLowerCase().includes('.pdf') ? (
-                <CanvasPDFViewer fileUrl={msg.picture} dark={dark} onEnlarge={onEnlarge} onLoad={onLoad} isMobile={isMobile} />
-              ) : (
-                <img src={msg.picture} alt="Reference" onClick={() => onEnlarge(msg.picture!)} onLoad={onLoad} style={{ marginTop: 8, maxWidth: isMobile ? '100%' : 380, maxHeight: 480, objectFit: 'contain', borderRadius: 8, border: `1px solid ${dark ? '#334155' : '#e2e8f0'}`, cursor: 'zoom-in' }} />
-              )
+            {/* 2-Page View Implementation */}
+            {msg.pictures && msg.pictures.length > 0 && (
+              <div style={{ 
+                display: "flex", 
+                flexDirection: isMobile ? "column" : "row", 
+                gap: 12, 
+                marginTop: 8, 
+                width: "100%", 
+                flexWrap: "wrap" 
+              }}>
+                {msg.pictures.map((picUrl, index) => (
+                  <div key={index} style={{ 
+                    flex: 1, 
+                    minWidth: isMobile ? "100%" : "calc(50% - 6px)", 
+                    maxWidth: msg.pictures!.length === 1 ? (isMobile ? '100%' : 380) : "100%" 
+                  }}>
+                    {picUrl.toLowerCase().includes('.pdf') ? (
+                      <CanvasPDFViewer fileUrl={picUrl} dark={dark} onEnlarge={onEnlarge} onLoad={onLoad} isMobile={isMobile} />
+                    ) : (
+                      <img 
+                        src={picUrl} 
+                        alt={`Reference Document ${index + 1}`} 
+                        onClick={() => onEnlarge(picUrl)} 
+                        onLoad={onLoad} 
+                        style={{ width: "100%", maxHeight: 480, objectFit: 'contain', borderRadius: 8, border: `1px solid ${dark ? '#334155' : '#e2e8f0'}`, cursor: 'zoom-in' }} 
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
             
             <div style={{ marginTop: 6, display: "flex" }}>
