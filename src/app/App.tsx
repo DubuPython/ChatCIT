@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+
 import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, Menu, UserCog, X, MoreVertical, Bot } from "lucide-react";
 
 import { AuthScreen } from "../components/authmodal";
@@ -22,6 +23,12 @@ export default function App() {
   
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
 
+  // PASSWORD RESET STATES
+  const [resetToken, setResetToken] = useState<string | null>(null);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
+
   const [showAuthPopup, setShowAuthPopup] = useState(() => {
     if (typeof window !== "undefined") {
       const savedUser = localStorage.getItem('chatcit_user');
@@ -35,6 +42,19 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [viewMode, setViewMode] = useState<"chat" | "admin">("chat"); 
   const [chats, setChats] = useState<Chat[]>([]);
+
+  // Intercept Reset Password Token on Load
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenFromUrl = urlParams.get("token");
+      if (tokenFromUrl) {
+        setResetToken(tokenFromUrl);
+        setShowResetModal(true);
+        window.history.replaceState({}, document.title, window.location.pathname); // Cleans the URL
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('chatcit_user');
@@ -137,6 +157,35 @@ export default function App() {
   const textFaint = dark ? "#5f6368" : "#9ca3af";
   const sb = { text: "#fff", muted: "rgba(255,255,255,0.70)", faint: "rgba(255,255,255,0.42)", hover: "rgba(255,255,255,0.10)", active: "rgba(255,255,255,0.20)", border: "rgba(255,255,255,0.14)" };
 
+  const handlePasswordReset = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      showToast("Password must be at least 6 characters.", "error");
+      return;
+    }
+    setIsResetting(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: resetToken, newPassword })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      
+      showToast(data.message || "Password reset successfully!", "success");
+      setShowResetModal(false);
+      setResetToken(null);
+      setNewPassword("");
+      
+      setAuthMode("login");
+      setShowAuthPopup(true);
+    } catch (err: any) {
+      showToast(err.message, "error");
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const sendMessage = async (text: string = input) => {
     if (!text.trim() || isTyping) return;
     const content = text.trim();
@@ -175,7 +224,8 @@ export default function App() {
       const data = await response.json();
       if (data.error) throw new Error(data.error);
       
-      const mMsg: Message = { id: `msg-${Date.now()}`, role: "model", content: data.reply || "Sorry, I encountered an error communicating with my database.", timestamp: new Date(), picture: data.picture };
+      // EXPLICITLY CAPTURES MULTIPLE PICTURES ARRAY
+      const mMsg: Message = { id: `msg-${Date.now()}`, role: "model", content: data.reply || "Sorry, I encountered an error communicating with my database.", timestamp: new Date(), pictures: data.pictures };
       setChats((p) => p.map((c) => c.id === chatId ? { ...c, messages: [...c.messages, mMsg] } : c));
     } catch (error: any) {
       const errorMessage = error.message === "Unexpected end of JSON input" || error.message.includes("failed") 
@@ -281,8 +331,29 @@ export default function App() {
   return (
     <div className={dark ? "dark-mode" : "light-mode"} style={{ position: "fixed", top: 0, bottom: 0, left: 0, right: 0, display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary }}>
 
-      {showAuthPopup && (
+      {/* NEW PASSWORD RESET MODAL */}
+      {showResetModal && (
         <div style={{ position: "fixed", inset: 0, zIndex: 999999, background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)", padding: 20 }}>
+           <div style={{ position: "relative", width: "100%", maxWidth: 380, padding: 24, background: dark ? "#1e1e24" : "#ffffff", borderRadius: 20, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", border: dark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.05)" }}>
+              <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, color: textPrimary }}>Reset Password</h2>
+              <p style={{ fontSize: 13, color: textMuted, marginBottom: 20 }}>Enter your new password below to regain access to your account.</p>
+              <input 
+                type="password" 
+                placeholder="New Password (min 6 chars)" 
+                value={newPassword} 
+                onChange={e => setNewPassword(e.target.value)} 
+                style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: dark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)", background: dark ? "rgba(0,0,0,0.2)" : "#f9fafb", color: textPrimary, fontSize: 14, marginBottom: 16, outline: "none" }}
+              />
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => { setShowResetModal(false); setResetToken(null); setNewPassword(""); }} style={{ flex: 1, padding: "10px 0", borderRadius: 12, background: "transparent", border: dark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)", color: textPrimary, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+                <button onClick={handlePasswordReset} disabled={isResetting} style={{ flex: 1, padding: "10px 0", borderRadius: 12, background: "#4285f4", border: "none", color: "#fff", fontWeight: 600, cursor: isResetting ? "not-allowed" : "pointer", opacity: isResetting ? 0.7 : 1 }}>{isResetting ? "Saving..." : "Save Password"}</button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {showAuthPopup && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 999998, background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)", padding: 20 }}>
            <div style={{ position: "relative", width: "100%", maxWidth: 380, background: dark ? "#1e1e24" : "#ffffff", borderRadius: 20, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", border: dark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.05)" }}>
               <button onClick={() => setShowAuthPopup(false)} style={{ position: "absolute", top: 16, right: 16, zIndex: 50, background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", border: "none", color: textPrimary, width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"} onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}>
                 <X size={18} />
@@ -325,6 +396,7 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
             {currentUser && Number(currentUser.id) !== -1 ? (
               <>
+                <button onClick={() => setGearMode(false)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 8, background: dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)", border: "none", color: textPrimary, cursor: "pointer", marginRight: 4 }} title="Exit Taskbar Mode"><ArrowLeft size={16} /></button>
                 <Avatar name={currentUser?.username || currentUser?.email || "User"} size={30} bg="#7c3aed" />
                 <div style={{ fontSize: 13, fontWeight: 600, color: textPrimary, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentUser?.username || currentUser?.email.split('@')[0]}</div>
                 <button onClick={() => setShowProfileModal(true)} style={{ color: textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Edit Profile"><UserCog size={15} /></button>

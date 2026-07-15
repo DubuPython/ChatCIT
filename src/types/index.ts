@@ -5,7 +5,7 @@ export interface Message {
   role: Role;
   content: string;
   timestamp: Date;
-  picture?: string;
+  pictures?: string[]; // <-- This is the crucial change!
 }
 
 export interface Chat {

@@ -6,6 +6,7 @@ import { API_URL } from "../config";
 
 export function AuthScreen({ dark, onSuccess, initialIsLogin = true }: { dark: boolean, onSuccess: (u: User, c: Chat[]) => void, initialIsLogin?: boolean }) {
   const [isLogin, setIsLogin] = useState(initialIsLogin);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,6 +19,10 @@ export function AuthScreen({ dark, onSuccess, initialIsLogin = true }: { dark: b
 
   const [pwdFocused, setPwdFocused] = useState(false);
   const [confirmFocused, setConfirmFocused] = useState(false);
+
+  // Forgot Password States
+  const [isSendingReset, setIsSendingReset] = useState(false);
+  const [resetMessage, setResetMessage] = useState("");
 
   const textPrimary = dark ? "#e8eaed" : "#1a1a2e";
   const textMuted = dark ? "#9aa0a6" : "#6b7280";
@@ -61,12 +66,92 @@ export function AuthScreen({ dark, onSuccess, initialIsLogin = true }: { dark: b
     }
   };
 
-  const showSecurityPopup = !isLogin && (pwdFocused || confirmFocused);
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      setResetMessage("Please enter your email address.");
+      return;
+    }
+    setIsSendingReset(true);
+    setResetMessage("");
+    setError("");
+    
+    try {
+      const res = await fetch(`${API_URL}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send reset email.");
+      
+      setResetMessage("Success! Check your email for the reset link.");
+    } catch (err: any) {
+      setResetMessage(err.message);
+    } finally {
+      setIsSendingReset(false);
+    }
+  };
 
+  const showSecurityPopup = !isLogin && !isForgotPassword && (pwdFocused || confirmFocused);
+
+  // --- FORGOT PASSWORD VIEW ---
+  if (isForgotPassword) {
+    return (
+      <div style={{ position: 'relative', padding: "32px 24px 24px", width: '100%', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <h2 style={{ margin: '0 0 8px', fontSize: 24, fontWeight: 600, color: textPrimary }}>
+            Reset Password
+          </h2>
+          <p style={{ margin: 0, fontSize: 14, color: textMuted }}>
+            Enter your BulSU email and we'll send you a reset link.
+          </p>
+        </div>
+
+        {resetMessage && (
+          <div style={{ background: resetMessage.includes("Success") ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', border: resetMessage.includes("Success") ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)', color: resetMessage.includes("Success") ? '#10b981' : '#ef4444', padding: '12px 16px', borderRadius: 8, fontSize: 14, marginBottom: 20, textAlign: 'center', fontWeight: 500 }}>
+            {resetMessage}
+          </div>
+        )}
+
+        <form onSubmit={handleForgotPassword} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 12, color: textMuted, marginBottom: 6 }}>Email</div>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Mail size={18} color={textMuted} style={{ position: 'absolute', left: 12 }} />
+              <input 
+                type="email" 
+                value={email} 
+                onChange={e => setEmail(e.target.value)} 
+                placeholder="student@bulsu.edu.ph"
+                style={{ width: '100%', padding: '12px 12px 12px 40px', background: 'transparent', border: `1px solid ${border}`, borderRadius: 8, color: textPrimary, fontSize: 14, outline: 'none' }} 
+              />
+            </div>
+          </div>
+
+          <button 
+            disabled={isSendingReset || !email.trim()}
+            type="submit" 
+            style={{ width: '100%', padding: '12px', marginTop: 8, borderRadius: 8, border: 'none', background: (isSendingReset || !email.trim()) ? (dark ? 'rgba(255,255,255,0.1)' : '#e5e7eb') : '#4285f4', color: (isSendingReset || !email.trim()) ? textMuted : '#fff', fontSize: 15, fontWeight: 600, cursor: (isSendingReset || !email.trim()) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'background 0.2s' }}
+          >
+            {isSendingReset ? <SpinningGear size={18} color="currentColor" /> : "Send Reset Link"}
+          </button>
+        </form>
+
+        <div style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: textMuted }}>
+          <button onClick={() => { setIsForgotPassword(false); setResetMessage(""); setError(""); }} style={{ background: 'none', border: 'none', color: '#4285f4', fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+            Back to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- STANDARD LOGIN / REGISTER VIEW ---
   return (
     <div style={{ position: 'relative', padding: "32px 24px 24px", width: '100%', display: 'flex', flexDirection: 'column' }}>
       
-      {/* --- FLOATING SECURITY REQUIREMENTS (Desktop) --- */}
+      {/* FLOATING SECURITY REQUIREMENTS (Desktop) */}
       {showSecurityPopup && (
         <div style={{
           position: 'absolute',
@@ -94,7 +179,6 @@ export function AuthScreen({ dark, onSuccess, initialIsLogin = true }: { dark: b
 
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <h2 style={{ margin: '0 0 8px', fontSize: 24, fontWeight: 600, color: textPrimary }}>
-          {/* FIXED: Changed to "Welcome to ChatCIT" */}
           {isLogin ? "Welcome to ChatCIT" : "Create an account"}
         </h2>
         <p style={{ margin: 0, fontSize: 14, color: textMuted }}>
@@ -165,6 +249,19 @@ export function AuthScreen({ dark, onSuccess, initialIsLogin = true }: { dark: b
             </button>
           </div>
         </div>
+
+        {/* FORGOT PASSWORD LINK */}
+        {isLogin && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -8 }}>
+            <button 
+              type="button" 
+              onClick={() => { setIsForgotPassword(true); setError(""); setResetMessage(""); }} 
+              style={{ background: 'none', border: 'none', color: '#4285f4', fontSize: 12, cursor: 'pointer', padding: 0, fontWeight: 500 }}
+            >
+              Forgot Password?
+            </button>
+          </div>
+        )}
 
         {!isLogin && (
           <div>
