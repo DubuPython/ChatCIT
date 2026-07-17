@@ -33,8 +33,14 @@ export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user:
   const textMuted = dark ? "#9aa0a6" : "#6b7280";
   const border = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)";
 
+  // 👈 NEW: Calculate actual "Today" string formatted as YYYY-MM-DD
+  const todayObj = new Date();
+  const todayFormatted = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
+
   useEffect(() => {
     fetchEvents();
+    // Auto-select today's date if they haven't clicked anything yet
+    if (!selectedDate) setSelectedDate(todayFormatted);
   }, []);
 
   // Sync admin form dates with the calendar click
@@ -88,7 +94,6 @@ export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user:
         })
       );
 
-      // Wait for all days to successfully save
       await Promise.all(savePromises);
       
       setNewTitle("");
@@ -124,8 +129,6 @@ export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user:
 
   const changeMonth = (offset: number) => {
     setCurrentDate(new Date(year, month + offset, 1));
-    setSelectedDate(null);
-    setErrorMsg("");
   };
 
   const handleDayClick = (day: number) => {
@@ -177,6 +180,7 @@ export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user:
               const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
               const dayEvents = events.filter(e => e.date === formattedDate);
               const isSelected = selectedDate === formattedDate;
+              const isToday = todayFormatted === formattedDate; // 👈 Check if cell is exactly today
               
               return (
                 <button
@@ -184,10 +188,11 @@ export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user:
                   onClick={() => handleDayClick(day)}
                   style={{
                     padding: "10px 4px",
-                    background: isSelected ? (dark ? "rgba(255,255,255,0.1)" : "#e5e7eb") : "transparent",
-                    border: isSelected ? `1px solid ${textMuted}` : `1px solid ${border}`,
+                    // 👈 NEW HIGHLIGHTING LOGIC
+                    background: isSelected ? (dark ? "rgba(255,255,255,0.1)" : "#e5e7eb") : (isToday ? (dark ? "rgba(66, 133, 244, 0.15)" : "rgba(66, 133, 244, 0.1)") : "transparent"),
+                    border: isToday ? `2px solid #4285f4` : (isSelected ? `1px solid ${textMuted}` : `1px solid ${border}`),
                     borderRadius: 8,
-                    color: textPrimary,
+                    color: isToday ? "#4285f4" : textPrimary,
                     cursor: "pointer",
                     display: "flex",
                     flexDirection: "column",
@@ -196,7 +201,7 @@ export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user:
                     transition: "all 0.2s"
                   }}
                 >
-                  <span style={{ fontSize: 14, fontWeight: isSelected ? 700 : 500 }}>{day}</span>
+                  <span style={{ fontSize: 14, fontWeight: (isSelected || isToday) ? 700 : 500 }}>{day}</span>
                   <div style={{ display: "flex", gap: 2, marginTop: 4, flexWrap: "wrap", justifyContent: "center" }}>
                     {dayEvents.map(e => (
                       <div key={e.id} style={{ width: 6, height: 6, borderRadius: "50%", background: getEventColor(e.event_type) }} title={e.title} />
@@ -207,7 +212,6 @@ export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user:
             })}
           </div>
 
-          {/* 👈 THE NEW COLOR LEGEND */}
           <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 24, padding: "12px", background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", borderRadius: 8, border: `1px solid ${border}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: textMuted, fontWeight: 500 }}>
               <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#4285f4" }} /> Special Event
@@ -265,7 +269,6 @@ export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user:
                     style={{ width: "100%", padding: "10px", background: dark ? "#25242c" : "#fff", border: `1px solid ${border}`, borderRadius: 6, color: textPrimary, fontSize: 13, marginBottom: 8, outline: "none" }}
                   />
                   
-                  {/* 👈 THE MULTI-DATE PICKERS */}
                   <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 11, color: textMuted, marginBottom: 4 }}>Start Date</div>
