@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 
-import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, Menu, UserCog, X, MoreVertical, Bot } from "lucide-react";
+import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, Menu, UserCog, X, MoreVertical, Bot, Calendar } from "lucide-react";
 
 import { AuthScreen } from "../components/authmodal";
 import { AdminPanel } from "../components/admindashboard";
 import { ProfileModal } from "../components/modals/profilemodal";
 import { BugModal } from "../components/modals/bugsmodal";
+import { AcademicCalendar } from "../components/modals/academiccalendar"; // Make sure this matches your file path!
 
 import { ChatCITLogo, Avatar, GearAbs, DayNightToggle, GearboxLoader, RATIO, N_SM, OR_SM, CENTER_D, TOP_H, GEAR_VIS, RAIL_W, STEP_DEG, OR_LG, PANEL_W, IR_SM, IR_LG, N_LG } from "../components/ui/helpers";
 
@@ -101,8 +102,11 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [rightRailOpen, setRightRailOpen] = useState(false); 
   const [gearMode, setGearMode] = useState(false);
+  
+  // MODAL STATES
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showBugModal, setShowBugModal] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   
   const [leftAngle, setLeftAngle] = useState(0);
   const [rightAngle, setRightAngle] = useState(0);
@@ -224,7 +228,6 @@ export default function App() {
       const data = await response.json();
       if (data.error) throw new Error(data.error);
       
-      // EXPLICITLY CAPTURES MULTIPLE PICTURES ARRAY
       const mMsg: Message = { id: `msg-${Date.now()}`, role: "model", content: data.reply || "Sorry, I encountered an error communicating with my database.", timestamp: new Date(), pictures: data.pictures };
       setChats((p) => p.map((c) => c.id === chatId ? { ...c, messages: [...c.messages, mMsg] } : c));
     } catch (error: any) {
@@ -569,7 +572,13 @@ export default function App() {
         
         {renderRail("right", 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {/* BUG REPORT BUTTON */}
             <button onClick={() => setShowBugModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#ef4444", cursor: "pointer", transition: "background 0.2s" }} title="Report a Bug"><Bug size={22} /></button>
+            
+            {/* NEW ACADEMIC CALENDAR BUTTON */}
+            <button onClick={() => setShowCalendar(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#10b981", cursor: "pointer", transition: "background 0.2s" }} title="Academic Calendar"><Calendar size={22} /></button>
+            
+            {/* DARK MODE TOGGLE */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44 }}>
               <DayNightToggle dark={dark} toggleDark={() => setDark(!dark)} />
             </div>
@@ -578,6 +587,9 @@ export default function App() {
 
         {showProfileModal && currentUser && <ProfileModal dark={dark} user={currentUser} onClose={() => setShowProfileModal(false)} onUpdate={(updated: User) => { setCurrentUser(updated); showToast("Profile updated successfully!", "success"); }} showToast={showToast} />}
         {showBugModal && <BugModal dark={dark} user={currentUser} onClose={() => setShowBugModal(false)} showToast={showToast} />}
+        
+        {/* MODAL MOUNT LOCATION */}
+        {showCalendar && <AcademicCalendar dark={dark} user={currentUser} onClose={() => setShowCalendar(false)} />}
       </>
     </div>
   );
