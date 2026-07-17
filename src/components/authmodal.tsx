@@ -13,6 +13,9 @@ export function AuthScreen({ dark, onSuccess, initialIsLogin = true }: { dark: b
   const [confirmPassword, setConfirmPassword] = useState("");
   const [username, setUsername] = useState("");
   
+  // NEW: Privacy Consent State
+  const [consentGiven, setConsentGiven] = useState(false);
+  
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
@@ -36,9 +39,10 @@ export function AuthScreen({ dark, onSuccess, initialIsLogin = true }: { dark: b
     match: password === confirmPassword && password.length > 0
   };
 
+  // UPDATED: isFormValid now strictly requires consentGiven when registering
   const isFormValid = isLogin 
     ? email.trim() && password.trim()
-    : email.trim() && username.trim() && Object.values(reqs).every(Boolean);
+    : email.trim() && username.trim() && Object.values(reqs).every(Boolean) && consentGiven;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -302,6 +306,22 @@ export function AuthScreen({ dark, onSuccess, initialIsLogin = true }: { dark: b
           </div>
         )}
 
+        {/* NEW: Data Privacy Checkbox (Only shows on Registration) */}
+        {!isLogin && (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginTop: '4px', padding: '0 4px' }}>
+            <input
+              type="checkbox"
+              id="privacy-consent"
+              checked={consentGiven}
+              onChange={(e) => setConsentGiven(e.target.checked)}
+              style={{ marginTop: '3px', cursor: 'pointer' }}
+            />
+            <label htmlFor="privacy-consent" style={{ fontSize: '12.5px', color: textMuted, lineHeight: '1.4', textAlign: 'left', cursor: 'pointer' }}>
+              ChatCIT is AI. By registering, you agree to our <a href="/terms" style={{ color: '#4285f4', textDecoration: 'none' }}>Terms</a> & <a href="/privacy" style={{ color: '#4285f4', textDecoration: 'none' }}>Privacy Policy</a>, and consent to the processing of your data under the Data Privacy Act of 2012.
+            </label>
+          </div>
+        )}
+
         <button 
           disabled={loading || !isFormValid}
           type="submit" 
@@ -313,7 +333,7 @@ export function AuthScreen({ dark, onSuccess, initialIsLogin = true }: { dark: b
 
       <div style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: textMuted }}>
         {isLogin ? "Don't have an account? " : "Already have an account? "}
-        <button onClick={() => { setIsLogin(!isLogin); setError(""); }} style={{ background: 'none', border: 'none', color: '#4285f4', fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+        <button onClick={() => { setIsLogin(!isLogin); setError(""); setConsentGiven(false); }} style={{ background: 'none', border: 'none', color: '#4285f4', fontWeight: 600, cursor: 'pointer', padding: 0 }}>
           {isLogin ? "Sign up" : "Log in"}
         </button>
       </div>

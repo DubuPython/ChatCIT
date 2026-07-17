@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { UserCog, Eye, EyeOff, X } from "lucide-react";
+import { UserCog, Eye, EyeOff, X, Check } from "lucide-react";
 import { User } from "../../types";
 import { API_URL } from "../../config";
 
@@ -18,9 +18,28 @@ export function ProfileModal({ dark, user, onClose, onUpdate, showToast }: { dar
   const inputBg = dark ? "#25242c" : "#f8f9fa";
   const inputBorder = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)";
 
+  // Password Requirements Logic
+  const reqs = {
+    length: newPassword.length >= 8,
+    capital: /[A-Z]/.test(newPassword),
+    number: /[0-9]/.test(newPassword),
+    special: /[^A-Za-z0-9]/.test(newPassword),
+  };
+
+  // Valid if it's completely blank (not changing it) OR if it meets all rules
+  const isNewPasswordValid = newPassword.length === 0 || Object.values(reqs).every(Boolean);
+
+  // Form is valid if we have a username, current password, and the new password passes security checks
+  const isFormValid = username.trim().length > 0 && currentPassword.trim().length > 0 && isNewPasswordValid;
+
   const handleSave = async () => {
     if (!currentPassword.trim()) {
       showToast("Current password is required to save changes.", "error");
+      return;
+    }
+
+    if (!isNewPasswordValid) {
+      showToast("New password does not meet security requirements.", "error");
       return;
     }
 
@@ -75,6 +94,19 @@ export function ProfileModal({ dark, user, onClose, onUpdate, showToast }: { dar
                 {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+
+            {/* Password Requirements UI - Only shows when user starts typing a new password */}
+            {newPassword.length > 0 && (
+              <div style={{ background: dark ? 'rgba(255,255,255,0.03)' : '#f3f4f6', padding: 12, borderRadius: 8, marginTop: 12, animation: 'badgePop 0.2s ease-out forwards' }}>
+                <h4 style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, color: textMuted, textTransform: 'uppercase' }}>Requirements</h4>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <RequirementItem met={reqs.length} text="At least 8 characters" />
+                  <RequirementItem met={reqs.capital} text="Contains 1 capital letter" />
+                  <RequirementItem met={reqs.number} text="Contains 1 number" />
+                  <RequirementItem met={reqs.special} text="Contains 1 special character" />
+                </ul>
+              </div>
+            )}
           </div>
 
           <div style={{ paddingTop: 8, borderTop: `1px solid ${inputBorder}` }}>
@@ -89,11 +121,20 @@ export function ProfileModal({ dark, user, onClose, onUpdate, showToast }: { dar
             </div>
           </div>
 
-          <button onClick={handleSave} disabled={loading || !username.trim() || !currentPassword.trim()} style={{ width: '100%', padding: '12px', borderRadius: '8px', marginTop: '8px', background: (!username.trim() || !currentPassword.trim()) ? (dark ? "rgba(255,255,255,0.1)" : "#e5e7eb") : "#4285f4", color: (!username.trim() || !currentPassword.trim()) ? textMuted : "#fff", border: "none", fontWeight: 600, fontSize: '15px', cursor: (loading || !username.trim() || !currentPassword.trim()) ? "not-allowed" : "pointer", transition: "background 0.2s" }}>
+          <button onClick={handleSave} disabled={loading || !isFormValid} style={{ width: '100%', padding: '12px', borderRadius: '8px', marginTop: '8px', background: (!isFormValid) ? (dark ? "rgba(255,255,255,0.1)" : "#e5e7eb") : "#4285f4", color: (!isFormValid) ? textMuted : "#fff", border: "none", fontWeight: 600, fontSize: '15px', cursor: (loading || !isFormValid) ? "not-allowed" : "pointer", transition: "background 0.2s" }}>
             {loading ? "Verifying & Saving..." : "Verify & Save Changes"}
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+function RequirementItem({ met, text }: { met: boolean, text: string }) {
+  return (
+    <li style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: met ? '#10b981' : '#ef4444', fontWeight: 500 }}>
+      {met ? <Check size={16} /> : <X size={16} />}
+      <span>{text}</span>
+    </li>
   );
 }
