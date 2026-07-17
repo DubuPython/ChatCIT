@@ -7,7 +7,7 @@ interface CalendarEvent {
   id: number;
   title: string;
   date: string; // YYYY-MM-DD
-  event_type: 'exam' | 'holiday' | 'special'; // 👈 Updated Categories
+  event_type: 'exam' | 'holiday' | 'special'; 
 }
 
 export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user: User | null; onClose: () => void }) {
@@ -19,7 +19,10 @@ export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user:
   // Admin Add Event States
   const [newTitle, setNewTitle] = useState("");
   const [newType, setNewType] = useState<'exam' | 'holiday' | 'special'>('special');
+  const [newStartDate, setNewStartDate] = useState("");
+  const [newEndDate, setNewEndDate] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   // STRICT UI CHECK: Only users with the 'admin' role can see editing features
   const isAdmin = user?.role === 'admin';
@@ -34,6 +37,14 @@ export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user:
     fetchEvents();
   }, []);
 
+  // Sync admin form dates with the calendar click
+  useEffect(() => {
+    if (selectedDate) {
+      setNewStartDate(selectedDate);
+      setNewEndDate(selectedDate);
+    }
+  }, [selectedDate]);
+
   const fetchEvents = async () => {
     try {
       const res = await fetch(`${API_URL}/calendar`);
@@ -46,33 +57,52 @@ export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user:
     }
   };
 
+  // Helper function to generate an array of all dates between Start and End
+  const getDatesInRange = (startDate: string, endDate: string) => {
+    const dates = [];
+    let current = new Date(startDate);
+    const end = new Date(endDate);
+    
+    while (current <= end) {
+      dates.push(current.toISOString().split('T')[0]);
+      current.setDate(current.getDate() + 1);
+    }
+    return dates;
+  };
+
   const addEvent = async () => {
-    if (!selectedDate || !newTitle.trim() || !isAdmin || !user) return;
+    if (!newStartDate || !newTitle.trim() || !isAdmin || !user) return;
     setErrorMsg("");
+    setIsSaving(true);
+    
     try {
-      const res = await fetch(`${API_URL}/calendar`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // Passing user.id allows the backend database to verify they are an admin
-        body: JSON.stringify({ title: newTitle, date: selectedDate, type: newType, userId: user.id })
-      });
-      const data = await res.json();
+      // 1. Calculate all days spanning the event
+      const datesToSave = getDatesInRange(newStartDate, newEndDate || newStartDate);
       
-      if (res.ok) {
-        setNewTitle("");
-        fetchEvents();
-      } else {
-        setErrorMsg(data.error || "Failed to add event.");
-      }
+      // 2. Fire off saves for every day in the range simultaneously
+      const savePromises = datesToSave.map(dateStr => 
+        fetch(`${API_URL}/calendar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: newTitle, date: dateStr, type: newType, userId: user.id })
+        })
+      );
+
+      // Wait for all days to successfully save
+      await Promise.all(savePromises);
+      
+      setNewTitle("");
+      fetchEvents(); // Refresh the grid
     } catch (e) {
-      setErrorMsg("An error occurred.");
+      setErrorMsg("An error occurred while saving the events.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const deleteEvent = async (id: number) => {
     if (!isAdmin || !user) return;
     try {
-      // Appending userId to query so backend can verify Admin status
       const res = await fetch(`${API_URL}/calendar/${id}?userId=${user.id}`, { method: "DELETE" });
       if (res.ok) fetchEvents();
     } catch (e) {
@@ -104,20 +134,19 @@ export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user:
     setErrorMsg("");
   };
 
-  // 👈 THE COLOR DISTINCTION ENGINE
   const getEventColor = (type: string) => {
-    if (type === 'exam') return '#ef4444'; // Red for exams
-    if (type === 'holiday') return '#10b981'; // Green for holidays
-    return '#4285f4'; // Blue for special events
+    if (type === 'exam') return '#ef4444'; 
+    if (type === 'holiday') return '#10b981'; 
+    return '#4285f4'; 
   };
 
   const selectedDayEvents = events.filter(e => e.date === selectedDate);
 
   return (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
-      <div style={{ background: bg, padding: 24, borderRadius: 16, width: "100%", maxWidth: 800, border: `1px solid ${border}`, boxShadow: "0 12px 40px rgba(0,0,0,0.3)", display: "flex", gap: 24, flexDirection: window.innerWidth < 768 ? "column" : "row" }}>
+      <div style={{ background: bg, padding: 24, borderRadius: 16, width: "100%", maxWidth: 840, border: `1px solid ${border}`, boxShadow: "0 12px 40px rgba(0,0,0,0.3)", display: "flex", gap: 24, flexDirection: window.innerWidth < 768 ? "column" : "row" }}>
         
-        {/* LEFT SIDE: CALENDAR GRID */}
+        {/* LEFT SIDE: CALENDAR GRID & LEGEND */}
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: textPrimary, display: "flex", alignItems: "center", gap: 8 }}>
@@ -168,7 +197,6 @@ export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user:
                   }}
                 >
                   <span style={{ fontSize: 14, fontWeight: isSelected ? 700 : 500 }}>{day}</span>
-                  {/* Colored Dots for Multiple Events */}
                   <div style={{ display: "flex", gap: 2, marginTop: 4, flexWrap: "wrap", justifyContent: "center" }}>
                     {dayEvents.map(e => (
                       <div key={e.id} style={{ width: 6, height: 6, borderRadius: "50%", background: getEventColor(e.event_type) }} title={e.title} />
@@ -178,10 +206,23 @@ export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user:
               );
             })}
           </div>
+
+          {/* 👈 THE NEW COLOR LEGEND */}
+          <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 24, padding: "12px", background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", borderRadius: 8, border: `1px solid ${border}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: textMuted, fontWeight: 500 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#4285f4" }} /> Special Event
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: textMuted, fontWeight: 500 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ef4444" }} /> Examination
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: textMuted, fontWeight: 500 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#10b981" }} /> Holiday
+            </div>
+          </div>
         </div>
 
         {/* RIGHT SIDE: EVENT DETAILS */}
-        <div style={{ width: window.innerWidth < 768 ? "100%" : 280, borderLeft: window.innerWidth < 768 ? "none" : `1px solid ${border}`, borderTop: window.innerWidth < 768 ? `1px solid ${border}` : "none", paddingLeft: window.innerWidth < 768 ? 0 : 24, paddingTop: window.innerWidth < 768 ? 20 : 0 }}>
+        <div style={{ width: window.innerWidth < 768 ? "100%" : 300, borderLeft: window.innerWidth < 768 ? "none" : `1px solid ${border}`, borderTop: window.innerWidth < 768 ? `1px solid ${border}` : "none", paddingLeft: window.innerWidth < 768 ? 0 : 24, paddingTop: window.innerWidth < 768 ? 20 : 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: textPrimary }}>
                {selectedDate ? new Date(selectedDate).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) : "Select a date"}
@@ -197,10 +238,8 @@ export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user:
                 <p style={{ color: textMuted, fontSize: 14 }}>No events scheduled.</p>
               ) : (
                 selectedDayEvents.map(e => (
-                  // Colored Side Border mapped to the Event Type
                   <div key={e.id} style={{ background: dark ? "rgba(255,255,255,0.05)" : "#f9fafb", padding: 12, borderRadius: 8, borderLeft: `4px solid ${getEventColor(e.event_type)}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div>
-                      {/* Colored Label matching the event category */}
                       <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: getEventColor(e.event_type), marginBottom: 2 }}>{e.event_type}</div>
                       <div style={{ fontSize: 14, color: textPrimary, fontWeight: 500 }}>{e.title}</div>
                     </div>
@@ -211,7 +250,7 @@ export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user:
                 ))
               )}
 
-              {/* ADMIN ONLY UI */}
+              {/* ADMIN ONLY UI: Multi-Day Date Picker */}
               {isAdmin && (
                 <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${border}` }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: textMuted, marginBottom: 8, textTransform: "uppercase" }}>Add New Event</div>
@@ -225,18 +264,31 @@ export function AcademicCalendar({ dark, user, onClose }: { dark: boolean; user:
                     onChange={e => setNewTitle(e.target.value)} 
                     style={{ width: "100%", padding: "10px", background: dark ? "#25242c" : "#fff", border: `1px solid ${border}`, borderRadius: 6, color: textPrimary, fontSize: 13, marginBottom: 8, outline: "none" }}
                   />
+                  
+                  {/* 👈 THE MULTI-DATE PICKERS */}
+                  <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: textMuted, marginBottom: 4 }}>Start Date</div>
+                      <input type="date" value={newStartDate} onChange={e => setNewStartDate(e.target.value)} style={{ width: "100%", padding: "8px", background: dark ? "#25242c" : "#fff", border: `1px solid ${border}`, borderRadius: 6, color: textPrimary, fontSize: 12, outline: "none" }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: textMuted, marginBottom: 4 }}>End Date</div>
+                      <input type="date" min={newStartDate} value={newEndDate} onChange={e => setNewEndDate(e.target.value)} style={{ width: "100%", padding: "8px", background: dark ? "#25242c" : "#fff", border: `1px solid ${border}`, borderRadius: 6, color: textPrimary, fontSize: 12, outline: "none" }} />
+                    </div>
+                  </div>
+
                   <select 
                     value={newType} 
                     onChange={e => setNewType(e.target.value as any)} 
                     style={{ width: "100%", padding: "10px", background: dark ? "#25242c" : "#fff", border: `1px solid ${border}`, borderRadius: 6, color: textPrimary, fontSize: 13, marginBottom: 12, outline: "none" }}
                   >
-                    {/* The 3 strict color distinctions */}
-                    <option value="special">Special Event (Blue)</option>
-                    <option value="exam">Examination (Red)</option>
-                    <option value="holiday">Holiday (Green)</option>
+                    <option value="special">Special Event</option>
+                    <option value="exam">Examination</option>
+                    <option value="holiday">Holiday</option>
                   </select>
-                  <button onClick={addEvent} disabled={!newTitle.trim()} style={{ width: "100%", padding: "10px", background: "#4285f4", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: newTitle.trim() ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                    <Plus size={16} /> Save to Calendar
+                  
+                  <button onClick={addEvent} disabled={!newTitle.trim() || isSaving} style={{ width: "100%", padding: "10px", background: "#4285f4", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: newTitle.trim() && !isSaving ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                    {isSaving ? "Saving..." : <><Plus size={16} /> Save to Calendar</>}
                   </button>
                 </div>
               )}
