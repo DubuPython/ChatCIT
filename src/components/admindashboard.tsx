@@ -4,42 +4,53 @@ import { GearboxLoader } from "./ui/helpers";
 import { Knowledge, Unanswered, BugReport, User } from "../types";
 import { API_URL } from "../config";
 
-// --- UPDATED CMS CATEGORY COLORS ---
-const categoryColors: Record<string, string> = {
-  "All": "#6b7280",               // Gray
-  "Organizations": "#8b5cf6",     // Purple
-  "Majors": "#3b82f6",            // Blue
-  "Documents": "#10b981",         // Green
-  "Handbook": "#f59e0b",          // Orange
-  "Industry Partners": "#ef4444", // Red
-  "Facilities": "#14b8a6",        // Teal
-  "Faculty & Teachers": "#ec4899" // Pink
+// --- BASE CMS CATEGORY COLORS ---
+const defaultCategoryColors: Record<string, string> = {
+  "All": "#6b7280", 
+  "Organizations": "#8b5cf6", 
+  "Majors": "#3b82f6", 
+  "Documents": "#10b981", 
+  "Handbook": "#f59e0b",
+  "Industry Partners": "#ef4444",
+  "Facilities": "#14b8a6",
+  "Faculty & Teachers": "#ec4899",
+  "Magna Carta": "#eab308", // Added Magna Carta Color
+  "General": "#ef4444"
 };
 
-const categories = [
-  "All", 
-  "Organizations", 
-  "Majors", 
-  "Documents", 
-  "Handbook", 
-  "Industry Partners", 
-  "Facilities", 
-  "Faculty & Teachers"
+const defaultCategories = ["All", "Organizations", "Majors", "Documents", "Handbook", "Industry Partners", "Facilities", "Faculty & Teachers", "Magna Carta"];
+
+// --- USERS DEPARTMENT TABS ---
+const ALL_DEPTS = [
+  "All", "Computer Technology", "Food Processing Technology", "Drafting and Digital Arts Technology", 
+  "Welding Technology", "Automotive Technology", "Electrical Technology", 
+  "Electronics Technology", "Mechanical Technology", "H/VAC Technology",
+  "Mechatronics Technology", "Electronics and Communication Technology", 
+  "Faculty", "Others"
 ];
+
+// Generates a random, distinct color for user-created tabs
+const getColorForCategory = (cat: string) => {
+  if (defaultCategoryColors[cat]) return defaultCategoryColors[cat];
+  let hash = 0;
+  for (let i = 0; i < cat.length; i++) hash = cat.charCodeAt(i) + ((hash << 5) - hash);
+  return `hsl(${hash % 360}, 70%, 55%)`;
+}
 
 // REQUIRES currentUser PROP FOR SUPERADMIN CHECKS
 export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, showToast: (msg: string, type: 'success' | 'error' | 'info') => void, currentUser: User }) {
   const [activeTab, setActiveTab] = useState<'knowledge' | 'faq' | 'unanswered' | 'bugs' | 'users'>('knowledge');
   const [activeCategoryTab, setActiveCategoryTab] = useState("All"); 
+  const [activeDeptTab, setActiveDeptTab] = useState("All"); // NEW: For Filtering Users
   
   const [data, setData] = useState<Knowledge[]>([]);
   const [unanswered, setUnanswered] = useState<Unanswered[]>([]);
   const [bugs, setBugs] = useState<BugReport[]>([]);
   const [users, setUsers] = useState<User[]>([]); 
 
+  const [customCategories, setCustomCategories] = useState<string[]>([]); // NEW: Store User Tabs
   const [editingId, setEditingId] = useState<number | null>(null);
   
-  // DEFAULT CATEGORY IS NOW "Handbook"
   const [form, setForm] = useState({ keyword: "", response: "", picture_url: "", category: "Handbook" });
   const [keywordInput, setKeywordInput] = useState(""); 
   
@@ -102,6 +113,27 @@ export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, sh
   const removeKeyword = (toRemove: string) => {
     setForm({ ...form, keyword: keywordsList.filter(k => k !== toRemove).join(', ') });
   };
+
+  // --- NEW: Handle Adding Custom Category Tabs ---
+  const handleAddCustomTab = () => {
+    const newCat = window.prompt("Enter the name for your new category tab:");
+    if (newCat && newCat.trim() !== "") {
+      const cleanCat = newCat.trim();
+      setCustomCategories(prev => [...prev, cleanCat]);
+      setActiveCategoryTab(cleanCat);
+      showToast(`Added new tab: ${cleanCat}`, "success");
+    }
+  };
+
+  // Calculate dynamic list of all unique categories to render (Defaults + Database + Custom)
+  const dbCategories = Array.from(new Set(data.map(d => d.category || "Handbook")));
+  const allDynamicCategories = Array.from(new Set([
+    ...defaultCategories.filter(c => c !== "All"), 
+    ...customCategories, 
+    ...dbCategories
+  ]));
+  const displayCategories = ["All", ...allDynamicCategories];
+
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -250,6 +282,7 @@ export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, sh
 
   const q = searchQuery.toLowerCase();
   
+  // Apply Database Filters
   const filteredData = data.filter(d => 
     (activeCategoryTab === "All" || (d as any).category === activeCategoryTab) &&
     (d.keyword.toLowerCase().includes(q) || d.response.toLowerCase().includes(q))
@@ -257,7 +290,13 @@ export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, sh
 
   const filteredUnanswered = unanswered.filter(u => u.question.toLowerCase().includes(q));
   const filteredBugs = bugs.filter(b => b.user_info.toLowerCase().includes(q) || b.description.toLowerCase().includes(q));
-  const filteredUsers = users.filter(u => u.email.toLowerCase().includes(q) || (u.username && u.username.toLowerCase().includes(q)));
+  
+  // Apply User Filtering (Search + Department Tabs)
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = u.email.toLowerCase().includes(q) || (u.username && u.username.toLowerCase().includes(q));
+    const matchesDept = activeDeptTab === "All" || (u.department || "Others") === activeDeptTab;
+    return matchesSearch && matchesDept;
+  });
 
   const departmentCounts = users.reduce((acc, u) => {
     const dept = (u as any).department || "Others";
@@ -305,42 +344,79 @@ export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, sh
         </div>
       </div>
 
+      {/* DYNAMIC VISUAL CATEGORY TABS FOR DATABASE */}
       {activeTab === 'knowledge' && !editingId && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategoryTab(cat)}
-              style={{
-                padding: '6px 16px',
-                borderRadius: 20,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-                whiteSpace: "nowrap",
-                border: `1px solid ${categoryColors[cat]}`,
-                background: activeCategoryTab === cat ? categoryColors[cat] : 'transparent',
-                color: activeCategoryTab === cat ? '#fff' : categoryColors[cat],
-                transition: 'all 0.2s'
-              }}
-            >
-              {cat}
-            </button>
-          ))}
+          {displayCategories.map(cat => {
+            const hex = getColorForCategory(cat);
+            return (
+              <button
+                key={cat}
+                onClick={() => setActiveCategoryTab(cat)}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: 20,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  whiteSpace: "nowrap",
+                  border: `1px solid ${hex}`,
+                  background: activeCategoryTab === cat ? hex : 'transparent',
+                  color: activeCategoryTab === cat ? '#fff' : hex,
+                  transition: 'all 0.2s'
+                }}
+              >
+                {cat}
+              </button>
+            )
+          })}
+          {/* THE ADD TAB BUTTON */}
+          <button onClick={handleAddCustomTab} style={{ padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: "nowrap", border: `1px dashed ${textMuted}`, background: "transparent", color: textMuted, display: "flex", alignItems: "center", gap: 4, transition: 'all 0.2s' }}>
+            <Plus size={14} /> Add Tab
+          </button>
         </div>
       )}
 
+      {/* NEW: DEPARTMENT TABS FOR USERS FILTERING */}
       {activeTab === 'users' && (
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
-          {Object.entries(departmentCounts).sort((a,b) => b[1]-a[1]).map(([dept, count]) => (
-            <div key={dept} style={{ padding: "12px 16px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", display: "flex", flexDirection: "column", minWidth: 140 }}>
-              <span style={{ fontSize: 11, color: textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>{dept}</span>
-              <span style={{ fontSize: 22, color: dept === "Total Users" ? "#4285f4" : (dark ? "#fff" : "#000"), fontWeight: 700 }}>{count}</span>
-            </div>
-          ))}
-        </div>
+        <>
+          {/* Tracker Boxes */}
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
+            {Object.entries(departmentCounts).sort((a,b) => b[1]-a[1]).map(([dept, count]) => (
+              <div key={dept} style={{ padding: "12px 16px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", display: "flex", flexDirection: "column", minWidth: 140 }}>
+                <span style={{ fontSize: 11, color: textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>{dept}</span>
+                <span style={{ fontSize: 22, color: dept === "Total Users" ? "#4285f4" : (dark ? "#fff" : "#000"), fontWeight: 700 }}>{count}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Department Horizontal Tabs */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
+            {ALL_DEPTS.map(dept => (
+              <button
+                key={dept}
+                onClick={() => setActiveDeptTab(dept)}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: 20,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  whiteSpace: "nowrap",
+                  border: `1px solid ${activeDeptTab === dept ? '#4285f4' : border}`,
+                  background: activeDeptTab === dept ? '#4285f4' : 'transparent',
+                  color: activeDeptTab === dept ? '#fff' : textMuted,
+                  transition: 'all 0.2s'
+                }}
+              >
+                {dept}
+              </button>
+            ))}
+          </div>
+        </>
       )}
 
+      {/* SEARCH AND NEW ENTRY BUTTONS */}
       <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, background: bg, border: `1px solid ${border}`, padding: "8px 14px", borderRadius: 8, flex: 1, minWidth: 250 }}>
           <Search size={16} color={textMuted} />
@@ -377,7 +453,7 @@ export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, sh
                   onChange={e => setForm({ ...form, category: e.target.value })} 
                   style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none" }}
                 >
-                  {categories.filter(c => c !== "All").map(c => (
+                  {allDynamicCategories.map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
@@ -433,7 +509,7 @@ export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, sh
                   {filteredData.map((row: any) => (
                     <tr key={row.id} style={{ borderBottom: `1px solid ${border}` }}>
                       <td style={{ padding: "14px 16px", verticalAlign: "top" }}>
-                        <div style={{ fontSize: 10, color: categoryColors[row.category] || "#f59e0b", fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>{row.category || "Handbook"}</div>
+                        <div style={{ fontSize: 10, color: getColorForCategory(row.category || "Handbook"), fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>{row.category || "Handbook"}</div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                           {row.keyword.split(',').map((kw: string, idx: number) => kw.trim() ? (
                             <span key={idx} style={{ background: dark ? "rgba(255,255,255,0.08)" : "#f1f5f9", color: dark ? "#e2e8f0" : "#334155", padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 500, border: `1px solid ${border}`, whiteSpace: "nowrap" }}>
@@ -587,6 +663,7 @@ export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, sh
                     </td>
                     <td style={{ padding: "14px 16px", verticalAlign: "middle", color: dark ? "#fff" : "#000" }}>{user.department || "Others"}</td>
                     <td style={{ padding: "14px 16px", verticalAlign: "middle" }}>
+                      
                       <select 
                         value={user.role}
                         disabled={currentUser?.role !== 'superadmin' || user.role === 'superadmin'}
@@ -606,6 +683,7 @@ export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, sh
                         <option value="admin">Admin</option>
                         {user.role === 'superadmin' && <option value="superadmin">Superadmin</option>}
                       </select>
+
                     </td>
                     <td style={{ padding: "14px 16px", verticalAlign: "middle", textAlign: "right", whiteSpace: "nowrap" }}>
                       <button onClick={() => handleResetPassword(user.id, user.email)} style={{ background: "none", border: "none", color: "#f59e0b", cursor: "pointer", padding: 6 }} title="Generate New Password"><Key size={16} /></button>

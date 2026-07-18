@@ -1,15 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
-
 import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, Menu, UserCog, X, MoreVertical, Bot, Calendar } from "lucide-react";
 
 import { AuthScreen } from "../components/authmodal";
 import { AdminPanel } from "../components/admindashboard";
 import { ProfileModal } from "../components/modals/profilemodal";
 import { BugModal } from "../components/modals/bugsmodal";
-import { AcademicCalendar } from "../components/modals/academiccalendar"; // Make sure this matches your file path!
+import { AcademicCalendar } from "../components/modals/academiccalendar"; 
 
 import { ChatCITLogo, Avatar, GearAbs, DayNightToggle, GearboxLoader, RATIO, N_SM, OR_SM, CENTER_D, TOP_H, GEAR_VIS, RAIL_W, STEP_DEG, OR_LG, PANEL_W, IR_SM, IR_LG, N_LG } from "../components/ui/helpers";
-
 import { ChatLoader } from "../components/ui/chatloader";
 import { CosmicInput } from "../components/ui/inputbar";
 import { ChatMessageBubble } from "../components/chatmessagebubble";
@@ -52,7 +50,7 @@ export default function App() {
       if (tokenFromUrl) {
         setResetToken(tokenFromUrl);
         setShowResetModal(true);
-        window.history.replaceState({}, document.title, window.location.pathname); // Cleans the URL
+        window.history.replaceState({}, document.title, window.location.pathname); 
       }
     }
   }, []);
@@ -384,13 +382,6 @@ export default function App() {
         ))}
       </div>
 
-      {fullScreenMedia && (
-        <div onClick={() => setFullScreenMedia(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', padding: 24 }}>
-          <img src={fullScreenMedia} alt="Fullscreen View" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }} />
-          <button onClick={() => setFullScreenMedia(null)} style={{ position: 'absolute', top: 24, right: 24, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}><X size={24} /></button>
-        </div>
-      )}
-
       {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
       {isMobile && rightRailOpen && <div onClick={() => setRightRailOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
 
@@ -403,7 +394,7 @@ export default function App() {
                 <Avatar name={currentUser?.username || currentUser?.email || "User"} size={30} bg="#7c3aed" />
                 <div style={{ fontSize: 13, fontWeight: 600, color: textPrimary, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentUser?.username || currentUser?.email.split('@')[0]}</div>
                 <button onClick={() => setShowProfileModal(true)} style={{ color: textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Edit Profile"><UserCog size={15} /></button>
-                {currentUser?.role === 'admin' && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(isMobile) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#4285f4" : textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Admin Panel"><Database size={15} /></button>}
+                {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(isMobile) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#4285f4" : textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Admin Panel"><Database size={15} /></button>}
                 <button onClick={handleLogout} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Logout"><LogOut size={15} /></button>
               </>
             ) : (
@@ -475,10 +466,10 @@ export default function App() {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: sb.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentUser?.username || currentUser?.email?.split('@')[0]}</div>
-                      <div style={{ fontSize: 11, color: sb.faint }}>{currentUser?.role === 'admin' ? 'Administrator' : 'Student'}</div>
+                      <div style={{ fontSize: 11, color: sb.faint }}>{currentUser?.role === 'superadmin' ? 'Superadmin' : currentUser?.role === 'admin' ? 'Administrator' : 'Student'}</div>
                     </div>
                     <button onClick={() => setShowProfileModal(true)} style={{ color: sb.muted, background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Edit Profile"><UserCog size={15} /></button>
-                    {currentUser?.role === 'admin' && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(isMobile) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#fff" : sb.muted, background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Admin Dashboard"><Database size={15} /></button>}
+                    {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(isMobile) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#fff" : sb.muted, background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Admin Dashboard"><Database size={15} /></button>}
                     <button onClick={handleLogout} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Logout"><LogOut size={15} /></button>
                   </div>
                 )}
@@ -518,8 +509,10 @@ export default function App() {
           </header>
 
           <div id="chat-scroll-container" style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
-            {viewMode === "admin" ? (
-              <AdminPanel dark={dark} showToast={showToast} />
+            
+            {/* FIXED: Passed currentUser here! */}
+            {viewMode === "admin" && currentUser ? (
+              <AdminPanel dark={dark} showToast={showToast} currentUser={currentUser} />
             ) : !activeChat || activeChat.messages.length === 0 ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100%", padding: "48px 16px" }}>
                 <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
