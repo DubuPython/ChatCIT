@@ -1,8 +1,16 @@
 import React, { useState } from "react";
-import { User as UserIcon, Mail, Lock, Eye, EyeOff, Check, X, LogIn, UserPlus } from "lucide-react";
+import { User as UserIcon, Mail, Lock, Eye, EyeOff, Check, X, LogIn, UserPlus, Briefcase } from "lucide-react";
 import { SpinningGear } from "./ui/helpers";
 import { User, Chat } from "../types";
 import { API_URL } from "../config";
+
+const departmentsList = [
+  "Computer Technology", "Food Processing Technology", "Drafting and Digital Arts Technology", 
+  "Welding Technology", "Automotive Technology", "Electrical Technology", 
+  "Electronics Technology", "Mechanical Technology", "H/VAC Technology",
+  "Mechatronics Technology", "Electronics and Communication Technology", 
+  "Faculty", "Others"
+];
 
 export function AuthScreen({ dark, onSuccess, initialIsLogin = true }: { dark: boolean, onSuccess: (u: User, c: Chat[]) => void, initialIsLogin?: boolean }) {
   const [isLogin, setIsLogin] = useState(initialIsLogin);
@@ -12,6 +20,7 @@ export function AuthScreen({ dark, onSuccess, initialIsLogin = true }: { dark: b
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [username, setUsername] = useState("");
+  const [department, setDepartment] = useState("Computer Technology");
   
   // NEW: Privacy Consent State
   const [consentGiven, setConsentGiven] = useState(false);
@@ -51,7 +60,7 @@ export function AuthScreen({ dark, onSuccess, initialIsLogin = true }: { dark: b
     setLoading(true);
 
     const endpoint = isLogin ? "/auth/login" : "/auth/register";
-    const payload = isLogin ? { email, password } : { username, email, password };
+    const payload = isLogin ? { email, password } : { username, email, password, department };
 
     try {
       const res = await fetch(`${API_URL}${endpoint}`, {
@@ -217,6 +226,23 @@ export function AuthScreen({ dark, onSuccess, initialIsLogin = true }: { dark: b
           </div>
         )}
 
+        {/* NEW DEPARTMENT DROPDOWN */}
+        {!isLogin && (
+          <div>
+            <div style={{ fontSize: 12, color: textMuted, marginBottom: 6 }}>Department</div>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Briefcase size={18} color={textMuted} style={{ position: 'absolute', left: 12 }} />
+              <select
+                value={department}
+                onChange={e => setDepartment(e.target.value)}
+                style={{ width: '100%', padding: '12px 12px 12px 40px', background: dark ? '#1e1e24' : '#fff', border: `1px solid ${border}`, borderRadius: 8, color: textPrimary, outline: 'none', appearance: 'none', fontSize: 14 }}
+              >
+                {departmentsList.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+              </select>
+            </div>
+          </div>
+        )}
+
         <div>
           <div style={{ fontSize: 12, color: textMuted, marginBottom: 6 }}>Email</div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -306,7 +332,7 @@ export function AuthScreen({ dark, onSuccess, initialIsLogin = true }: { dark: b
           </div>
         )}
 
-        {/* NEW: Data Privacy Checkbox (Only shows on Registration) */}
+        {/* Data Privacy Checkbox */}
         {!isLogin && (
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginTop: '4px', padding: '0 4px' }}>
             <input

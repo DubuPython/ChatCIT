@@ -19,8 +19,9 @@ export interface Chat {
 export interface User {
   id: number;
   email: string;
-  role: 'student' | 'admin';
+  role: 'student' | 'admin' | 'superadmin'; // Added superadmin
   username?: string;
+  department?: string; // Added department
 }
 
 export interface ToastMsg {
@@ -34,6 +35,8 @@ export interface Knowledge {
   keyword: string;
   response: string;
   picture_url: string | null;
+  usage_count?: number; // Added
+  category?: string;    // Added
   created_at: string;
 }
 

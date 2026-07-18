@@ -1,11 +1,36 @@
 import React, { useState, useEffect } from "react";
-import { Database, HelpCircle, Bug, Plus, Save, Edit2, Trash2, CheckCircle, UploadCloud, Users, Key, Search, X, TrendingUp, RotateCcw } from "lucide-react";
+import { Database, HelpCircle, Bug, Plus, Save, Edit2, Trash2, CheckCircle, UploadCloud, Users, Key, Search, X, TrendingUp, RotateCcw, RefreshCw } from "lucide-react";
 import { GearboxLoader } from "./ui/helpers";
 import { Knowledge, Unanswered, BugReport, User } from "../types";
 import { API_URL } from "../config";
 
-export function AdminPanel({ dark, showToast }: { dark: boolean, showToast: (msg: string, type: 'success' | 'error' | 'info') => void }) {
+// --- UPDATED CMS CATEGORY COLORS ---
+const categoryColors: Record<string, string> = {
+  "All": "#6b7280",               // Gray
+  "Organizations": "#8b5cf6",     // Purple
+  "Majors": "#3b82f6",            // Blue
+  "Documents": "#10b981",         // Green
+  "Handbook": "#f59e0b",          // Orange
+  "Industry Partners": "#ef4444", // Red
+  "Facilities": "#14b8a6",        // Teal
+  "Faculty & Teachers": "#ec4899" // Pink
+};
+
+const categories = [
+  "All", 
+  "Organizations", 
+  "Majors", 
+  "Documents", 
+  "Handbook", 
+  "Industry Partners", 
+  "Facilities", 
+  "Faculty & Teachers"
+];
+
+// REQUIRES currentUser PROP FOR SUPERADMIN CHECKS
+export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, showToast: (msg: string, type: 'success' | 'error' | 'info') => void, currentUser: User }) {
   const [activeTab, setActiveTab] = useState<'knowledge' | 'faq' | 'unanswered' | 'bugs' | 'users'>('knowledge');
+  const [activeCategoryTab, setActiveCategoryTab] = useState("All"); 
   
   const [data, setData] = useState<Knowledge[]>([]);
   const [unanswered, setUnanswered] = useState<Unanswered[]>([]);
@@ -13,12 +38,15 @@ export function AdminPanel({ dark, showToast }: { dark: boolean, showToast: (msg
   const [users, setUsers] = useState<User[]>([]); 
 
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [form, setForm] = useState({ keyword: "", response: "", picture_url: "" });
+  
+  // DEFAULT CATEGORY IS NOW "Handbook"
+  const [form, setForm] = useState({ keyword: "", response: "", picture_url: "", category: "Handbook" });
   const [keywordInput, setKeywordInput] = useState(""); 
   
   const [uploadingImage, setUploadingImage] = useState(false);
   const [searchQuery, setSearchQuery] = useState(""); 
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false); 
 
   const [fullScreenMedia, setFullScreenMedia] = useState<string | null>(null);
 
@@ -35,6 +63,7 @@ export function AdminPanel({ dark, showToast }: { dark: boolean, showToast: (msg
   const UPLOAD_PRESET = "chatcit_preset"; 
 
   const fetchData = async () => {
+    setIsSyncing(true);
     try {
       const [kRes, uRes, bRes, userRes] = await Promise.all([
         fetch(`${API_URL}/knowledge`),
@@ -50,6 +79,7 @@ export function AdminPanel({ dark, showToast }: { dark: boolean, showToast: (msg
       showToast("Failed to fetch dashboard data.", "error"); 
     } finally { 
       setLoading(false); 
+      setIsSyncing(false);
     }
   };
   
@@ -113,7 +143,7 @@ export function AdminPanel({ dark, showToast }: { dark: boolean, showToast: (msg
       const url = id ? `${API_URL}/knowledge/${id}` : `${API_URL}/knowledge`;
       await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
       setEditingId(null); 
-      setForm({ keyword: "", response: "", picture_url: "" }); 
+      setForm({ keyword: "", response: "", picture_url: "", category: "Handbook" }); 
       setKeywordInput("");
       fetchData();
       showToast(id ? "Record updated!" : "New record added!", "success");
@@ -171,7 +201,6 @@ export function AdminPanel({ dark, showToast }: { dark: boolean, showToast: (msg
     });
   };
 
-  // NEW: Triggers the backend wipe for the FAQ counters
   const handleResetFaqCounters = () => {
     setModal({
       isOpen: true,
@@ -199,16 +228,43 @@ export function AdminPanel({ dark, showToast }: { dark: boolean, showToast: (msg
     fetch(`${API_URL}/unanswered/${id}`, { method: "DELETE" }).then(fetchData);
     setActiveTab('knowledge');
     setEditingId(0);
-    setForm({ keyword: question, response: "", picture_url: "" });
+    setForm({ keyword: question, response: "", picture_url: "", category: "Handbook" });
     setKeywordInput("");
     showToast("Moved to Knowledge Base draft.", "info");
   };
 
+  const handleRoleChange = async (userId: number, newRole: string) => {
+    try {
+      const res = await fetch(`${API_URL}/users/${userId}/role`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: newRole, requesterRole: currentUser?.role })
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || "Failed to update role");
+      showToast("Role updated!", "success");
+      fetchData();
+    } catch (e: any) { 
+      showToast(e.message, "error"); 
+    }
+  };
+
   const q = searchQuery.toLowerCase();
-  const filteredData = data.filter(d => d.keyword.toLowerCase().includes(q) || d.response.toLowerCase().includes(q));
+  
+  const filteredData = data.filter(d => 
+    (activeCategoryTab === "All" || (d as any).category === activeCategoryTab) &&
+    (d.keyword.toLowerCase().includes(q) || d.response.toLowerCase().includes(q))
+  );
+
   const filteredUnanswered = unanswered.filter(u => u.question.toLowerCase().includes(q));
   const filteredBugs = bugs.filter(b => b.user_info.toLowerCase().includes(q) || b.description.toLowerCase().includes(q));
   const filteredUsers = users.filter(u => u.email.toLowerCase().includes(q) || (u.username && u.username.toLowerCase().includes(q)));
+
+  const departmentCounts = users.reduce((acc, u) => {
+    const dept = (u as any).department || "Others";
+    acc[dept] = (acc[dept] || 0) + 1;
+    acc["Total Users"] = (acc["Total Users"] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
   const bg = dark ? "#25242c" : "#fff";
   const border = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)";
@@ -249,7 +305,42 @@ export function AdminPanel({ dark, showToast }: { dark: boolean, showToast: (msg
         </div>
       </div>
 
-      {/* SEARCH AND NEW ENTRY BUTTONS */}
+      {activeTab === 'knowledge' && !editingId && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategoryTab(cat)}
+              style={{
+                padding: '6px 16px',
+                borderRadius: 20,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: "nowrap",
+                border: `1px solid ${categoryColors[cat]}`,
+                background: activeCategoryTab === cat ? categoryColors[cat] : 'transparent',
+                color: activeCategoryTab === cat ? '#fff' : categoryColors[cat],
+                transition: 'all 0.2s'
+              }}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {activeTab === 'users' && (
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
+          {Object.entries(departmentCounts).sort((a,b) => b[1]-a[1]).map(([dept, count]) => (
+            <div key={dept} style={{ padding: "12px 16px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", display: "flex", flexDirection: "column", minWidth: 140 }}>
+              <span style={{ fontSize: 11, color: textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>{dept}</span>
+              <span style={{ fontSize: 22, color: dept === "Total Users" ? "#4285f4" : (dark ? "#fff" : "#000"), fontWeight: 700 }}>{count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, background: bg, border: `1px solid ${border}`, padding: "8px 14px", borderRadius: 8, flex: 1, minWidth: 250 }}>
           <Search size={16} color={textMuted} />
@@ -262,8 +353,12 @@ export function AdminPanel({ dark, showToast }: { dark: boolean, showToast: (msg
           />
         </div>
 
+        <button onClick={() => { fetchData(); showToast("Dashboard Synced!", "success"); }} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: 'transparent', border: `1px solid ${border}`, color: dark ? '#fff' : '#000', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}>
+          <RefreshCw size={16} className={isSyncing ? "animate-spin" : ""} /> Sync Data
+        </button>
+
         {activeTab === 'knowledge' && editingId !== 0 && (
-          <button onClick={() => { setEditingId(0); setForm({ keyword: "", response: "", picture_url: "" }); setKeywordInput(""); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontWeight: 500, whiteSpace: "nowrap" }}>
+          <button onClick={() => { setEditingId(0); setForm({ keyword: "", response: "", picture_url: "", category: "Handbook" }); setKeywordInput(""); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontWeight: 500, whiteSpace: "nowrap" }}>
             <Plus size={16} /> Add Entry
           </button>
         )}
@@ -276,6 +371,19 @@ export function AdminPanel({ dark, showToast }: { dark: boolean, showToast: (msg
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{editingId === 0 ? "Add New Knowledge" : "Edit Entry"}</h3>
               
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={{ fontSize: 12, color: textMuted }}>Category</span>
+                <select 
+                  value={form.category} 
+                  onChange={e => setForm({ ...form, category: e.target.value })} 
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none" }}
+                >
+                  {categories.filter(c => c !== "All").map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <span style={{ fontSize: 12, color: textMuted }}>Trigger Keywords (Press Enter or Comma to add)</span>
                 <div style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                   {keywordsList.map(kw => (
@@ -287,7 +395,7 @@ export function AdminPanel({ dark, showToast }: { dark: boolean, showToast: (msg
                     value={keywordInput} 
                     onChange={e => setKeywordInput(e.target.value)} 
                     onKeyDown={handleAddKeyword}
-                    placeholder={keywordsList.length === 0 ? "e.g. grading system, grades, passing score" : "Add another..."}
+                    placeholder={keywordsList.length === 0 ? "e.g. grading system, passing score" : "Add another..."}
                     style={{ flex: 1, minWidth: 150, border: "none", background: "transparent", color: "inherit", outline: "none", fontSize: 14 }}
                   />
                 </div>
@@ -322,11 +430,12 @@ export function AdminPanel({ dark, showToast }: { dark: boolean, showToast: (msg
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredData.map((row) => (
+                  {filteredData.map((row: any) => (
                     <tr key={row.id} style={{ borderBottom: `1px solid ${border}` }}>
                       <td style={{ padding: "14px 16px", verticalAlign: "top" }}>
+                        <div style={{ fontSize: 10, color: categoryColors[row.category] || "#f59e0b", fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>{row.category || "Handbook"}</div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                          {row.keyword.split(',').map((kw, idx) => kw.trim() ? (
+                          {row.keyword.split(',').map((kw: string, idx: number) => kw.trim() ? (
                             <span key={idx} style={{ background: dark ? "rgba(255,255,255,0.08)" : "#f1f5f9", color: dark ? "#e2e8f0" : "#334155", padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 500, border: `1px solid ${border}`, whiteSpace: "nowrap" }}>
                               {kw.trim()}
                             </span>
@@ -346,7 +455,7 @@ export function AdminPanel({ dark, showToast }: { dark: boolean, showToast: (msg
                         )}
                       </td>
                       <td style={{ padding: "14px 16px", verticalAlign: "top", textAlign: "right", whiteSpace: "nowrap" }}>
-                        <button onClick={() => { setForm({ keyword: row.keyword, response: row.response, picture_url: row.picture_url || "" }); setKeywordInput(""); setEditingId(row.id); }} style={{ background: "none", border: "none", color: "#4285f4", cursor: "pointer", padding: 6 }} title="Edit"><Edit2 size={16} /></button>
+                        <button onClick={() => { setForm({ keyword: row.keyword, response: row.response, picture_url: row.picture_url || "", category: row.category || "Handbook" }); setKeywordInput(""); setEditingId(row.id); }} style={{ background: "none", border: "none", color: "#4285f4", cursor: "pointer", padding: 6 }} title="Edit"><Edit2 size={16} /></button>
                         <button onClick={() => handleDelete('knowledge', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 6 }} title="Delete"><Trash2 size={16} /></button>
                       </td>
                     </tr>
@@ -360,7 +469,6 @@ export function AdminPanel({ dark, showToast }: { dark: boolean, showToast: (msg
 
       {activeTab === 'faq' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* THE NEW RESET BUTTON */}
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button onClick={handleResetFaqCounters} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: "rgba(239, 68, 68, 0.1)", color: "#ef4444", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
               <RotateCcw size={14} /> Reset All Counters
@@ -464,25 +572,44 @@ export function AdminPanel({ dark, showToast }: { dark: boolean, showToast: (msg
             <table style={{ width: "100%", minWidth: 600, borderCollapse: "collapse", textAlign: "left", fontSize: 14 }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" }}>
-                  <th style={{ padding: "14px 16px", fontWeight: 600 }}>Username</th>
-                  <th style={{ padding: "14px 16px", fontWeight: 600 }}>Email Address</th>
+                  <th style={{ padding: "14px 16px", fontWeight: 600 }}>Username / Email</th>
+                  <th style={{ padding: "14px 16px", fontWeight: 600 }}>Department</th>
                   <th style={{ padding: "14px 16px", fontWeight: 600 }}>Role</th>
                   <th style={{ padding: "14px 16px", fontWeight: 600, width: 140, textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((user) => (
+                {filteredUsers.map((user: any) => (
                   <tr key={user.id} style={{ borderBottom: `1px solid ${border}` }}>
-                    <td style={{ padding: "14px 16px", verticalAlign: "middle", fontWeight: 500 }}>{user.username || "—"}</td>
-                    <td style={{ padding: "14px 16px", verticalAlign: "middle", color: textMuted }}>{user.email}</td>
+                    <td style={{ padding: "14px 16px", verticalAlign: "middle", fontWeight: 500 }}>
+                      {user.username || "—"} <br />
+                      <span style={{ fontSize: 12, color: textMuted, fontWeight: 400 }}>{user.email}</span>
+                    </td>
+                    <td style={{ padding: "14px 16px", verticalAlign: "middle", color: dark ? "#fff" : "#000" }}>{user.department || "Others"}</td>
                     <td style={{ padding: "14px 16px", verticalAlign: "middle" }}>
-                      <span style={{ padding: "4px 8px", borderRadius: 4, fontSize: 12, fontWeight: 600, background: user.role === 'admin' ? "rgba(66, 133, 244, 0.2)" : "rgba(16, 185, 129, 0.15)", color: user.role === 'admin' ? "#4285f4" : "#10b981" }}>
-                        {user.role.toUpperCase()}
-                      </span>
+                      <select 
+                        value={user.role}
+                        disabled={currentUser?.role !== 'superadmin' || user.role === 'superadmin'}
+                        onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                        style={{ 
+                          padding: "6px 8px", 
+                          borderRadius: 6, 
+                          background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', 
+                          color: user.role === 'admin' || user.role === 'superadmin' ? '#4285f4' : textMuted, 
+                          border: `1px solid ${border}`, 
+                          outline: "none", 
+                          cursor: (currentUser?.role !== 'superadmin' || user.role === 'superadmin') ? "not-allowed" : "pointer",
+                          fontWeight: 600 
+                        }}
+                      >
+                        <option value="student">Student</option>
+                        <option value="admin">Admin</option>
+                        {user.role === 'superadmin' && <option value="superadmin">Superadmin</option>}
+                      </select>
                     </td>
                     <td style={{ padding: "14px 16px", verticalAlign: "middle", textAlign: "right", whiteSpace: "nowrap" }}>
                       <button onClick={() => handleResetPassword(user.id, user.email)} style={{ background: "none", border: "none", color: "#f59e0b", cursor: "pointer", padding: 6 }} title="Generate New Password"><Key size={16} /></button>
-                      <button onClick={() => handleDelete('users', user.id)} disabled={user.role === 'admin'} style={{ background: "none", border: "none", color: user.role === 'admin' ? textMuted : "#ef4444", cursor: user.role === 'admin' ? "not-allowed" : "pointer", padding: 6, marginLeft: 4 }} title={user.role === 'admin' ? "Cannot delete admin" : "Delete User Account"}><Trash2 size={16} /></button>
+                      <button onClick={() => handleDelete('users', user.id)} disabled={user.role === 'admin' || user.role === 'superadmin'} style={{ background: "none", border: "none", color: (user.role === 'admin' || user.role === 'superadmin') ? textMuted : "#ef4444", cursor: (user.role === 'admin' || user.role === 'superadmin') ? "not-allowed" : "pointer", padding: 6, marginLeft: 4 }} title={(user.role === 'admin' || user.role === 'superadmin') ? "Cannot delete admins" : "Delete User Account"}><Trash2 size={16} /></button>
                     </td>
                   </tr>
                 ))}
@@ -519,7 +646,7 @@ export function AdminPanel({ dark, showToast }: { dark: boolean, showToast: (msg
                 onClick={() => { modal.onConfirm(modal.inputValue); setModal({ ...modal, isOpen: false }); }} 
                 style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: "#4285f4", color: "#fff", cursor: 'pointer', fontWeight: 500 }}
               >
-                {modal.type === 'prompt' ? 'Save Password' : 'Yes, Delete/Reset'}
+                {modal.type === 'prompt' ? 'Save Password' : 'Yes, Confirm'}
               </button>
             </div>
           </div>
