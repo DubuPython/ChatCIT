@@ -8,12 +8,13 @@ import { BugModal } from "../components/modals/bugsmodal";
 import { AcademicCalendar } from "../components/modals/academiccalendar"; 
 
 import { ChatCITLogo, Avatar, GearAbs, DayNightToggle, GearboxLoader, RATIO, N_SM, OR_SM, CENTER_D, TOP_H, GEAR_VIS, RAIL_W, STEP_DEG, OR_LG, PANEL_W, IR_SM, IR_LG, N_LG } from "../components/ui/helpers";
+
 import { ChatLoader } from "../components/ui/chatloader";
 import { CosmicInput } from "../components/ui/inputbar";
 import { ChatMessageBubble } from "../components/chatmessagebubble";
 
 import { Message, Chat, User, ToastMsg } from "../types";
-import { QUICK_PROMPTS, ORGANIZATIONS, MAJORS, DOCUMENTS, MID_CHOICES, API_URL } from "../config";
+import { QUICK_PROMPTS, ORGANIZATIONS, MAJORS, DOCUMENTS, MID_CHOICES, API_URL, DEFAULT_CATEGORIES, ALL_DEPTS } from "../config";
 
 export default function App() {
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 768);
@@ -41,6 +42,15 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [viewMode, setViewMode] = useState<"chat" | "admin">("chat"); 
   const [chats, setChats] = useState<Chat[]>([]);
+
+  // ADMIN CMS STATES (Lifted to Sidebar)
+  const [adminTab, setAdminTab] = useState<'knowledge' | 'faq' | 'unanswered' | 'bugs' | 'users'>('knowledge');
+  const [adminCategory, setAdminCategory] = useState("All");
+  const [adminDept, setAdminDept] = useState("All");
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [dbCategories, setDbCategories] = useState<string[]>([]);
+
+  const allDynamicCategories = Array.from(new Set([...DEFAULT_CATEGORIES.filter(c => c !== "All"), ...customCategories, ...dbCategories]));
 
   // Intercept Reset Password Token on Load
   useEffect(() => {
@@ -91,6 +101,11 @@ export default function App() {
       localStorage.setItem('chatcit_viewMode', viewMode);
     }
   }, [currentUser, viewMode, chats, appLoading]);
+
+  // Forces Gear Mode off if entering Admin View
+  useEffect(() => {
+    if (viewMode === 'admin') setGearMode(false);
+  }, [viewMode]);
 
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [input, setInput] = useState("");
@@ -332,7 +347,6 @@ export default function App() {
   return (
     <div className={dark ? "dark-mode" : "light-mode"} style={{ position: "fixed", top: 0, bottom: 0, left: 0, right: 0, display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary }}>
 
-      {/* NEW PASSWORD RESET MODAL */}
       {showResetModal && (
         <div style={{ position: "fixed", inset: 0, zIndex: 999999, background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)", padding: 20 }}>
            <div style={{ position: "relative", width: "100%", maxWidth: 380, padding: 24, background: dark ? "#1e1e24" : "#ffffff", borderRadius: 20, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", border: dark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.05)" }}>
@@ -419,38 +433,86 @@ export default function App() {
               </div>
               <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                 <div style={{ padding: "12px 12px 0 12px", display: "flex", flexDirection: "column", height: "100%", overflowY: "auto" }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
-                    <button onClick={() => {setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false);}} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer", background: dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.25)", color: sb.text, fontSize: 13, fontWeight: 500, boxShadow: dark ? "none" : "0 2px 5px rgba(0,0,0,0.05)" }}>
-                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: dark ? "rgba(255,255,255,0.18)" : "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", color: dark ? "#fff" : "#1558d6" }}><Plus size={13} /></div>New chat
-                    </button>
-                    <button onClick={() => { setGearMode(true); if(isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: `1px solid ${sb.border}`, background: "transparent", color: sb.text, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
-                      <Settings size={14} /> Change taskbar mode
-                    </button>
-                  </div>
-
-                  <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Quick Prompts</span></div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 24 }}>
-                    {QUICK_PROMPTS.map((lbl: string) => (
-                      <button key={lbl} onClick={() => { sendMessage(lbl); if(isMobile) setSidebarOpen(false); }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: "transparent", color: sb.muted, border: `1px solid ${sb.border}`, fontSize: 13, cursor: "pointer" }} onMouseEnter={(e) => { e.currentTarget.style.background = sb.hover; e.currentTarget.style.color = sb.text; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = sb.muted; }}>{lbl}</button>
-                    ))}
-                  </div>
                   
-                  {currentUser && Number(currentUser.id) !== -1 && chats.length > 0 && (
-                    <>
-                      <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Recent</span></div>
-                      <div style={{ maxHeight: 200, overflowY: "auto", padding: "0 4px", display: "flex", flexDirection: "column", gap: 3 }}>
-                        {chats.slice(0, 5).map((chat: Chat) => (
-                          <div key={chat.id} className="group" style={{ display: "flex", alignItems: "center", width: "100%", borderRadius: 10, background: activeChatId === chat.id && viewMode === "chat" ? sb.active : "transparent" }}>
-                            <button onClick={() => { setActiveChatId(chat.id); setViewMode("chat"); if(isMobile) setSidebarOpen(false); }} style={{ flex: 1, textAlign: "left", padding: "9px 12px", background: "transparent", border: "none", cursor: "pointer", color: sb.text, minWidth: 0 }}>
-                              <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chat.title}</div>
-                            </button>
-                            <button onClick={(e) => { e.stopPropagation(); deleteChat(chat.id); }} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ padding: "8px 10px", background: "transparent", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer" }}><Trash2 size={13} /></button>
+                  {viewMode === "admin" ? (
+                    // --- ADMIN SIDEBAR CONTENT ---
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
+                      <button onClick={() => { setViewMode("chat"); if(isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer", background: dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.25)", color: sb.text, fontSize: 13, fontWeight: 500, boxShadow: dark ? "none" : "0 2px 5px rgba(0,0,0,0.05)" }}>
+                        <div style={{ width: 22, height: 22, borderRadius: "50%", background: dark ? "rgba(255,255,255,0.18)" : "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", color: dark ? "#fff" : "#1558d6" }}><ArrowLeft size={13} /></div>Back to Chat
+                      </button>
+
+                      {adminTab === 'knowledge' && (
+                        <div style={{ marginTop: 8 }}>
+                          <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Database Categories</span></div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                            {["All", ...allDynamicCategories].map(cat => (
+                              <button key={cat} onClick={() => { setAdminCategory(cat); if(isMobile) setSidebarOpen(false); }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: adminCategory === cat ? sb.active : "transparent", color: adminCategory === cat ? sb.text : sb.muted, border: `1px solid ${adminCategory === cat ? sb.border : 'transparent'}`, fontSize: 13, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={(e) => { if(adminCategory !== cat) e.currentTarget.style.background = sb.hover; }} onMouseLeave={(e) => { if(adminCategory !== cat) e.currentTarget.style.background = "transparent"; }}>{cat}</button>
+                            ))}
+                            <button onClick={() => {
+                              const newCat = window.prompt("Enter new category name:");
+                              if (newCat && newCat.trim() !== "") {
+                                setCustomCategories(prev => Array.from(new Set([...prev, newCat.trim()])));
+                                setAdminCategory(newCat.trim());
+                                showToast(`Added new tab: ${newCat.trim()}`, "success");
+                              }
+                            }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: "transparent", color: sb.muted, border: `1px dashed ${sb.faint}`, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.background = sb.hover} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}><Plus size={14}/> Add Custom Tab</button>
                           </div>
+                        </div>
+                      )}
+
+                      {adminTab === 'users' && (
+                        <div style={{ marginTop: 8 }}>
+                          <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Departments Filter</span></div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                            {ALL_DEPTS.map(dept => (
+                              <button key={dept} onClick={() => { setAdminDept(dept); if(isMobile) setSidebarOpen(false); }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: adminDept === dept ? sb.active : "transparent", color: adminDept === dept ? sb.text : sb.muted, border: `1px solid ${adminDept === dept ? sb.border : 'transparent'}`, fontSize: 13, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={(e) => { if(adminDept !== dept) e.currentTarget.style.background = sb.hover; }} onMouseLeave={(e) => { if(adminDept !== dept) e.currentTarget.style.background = "transparent"; }}>{dept}</button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {adminTab !== 'knowledge' && adminTab !== 'users' && (
+                        <div style={{ padding: "24px 4px", textAlign: "center", color: sb.faint, fontSize: 12 }}>
+                           Select 'Database' or 'Users' to view filters.
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // --- STANDARD CHAT SIDEBAR CONTENT ---
+                    <>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
+                        <button onClick={() => {setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false);}} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer", background: dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.25)", color: sb.text, fontSize: 13, fontWeight: 500, boxShadow: dark ? "none" : "0 2px 5px rgba(0,0,0,0.05)" }}>
+                          <div style={{ width: 22, height: 22, borderRadius: "50%", background: dark ? "rgba(255,255,255,0.18)" : "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", color: dark ? "#fff" : "#1558d6" }}><Plus size={13} /></div>New chat
+                        </button>
+                        <button onClick={() => { setGearMode(true); if(isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: `1px solid ${sb.border}`, background: "transparent", color: sb.text, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+                          <Settings size={14} /> Change taskbar mode
+                        </button>
+                      </div>
+
+                      <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Quick Prompts</span></div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 24 }}>
+                        {QUICK_PROMPTS.map((lbl: string) => (
+                          <button key={lbl} onClick={() => { sendMessage(lbl); if(isMobile) setSidebarOpen(false); }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: "transparent", color: sb.muted, border: `1px solid ${sb.border}`, fontSize: 13, cursor: "pointer" }} onMouseEnter={(e) => { e.currentTarget.style.background = sb.hover; e.currentTarget.style.color = sb.text; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = sb.muted; }}>{lbl}</button>
                         ))}
                       </div>
+                      
+                      {currentUser && Number(currentUser.id) !== -1 && chats.length > 0 && (
+                        <>
+                          <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Recent</span></div>
+                          <div style={{ maxHeight: 200, overflowY: "auto", padding: "0 4px", display: "flex", flexDirection: "column", gap: 3 }}>
+                            {chats.slice(0, 5).map((chat: Chat) => (
+                              <div key={chat.id} className="group" style={{ display: "flex", alignItems: "center", width: "100%", borderRadius: 10, background: activeChatId === chat.id && viewMode === "chat" ? sb.active : "transparent" }}>
+                                <button onClick={() => { setActiveChatId(chat.id); setViewMode("chat"); if(isMobile) setSidebarOpen(false); }} style={{ flex: 1, textAlign: "left", padding: "9px 12px", background: "transparent", border: "none", cursor: "pointer", color: sb.text, minWidth: 0 }}>
+                                  <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chat.title}</div>
+                                </button>
+                                <button onClick={(e) => { e.stopPropagation(); deleteChat(chat.id); }} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ padding: "8px 10px", background: "transparent", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer" }}><Trash2 size={13} /></button>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </>
                   )}
-
                 </div>
               </div>
               <div style={{ padding: "16px 12px 18px", borderTop: `1px solid ${sb.border}`, flexShrink: 0 }}>
@@ -510,9 +572,13 @@ export default function App() {
 
           <div id="chat-scroll-container" style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
             
-            {/* FIXED: Passed currentUser here! */}
             {viewMode === "admin" && currentUser ? (
-              <AdminPanel dark={dark} showToast={showToast} currentUser={currentUser} />
+              <AdminPanel 
+                dark={dark} showToast={showToast} currentUser={currentUser} 
+                activeTab={adminTab} setActiveTab={setAdminTab}
+                activeCategoryTab={adminCategory} activeDeptTab={adminDept}
+                allCategories={allDynamicCategories} setDbCategories={setDbCategories}
+              />
             ) : !activeChat || activeChat.messages.length === 0 ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100%", padding: "48px 16px" }}>
                 <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
@@ -565,13 +631,8 @@ export default function App() {
         
         {renderRail("right", 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {/* BUG REPORT BUTTON */}
             <button onClick={() => setShowBugModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#ef4444", cursor: "pointer", transition: "background 0.2s" }} title="Report a Bug"><Bug size={22} /></button>
-            
-            {/* NEW ACADEMIC CALENDAR BUTTON */}
             <button onClick={() => setShowCalendar(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#10b981", cursor: "pointer", transition: "background 0.2s" }} title="Academic Calendar"><Calendar size={22} /></button>
-            
-            {/* DARK MODE TOGGLE */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44 }}>
               <DayNightToggle dark={dark} toggleDark={() => setDark(!dark)} />
             </div>
@@ -580,8 +641,6 @@ export default function App() {
 
         {showProfileModal && currentUser && <ProfileModal dark={dark} user={currentUser} onClose={() => setShowProfileModal(false)} onUpdate={(updated: User) => { setCurrentUser(updated); showToast("Profile updated successfully!", "success"); }} showToast={showToast} />}
         {showBugModal && <BugModal dark={dark} user={currentUser} onClose={() => setShowBugModal(false)} showToast={showToast} />}
-        
-        {/* MODAL MOUNT LOCATION */}
         {showCalendar && <AcademicCalendar dark={dark} user={currentUser} onClose={() => setShowCalendar(false)} />}
       </>
     </div>

@@ -4,7 +4,6 @@ import { GearboxLoader } from "./ui/helpers";
 import { Knowledge, Unanswered, BugReport, User } from "../types";
 import { API_URL } from "../config";
 
-// --- BASE CMS CATEGORY COLORS ---
 const defaultCategoryColors: Record<string, string> = {
   "All": "#6b7280", 
   "Organizations": "#8b5cf6", 
@@ -14,22 +13,10 @@ const defaultCategoryColors: Record<string, string> = {
   "Industry Partners": "#ef4444",
   "Facilities": "#14b8a6",
   "Faculty & Teachers": "#ec4899",
-  "Magna Carta": "#eab308", // Added Magna Carta Color
+  "Magna Carta": "#eab308", 
   "General": "#ef4444"
 };
 
-const defaultCategories = ["All", "Organizations", "Majors", "Documents", "Handbook", "Industry Partners", "Facilities", "Faculty & Teachers", "Magna Carta"];
-
-// --- USERS DEPARTMENT TABS ---
-const ALL_DEPTS = [
-  "All", "Computer Technology", "Food Processing Technology", "Drafting and Digital Arts Technology", 
-  "Welding Technology", "Automotive Technology", "Electrical Technology", 
-  "Electronics Technology", "Mechanical Technology", "H/VAC Technology",
-  "Mechatronics Technology", "Electronics and Communication Technology", 
-  "Faculty", "Others"
-];
-
-// Generates a random, distinct color for user-created tabs
 const getColorForCategory = (cat: string) => {
   if (defaultCategoryColors[cat]) return defaultCategoryColors[cat];
   let hash = 0;
@@ -37,18 +24,26 @@ const getColorForCategory = (cat: string) => {
   return `hsl(${hash % 360}, 70%, 55%)`;
 }
 
-// REQUIRES currentUser PROP FOR SUPERADMIN CHECKS
-export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, showToast: (msg: string, type: 'success' | 'error' | 'info') => void, currentUser: User }) {
-  const [activeTab, setActiveTab] = useState<'knowledge' | 'faq' | 'unanswered' | 'bugs' | 'users'>('knowledge');
-  const [activeCategoryTab, setActiveCategoryTab] = useState("All"); 
-  const [activeDeptTab, setActiveDeptTab] = useState("All"); // NEW: For Filtering Users
+export function AdminPanel({
+  dark, showToast, currentUser,
+  activeTab, setActiveTab,
+  activeCategoryTab, activeDeptTab,
+  allCategories, setDbCategories
+}: {
+  dark: boolean; showToast: (msg: string, type: 'success' | 'error' | 'info') => void; currentUser: User;
+  activeTab: 'knowledge'|'faq'|'unanswered'|'bugs'|'users';
+  setActiveTab: (t: 'knowledge'|'faq'|'unanswered'|'bugs'|'users') => void;
+  activeCategoryTab: string;
+  activeDeptTab: string;
+  allCategories: string[];
+  setDbCategories: (cats: string[]) => void;
+}) {
   
   const [data, setData] = useState<Knowledge[]>([]);
   const [unanswered, setUnanswered] = useState<Unanswered[]>([]);
   const [bugs, setBugs] = useState<BugReport[]>([]);
   const [users, setUsers] = useState<User[]>([]); 
 
-  const [customCategories, setCustomCategories] = useState<string[]>([]); // NEW: Store User Tabs
   const [editingId, setEditingId] = useState<number | null>(null);
   
   const [form, setForm] = useState({ keyword: "", response: "", picture_url: "", category: "Handbook" });
@@ -82,10 +77,14 @@ export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, sh
         fetch(`${API_URL}/bugs`),
         fetch(`${API_URL}/users`) 
       ]);
-      setData(await kRes.json());
+      const kData = await kRes.json();
+      setData(kData);
       setUnanswered(await uRes.json());
       setBugs(await bRes.json());
       setUsers(await userRes.json());
+      
+      // Send the dynamic db categories UP to App.tsx for the Sidebar
+      setDbCategories(Array.from(new Set(kData.map((d: any) => d.category || "Handbook"))));
     } catch (e) { 
       showToast("Failed to fetch dashboard data.", "error"); 
     } finally { 
@@ -113,27 +112,6 @@ export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, sh
   const removeKeyword = (toRemove: string) => {
     setForm({ ...form, keyword: keywordsList.filter(k => k !== toRemove).join(', ') });
   };
-
-  // --- NEW: Handle Adding Custom Category Tabs ---
-  const handleAddCustomTab = () => {
-    const newCat = window.prompt("Enter the name for your new category tab:");
-    if (newCat && newCat.trim() !== "") {
-      const cleanCat = newCat.trim();
-      setCustomCategories(prev => [...prev, cleanCat]);
-      setActiveCategoryTab(cleanCat);
-      showToast(`Added new tab: ${cleanCat}`, "success");
-    }
-  };
-
-  // Calculate dynamic list of all unique categories to render (Defaults + Database + Custom)
-  const dbCategories = Array.from(new Set(data.map(d => d.category || "Handbook")));
-  const allDynamicCategories = Array.from(new Set([
-    ...defaultCategories.filter(c => c !== "All"), 
-    ...customCategories, 
-    ...dbCategories
-  ]));
-  const displayCategories = ["All", ...allDynamicCategories];
-
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -282,7 +260,7 @@ export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, sh
 
   const q = searchQuery.toLowerCase();
   
-  // Apply Database Filters
+  // Apply Filters based on props from Sidebar
   const filteredData = data.filter(d => 
     (activeCategoryTab === "All" || (d as any).category === activeCategoryTab) &&
     (d.keyword.toLowerCase().includes(q) || d.response.toLowerCase().includes(q))
@@ -291,7 +269,6 @@ export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, sh
   const filteredUnanswered = unanswered.filter(u => u.question.toLowerCase().includes(q));
   const filteredBugs = bugs.filter(b => b.user_info.toLowerCase().includes(q) || b.description.toLowerCase().includes(q));
   
-  // Apply User Filtering (Search + Department Tabs)
   const filteredUsers = users.filter(u => {
     const matchesSearch = u.email.toLowerCase().includes(q) || (u.username && u.username.toLowerCase().includes(q));
     const matchesDept = activeDeptTab === "All" || (u.department || "Others") === activeDeptTab;
@@ -344,76 +321,18 @@ export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, sh
         </div>
       </div>
 
-      {/* DYNAMIC VISUAL CATEGORY TABS FOR DATABASE */}
-      {activeTab === 'knowledge' && !editingId && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
-          {displayCategories.map(cat => {
-            const hex = getColorForCategory(cat);
-            return (
-              <button
-                key={cat}
-                onClick={() => setActiveCategoryTab(cat)}
-                style={{
-                  padding: '6px 16px',
-                  borderRadius: 20,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  whiteSpace: "nowrap",
-                  border: `1px solid ${hex}`,
-                  background: activeCategoryTab === cat ? hex : 'transparent',
-                  color: activeCategoryTab === cat ? '#fff' : hex,
-                  transition: 'all 0.2s'
-                }}
-              >
-                {cat}
-              </button>
-            )
-          })}
-          {/* THE ADD TAB BUTTON */}
-          <button onClick={handleAddCustomTab} style={{ padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: "nowrap", border: `1px dashed ${textMuted}`, background: "transparent", color: textMuted, display: "flex", alignItems: "center", gap: 4, transition: 'all 0.2s' }}>
-            <Plus size={14} /> Add Tab
-          </button>
-        </div>
-      )}
-
-      {/* NEW: DEPARTMENT TABS FOR USERS FILTERING */}
       {activeTab === 'users' && (
-        <>
-          {/* Tracker Boxes */}
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
-            {Object.entries(departmentCounts).sort((a,b) => b[1]-a[1]).map(([dept, count]) => (
-              <div key={dept} style={{ padding: "12px 16px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", display: "flex", flexDirection: "column", minWidth: 140 }}>
-                <span style={{ fontSize: 11, color: textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>{dept}</span>
-                <span style={{ fontSize: 22, color: dept === "Total Users" ? "#4285f4" : (dark ? "#fff" : "#000"), fontWeight: 700 }}>{count}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Department Horizontal Tabs */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
-            {ALL_DEPTS.map(dept => (
-              <button
-                key={dept}
-                onClick={() => setActiveDeptTab(dept)}
-                style={{
-                  padding: '6px 16px',
-                  borderRadius: 20,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  whiteSpace: "nowrap",
-                  border: `1px solid ${activeDeptTab === dept ? '#4285f4' : border}`,
-                  background: activeDeptTab === dept ? '#4285f4' : 'transparent',
-                  color: activeDeptTab === dept ? '#fff' : textMuted,
-                  transition: 'all 0.2s'
-                }}
-              >
-                {dept}
-              </button>
-            ))}
-          </div>
-        </>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
+          {Object.entries(departmentCounts)
+            .filter(([dept]) => dept === "Total Users" || dept === "Others") // KEEP ONLY THESE AT THE TOP
+            .sort((a,b) => b[1]-a[1])
+            .map(([dept, count]) => (
+            <div key={dept} style={{ padding: "12px 16px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", display: "flex", flexDirection: "column", minWidth: 140 }}>
+              <span style={{ fontSize: 11, color: textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>{dept}</span>
+              <span style={{ fontSize: 22, color: dept === "Total Users" ? "#4285f4" : (dark ? "#fff" : "#000"), fontWeight: 700 }}>{count}</span>
+            </div>
+          ))}
+        </div>
       )}
 
       {/* SEARCH AND NEW ENTRY BUTTONS */}
@@ -453,8 +372,9 @@ export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, sh
                   onChange={e => setForm({ ...form, category: e.target.value })} 
                   style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none" }}
                 >
-                  {allDynamicCategories.map(c => (
-                    <option key={c} value={c}>{c}</option>
+                  {/* FIX: Set option background strictly so it isn't white text on white background */}
+                  {allCategories.filter(c => c !== "All").map(c => (
+                    <option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c}</option>
                   ))}
                 </select>
               </div>
@@ -664,9 +584,11 @@ export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, sh
                     <td style={{ padding: "14px 16px", verticalAlign: "middle", color: dark ? "#fff" : "#000" }}>{user.department || "Others"}</td>
                     <td style={{ padding: "14px 16px", verticalAlign: "middle" }}>
                       
+                      {/* FIX: Strictly disabled for Admins trying to edit Superadmins, 
+                               but allows Admins to change roles of Students. */}
                       <select 
                         value={user.role}
-                        disabled={currentUser?.role !== 'superadmin' || user.role === 'superadmin'}
+                        disabled={currentUser?.role !== 'superadmin' && user.role === 'superadmin'}
                         onChange={(e) => handleRoleChange(user.id, e.target.value)}
                         style={{ 
                           padding: "6px 8px", 
@@ -675,13 +597,15 @@ export function AdminPanel({ dark, showToast, currentUser }: { dark: boolean, sh
                           color: user.role === 'admin' || user.role === 'superadmin' ? '#4285f4' : textMuted, 
                           border: `1px solid ${border}`, 
                           outline: "none", 
-                          cursor: (currentUser?.role !== 'superadmin' || user.role === 'superadmin') ? "not-allowed" : "pointer",
+                          cursor: (currentUser?.role !== 'superadmin' && user.role === 'superadmin') ? "not-allowed" : "pointer",
                           fontWeight: 600 
                         }}
                       >
-                        <option value="student">Student</option>
-                        <option value="admin">Admin</option>
-                        {user.role === 'superadmin' && <option value="superadmin">Superadmin</option>}
+                        <option value="student" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Student</option>
+                        <option value="admin" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Admin</option>
+                        {(currentUser?.role === 'superadmin' || user.role === 'superadmin') && (
+                          <option value="superadmin" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Superadmin</option>
+                        )}
                       </select>
 
                     </td>
