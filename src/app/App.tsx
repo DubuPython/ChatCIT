@@ -20,7 +20,7 @@ export default function App() {
   const [simKiosk, setSimKiosk] = useState(false);
   
   // FIX: Force Mobile Layout if screen is small OR if Kiosk Simulator is running
-  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth <= 1024);
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && (window.innerWidth <= 1024 || simKiosk));
   
   const [appLoading, setAppLoading] = useState(true); 
   const [dark, setDark] = useState(true);
@@ -139,6 +139,7 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activeChat = chats.find((c) => c.id === activeChatId) ?? null;
 
+  // --- KIOSK SIMULATOR LOGIC & HOTKEY (Ctrl + K) ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key.toLowerCase() === 'k') {
@@ -150,13 +151,18 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // FIX: Kiosk Simulator now cleanly forces mobile mode to render hamburger menus
+  // Window Resize & Kiosk Auto-Scaling
   useEffect(() => {
     const handleResize = () => {
       const isMobileDevice = window.innerWidth <= 1024 || simKiosk;
-      setIsMobile(isMobileDevice);
-      if (isMobileDevice && sidebarOpen) setSidebarOpen(false); 
-      else if (!isMobileDevice && !sidebarOpen) setSidebarOpen(true); 
+      
+      setIsMobile(prevMobile => {
+        // Only automatically toggle the sidebar if crossing the mobile/desktop boundary
+        if (prevMobile !== isMobileDevice) {
+            setSidebarOpen(!isMobileDevice);
+        }
+        return isMobileDevice;
+      });
       
       const scale = Math.min(window.innerWidth / 768, window.innerHeight / 1366) * 0.95;
       setSimScale(scale);
@@ -165,8 +171,9 @@ export default function App() {
     handleResize(); 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [sidebarOpen, simKiosk]);
+  }, [simKiosk]);
 
+  // Virtual Keyboard Focus Trigger
   useEffect(() => {
     if (!simKiosk) { setKbOpen(false); return; }
     
@@ -314,7 +321,7 @@ export default function App() {
     setShowAuthPopup(true);
   };
 
-  // FIX: Force React to recognize Virtual Keyboard changes
+  // --- VIRTUAL KEYBOARD COMPONENT ---
   const handleVirtualKeyPress = (key: string, e: React.MouseEvent) => {
     e.preventDefault(); 
     const el = document.activeElement as HTMLInputElement | HTMLTextAreaElement;
@@ -343,7 +350,6 @@ export default function App() {
       newValue += key;
     }
 
-    // Bypass React tracking to force state update
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
     const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
 
@@ -358,6 +364,7 @@ export default function App() {
     el.dispatchEvent(new Event('input', { bubbles: true }));
   };
 
+  // --- REBUILT DYNAMIC RAIL RENDERER ---
   const renderRail = (side: "left" | "right", topSlot?: React.ReactNode) => {
     const gearsRight = side === "right";
     const currentAngle = gearsRight ? rightAngle : leftAngle;
@@ -373,7 +380,13 @@ export default function App() {
     const blueTint = dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" };
     
     const panelBase: React.CSSProperties = { position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: gearsRight ? "right" : "left", ...(gearsRight ? { right: 0 } : { left: 0 }) };
-    const btnStyle: React.CSSProperties = { width: "100%", textAlign: gearsRight ? "right" : "left", padding: "8px 12px", borderRadius: 9, background: dark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)", color: textPrimary, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none" };
+    
+    // Solid background added to buttons so they remain readable if they overlap gears
+    const btnStyle: React.CSSProperties = { 
+      width: "100%", textAlign: gearsRight ? "right" : "left", padding: "8px 12px", borderRadius: 9, 
+      background: dark ? "rgba(28, 27, 34, 0.9)" : "rgba(255, 255, 255, 0.9)", backdropFilter: "blur(4px)",
+      color: textPrimary, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none", zIndex: 10
+    };
 
     const panels = gearsRight
       ? [
@@ -388,13 +401,15 @@ export default function App() {
         ];
 
     const isOpen = gearsRight ? rightRailOpen : sidebarOpen;
+    
+    // FIX: Perfected absolute/relative layout handling.
     const railStyle: React.CSSProperties = {
       width: RAIL_W, flexShrink: 0, background: bg, 
       position: (side === "left" && !isMobile) ? "relative" : "absolute", 
       top: 0, bottom: 0,
-      left: side === "left" ? (isMobile ? (isOpen ? 0 : -RAIL_W) : "auto") : "auto",
-      marginLeft: (side === "left" && !isMobile) ? (isOpen ? 0 : -PANEL_W) : 0,
-      right: side === "right" ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
+      left: side === "left" ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
+      marginLeft: (side === "left" && !isMobile) ? (isOpen ? 0 : -RAIL_W) : 0,
+      right: side === "right" ? (isOpen ? 0 : -RAIL_W) : "auto",
       zIndex: 60, transition: "all 0.3s ease",
       boxShadow: isMobile && isOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", 
       overflow: "visible"
@@ -402,7 +417,8 @@ export default function App() {
 
     return (
       <aside style={railStyle}>
-        <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, ...(gearsRight ? { left: 0 } : { right: 0 }) }}>
+        {/* FIX: Gears pushed OUTSIDE the rail boundaries using negative placement and pointerEvents none */}
+        <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, pointerEvents: "none", ...(gearsRight ? { left: -GEAR_VIS } : { right: -GEAR_VIS }) }}>
           <GearAbs id={`g-${side}-top`} side={side} OR={OR_SM} IR={IR_SM} n={N_SM} tint={grayTint} holeColor={bg} centerY={y1} rotation={r.sm} onClick={panels[0].onGear} />
           <GearAbs id={`g-${side}-mid`} side={side} OR={OR_LG} IR={IR_LG} n={N_LG} tint={blueTint} holeColor={bg} centerY={y2} rotation={r.mid} onClick={panels[1].onGear} />
           <GearAbs id={`g-${side}-bot`} side={side} OR={OR_SM} IR={IR_SM} n={N_SM} tint={grayTint} holeColor={bg} centerY={y3} rotation={r.sm} onClick={panels[2].onGear} />
@@ -411,7 +427,7 @@ export default function App() {
         {panels.map((p: any, i: number) => (
           <div key={i} style={{ ...panelBase, top: p.y, zIndex: 10 }}>
             {p.label && <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: textFaint, marginBottom: 8 }}>{p.label}</div>}
-            <button onClick={p.onPick} style={p.mid ? { ...btnStyle, display: "flex", alignItems: "center", gap: 8, justifyContent: gearsRight ? "flex-end" : "flex-start" } : p.sub ? { ...btnStyle, background: "transparent", padding: "2px 0" } : btnStyle}>
+            <button onClick={p.onPick} style={p.mid ? { ...btnStyle, display: "flex", alignItems: "center", gap: 8, justifyContent: gearsRight ? "flex-end" : "flex-start" } : p.sub ? { ...btnStyle, padding: "4px 8px" } : btnStyle}>
               {p.mid && (midIdx === 0 ? <Plus size={15} /> : <Settings size={15} />)}
               {p.sub ? (<><div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.value}</div><div style={{ fontSize: 11, color: textFaint, marginTop: 3 }}>{p.sub}</div></>) : p.value}
             </button>
@@ -445,9 +461,9 @@ export default function App() {
     display: "flex", overflow: "hidden", background: bg, 
     fontFamily: "'Inter', sans-serif", color: textPrimary,
     boxShadow: "0 25px 50px -12px rgba(0,0,0,0.8), 0 0 0 16px #111", 
-    borderRadius: 16
+    borderRadius: 16, zIndex: 99999
   } : {
-    position: "fixed", top: 0, bottom: 0, left: 0, right: 0, 
+    position: "fixed", inset: 0, 
     display: "flex", overflow: "hidden", background: bg, 
     fontFamily: "'Inter', sans-serif", color: textPrimary 
   };
@@ -462,6 +478,9 @@ export default function App() {
 
   return (
     <>
+      {/* CSS INJECTION: Guaranteed fix to kill any stray unstyled checkboxes globally */}
+      <style>{`.theme-toggle-wrapper input[type="checkbox"], .hidden-checkbox-force { display: none !important; }`}</style>
+      
       {simKiosk && <div style={{ position: "fixed", inset: 0, background: "#0a0a0a", zIndex: -1 }} />}
       
       <div className={dark ? "dark-mode" : "light-mode"} style={containerStyle}>
@@ -552,8 +571,12 @@ export default function App() {
               left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : "auto", 
               marginLeft: !isMobile ? (sidebarOpen ? 0 : -RAIL_W) : 0, 
               zIndex: 60, transition: "all 0.3s ease", 
-              boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" 
+              boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" 
             }}>
+              <div style={{ position: "absolute", top: 0, bottom: 0, right: -GEAR_VIS, width: GEAR_VIS, zIndex: 1, pointerEvents: "none" }}>
+                <GearAbs id="left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + 100} rotation={-leftAngle * RATIO + (180 / N_SM)} onClick={() => {}} />
+              </div>
+
               <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, background: sbBg }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -665,7 +688,6 @@ export default function App() {
             </aside>
           )}
 
-          {/* FIX: main dynamically adjusts paddingBottom so keyboard never covers input */}
           <main style={{ 
             flex: 1, 
             display: "flex", 
@@ -674,25 +696,25 @@ export default function App() {
             minWidth: 0, 
             position: "relative",
             paddingBottom: simKiosk && kbOpen ? 300 : 0, 
+            paddingRight: (!isMobile && gearMode && rightRailOpen) ? GEAR_VIS : 0, // FIXED: Dynamic Right Padding stops text hiding under right gears
             transition: "padding 0.2s ease"
           }}>
             
             <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: isMobile ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {(isMobile || (!gearMode && !sidebarOpen)) && (
-                  <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center" }}><Menu size={22} /></button>
-                )}
-                {(!gearMode && (isMobile || !sidebarOpen)) && (
-                  <><div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}><Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} /></div><ChatCITLogo dark={dark} /></>
+                  <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", zIndex: 60 }}><Menu size={22} /></button>
                 )}
               </div>
-              {gearMode && (
+
+              {(isMobile || !sidebarOpen || gearMode) && (
                 <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}><Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} /></div><ChatCITLogo dark={dark} />
                 </div>
               )}
+
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                {isMobile && <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}><MoreVertical size={20} /></button>}
+                {isMobile && gearMode && <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer", zIndex: 60 }}><MoreVertical size={20} /></button>}
               </div>
             </header>
 
@@ -755,12 +777,22 @@ export default function App() {
             )}
           </main>
           
-          {/* FIX: Right rail components rendered unconditionally for Desktop View */}
-          {renderRail("right", 
+          {/* FIX: Unconditional Right Rail Rendering on Desktop for Feature Buttons */}
+          {(!isMobile && !gearMode) && (
+            <div style={{ position: "absolute", top: 16, right: 16, zIndex: 60, display: "flex", alignItems: "center", gap: 10 }}>
+              <button onClick={() => setShowBugModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#ef4444", cursor: "pointer", transition: "background 0.2s" }} title="Report a Bug"><Bug size={22} /></button>
+              <button onClick={() => setShowCalendar(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#10b981", cursor: "pointer", transition: "background 0.2s" }} title="Academic Calendar"><Calendar size={22} /></button>
+              <div className="theme-toggle-wrapper" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44 }}>
+                <DayNightToggle dark={dark} toggleDark={() => setDark(!dark)} />
+              </div>
+            </div>
+          )}
+
+          {gearMode && renderRail("right", 
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <button onClick={() => setShowBugModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#ef4444", cursor: "pointer", transition: "background 0.2s" }} title="Report a Bug"><Bug size={22} /></button>
               <button onClick={() => setShowCalendar(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#10b981", cursor: "pointer", transition: "background 0.2s" }} title="Academic Calendar"><Calendar size={22} /></button>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44 }}>
+              <div className="theme-toggle-wrapper" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44 }}>
                 <DayNightToggle dark={dark} toggleDark={() => setDark(!dark)} />
               </div>
             </div>
