@@ -10,17 +10,13 @@ interface Props {
   currentUser: User | null;
   isMobile: boolean;
   onEnlarge: (url: string) => void;
-  onOpenIframe: (url: string) => void;
   onLoad: () => void;
 }
 
-export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onOpenIframe, onEnlarge, onLoad }: Props) {
+export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onEnlarge, onLoad }: Props) {
   const [copied, setCopied] = useState(false);
   const textMuted = dark ? "#9aa0a6" : "#6b7280";
-  
-  const isPdf = (url: string) => url.toLowerCase().includes('.pdf');
-  const isImage = (url: string) => /\.(jpeg|jpg|gif|png|webp|bmp)$/i.test(url) || url.includes('cloudinary.com/image');
-  
+
   const handleCopy = () => {
     navigator.clipboard.writeText(msg.content);
     setCopied(true);
@@ -48,6 +44,7 @@ export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onOpenIfra
           <>
             <div style={{ paddingTop: 2 }}><MarkdownText text={msg.content} dark={dark} /></div>
             
+            {/* 2-Page View Implementation */}
             {msg.pictures && msg.pictures.length > 0 && (
               <div style={{ 
                 display: "flex", 
@@ -63,9 +60,9 @@ export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onOpenIfra
                     minWidth: isMobile ? "100%" : "calc(50% - 6px)", 
                     maxWidth: msg.pictures!.length === 1 ? (isMobile ? '100%' : 380) : "100%" 
                   }}>
-                    {isPdf(picUrl) ? (
+                    {picUrl.toLowerCase().includes('.pdf') ? (
                       <CanvasPDFViewer fileUrl={picUrl} dark={dark} onEnlarge={onEnlarge} onLoad={onLoad} isMobile={isMobile} />
-                    ) : isImage(picUrl) ? (
+                    ) : (
                       <img 
                         src={picUrl} 
                         alt={`Reference Document ${index + 1}`} 
@@ -73,20 +70,6 @@ export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onOpenIfra
                         onLoad={onLoad} 
                         style={{ width: "100%", maxHeight: 480, objectFit: 'contain', borderRadius: 8, border: `1px solid ${dark ? '#334155' : '#e2e8f0'}`, cursor: 'zoom-in' }} 
                       />
-                    ) : (
-                      // THE NEW FLIPBOOK / DOUBLE-PAGE VIEWER BUTTON
-                      <button 
-                        onClick={() => onOpenIframe(picUrl)} 
-                        style={{ 
-                          display: "inline-flex", alignItems: "center", padding: "10px 16px", 
-                          background: dark ? "rgba(255,255,255,0.1)" : "#f3f4f6", 
-                          color: "#f59e0b", border: `1px solid ${dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`, 
-                          borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 13, 
-                          width: "100%", justifyContent: "center" 
-                        }}
-                      >
-                        📖 Open Double-Page Viewer
-                      </button>
                     )}
                   </div>
                 ))}
