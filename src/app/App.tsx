@@ -348,6 +348,7 @@ export default function App() {
     }
   };
 
+  // --- PERFECTED SIDEBAR ARCHITECTURE ---
   const renderRail = (side: "left" | "right", topSlot?: React.ReactNode) => {
     const gearsRight = side === "right";
     const currentAngle = gearsRight ? rightAngle : leftAngle;
@@ -378,13 +379,20 @@ export default function App() {
         ];
 
     const isOpen = gearsRight ? rightRailOpen : sidebarOpen;
-    // FIX: Hide the rail completely offscreen on mobile using -RAIL_W
+    
+    // Layout Fix: 
+    // - Left sidebar is RELATIVE on Desktop to push the chat.
+    // - Right sidebar is ALWAYS ABSOLUTE so it doesn't break Flexbox space.
     const railStyle: React.CSSProperties = {
-      width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0,
-      left: !gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
-      right: gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
+      width: RAIL_W, flexShrink: 0, background: bg, 
+      position: (side === "left" && !isMobile) ? "relative" : "absolute", 
+      top: 0, bottom: 0,
+      left: side === "left" ? (isMobile ? (isOpen ? 0 : -PANEL_W) : "auto") : "auto",
+      marginLeft: (side === "left" && !isMobile) ? (isOpen ? 0 : -PANEL_W) : 0,
+      right: side === "right" ? (isOpen ? 0 : -PANEL_W) : "auto",
       zIndex: 60, transition: "all 0.3s ease",
-      boxShadow: isMobile && isOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible"
+      boxShadow: isMobile && isOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", 
+      overflow: "visible"
     };
 
     return (
@@ -532,12 +540,15 @@ export default function App() {
           )}
 
           {!gearMode && (
-            // FIX: Hide the standard left sidebar completely offscreen using -RAIL_W
-            <aside style={{ width: RAIL_W, flexShrink: 0, background: sbBg, position: isMobile ? "absolute" : "relative", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : "auto", marginLeft: !isMobile && !sidebarOpen ? -RAIL_W : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
-              <div style={{ position: "absolute", top: 0, bottom: 0, right: -GEAR_VIS, width: GEAR_VIS, zIndex: 1 }}>
-                <GearAbs id="left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + 100} rotation={-leftAngle * RATIO + (180 / N_SM)} onClick={() => setSidebarOpen(true)} />
-              </div>
-
+            <aside style={{ 
+              width: RAIL_W, flexShrink: 0, background: sbBg, 
+              position: isMobile ? "absolute" : "relative", 
+              top: 0, bottom: 0, 
+              left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : "auto", 
+              marginLeft: !isMobile ? (sidebarOpen ? 0 : -RAIL_W) : 0, 
+              zIndex: 60, transition: "all 0.3s ease", 
+              boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" 
+            }}>
               <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, background: sbBg }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -656,26 +667,24 @@ export default function App() {
             overflow: "hidden", 
             minWidth: 0, 
             position: "relative",
-            marginLeft: gearMode && !isMobile ? RAIL_W : 0,
-            marginRight: !isMobile ? RAIL_W : 0
+            paddingRight: gearMode ? GEAR_VIS : 0 
           }}>
             
             <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: isMobile ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {isMobile && (
+                {(isMobile || !sidebarOpen) && (
                   <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center" }}><Menu size={22} /></button>
                 )}
-                {(!gearMode && (isMobile || !sidebarOpen)) && (
-                  <><div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}><Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} /></div><ChatCITLogo dark={dark} /></>
-                )}
               </div>
-              {gearMode && (
+
+              {(isMobile || !sidebarOpen || gearMode) && (
                 <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}><Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} /></div><ChatCITLogo dark={dark} />
                 </div>
               )}
+
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                {isMobile && <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}><MoreVertical size={20} /></button>}
+                {isMobile && gearMode && <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}><MoreVertical size={20} /></button>}
               </div>
             </header>
 
@@ -738,7 +747,7 @@ export default function App() {
             )}
           </main>
           
-          {renderRail("right", 
+          {gearMode && renderRail("right", 
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <button onClick={() => setShowBugModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#ef4444", cursor: "pointer", transition: "background 0.2s" }} title="Report a Bug"><Bug size={22} /></button>
               <button onClick={() => setShowCalendar(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#10b981", cursor: "pointer", transition: "background 0.2s" }} title="Academic Calendar"><Calendar size={22} /></button>
