@@ -17,13 +17,11 @@ import { Message, Chat, User, ToastMsg } from "../types";
 import { QUICK_PROMPTS, ORGANIZATIONS, MAJORS, DOCUMENTS, MID_CHOICES, API_URL, DEFAULT_CATEGORIES, ALL_DEPTS } from "../config";
 
 export default function App() {
-  // 1. TABLET FIX: Catch screens up to 1024px to ensure Tablets use the clean mobile layout
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth <= 1024);
   
   const [appLoading, setAppLoading] = useState(true); 
   const [dark, setDark] = useState(true);
   
-  // 2. KIOSK SIMULATOR STATES (Portrait Mode)
   const [simKiosk, setSimKiosk] = useState(false);
   const [simScale, setSimScale] = useState(1);
   const [kbOpen, setKbOpen] = useState(false);
@@ -139,7 +137,6 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activeChat = chats.find((c) => c.id === activeChatId) ?? null;
 
-  // --- KIOSK SIMULATOR LOGIC & HOTKEY (Ctrl + K) ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key.toLowerCase() === 'k') {
@@ -151,7 +148,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Window Resize & Kiosk Auto-Scaling (Portrait 768x1366)
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth <= 1024;
@@ -168,7 +164,6 @@ export default function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, [sidebarOpen]);
 
-  // --- VIRTUAL KEYBOARD FOCUS DETECTOR ---
   useEffect(() => {
     if (!simKiosk) { setKbOpen(false); return; }
     
@@ -316,9 +311,8 @@ export default function App() {
     setShowAuthPopup(true);
   };
 
-  // --- VIRTUAL KEYBOARD COMPONENT ---
   const handleVirtualKeyPress = (key: string, e: React.MouseEvent) => {
-    e.preventDefault(); // Prevents input from losing focus when clicking keys
+    e.preventDefault(); 
     const el = document.activeElement as HTMLInputElement | HTMLTextAreaElement;
     if (!el || !['INPUT', 'TEXTAREA'].includes(el.tagName)) return;
 
@@ -359,7 +353,6 @@ export default function App() {
     const currentAngle = gearsRight ? rightAngle : leftAngle;
     const r = { mid: currentAngle, sm: -currentAngle * RATIO + (180 / N_SM) };
     
-    // Fix viewport height scaling inside simulator
     const vh = simKiosk ? 1366 : (typeof window !== "undefined" ? window.innerHeight : 800);
     const gearAreaH = vh - TOP_H;
     const span = OR_SM + CENTER_D * 2 + OR_SM;
@@ -369,7 +362,6 @@ export default function App() {
     const grayTint = dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" };
     const blueTint = dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" };
     
-    // THE FIX: When rail hides, it stops at -PANEL_W so the gears still stick out (GEAR_VIS)
     const panelBase: React.CSSProperties = { position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: gearsRight ? "right" : "left", ...(gearsRight ? { right: 0 } : { left: 0 }) };
     const btnStyle: React.CSSProperties = { width: "100%", textAlign: gearsRight ? "right" : "left", padding: "8px 12px", borderRadius: 9, background: dark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)", color: textPrimary, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none" };
 
@@ -386,10 +378,11 @@ export default function App() {
         ];
 
     const isOpen = gearsRight ? rightRailOpen : sidebarOpen;
+    // FIX: Hide the rail completely offscreen on mobile using -RAIL_W
     const railStyle: React.CSSProperties = {
       width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0,
-      left: !gearsRight ? (isMobile ? (isOpen ? 0 : -PANEL_W) : 0) : "auto",
-      right: gearsRight ? (isMobile ? (isOpen ? 0 : -PANEL_W) : 0) : "auto",
+      left: !gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
+      right: gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
       zIndex: 60, transition: "all 0.3s ease",
       boxShadow: isMobile && isOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible"
     };
@@ -431,15 +424,14 @@ export default function App() {
     );
   }
 
-  // --- THE CORE WRAPPER: Portrait Touch Kiosk vs Standard Web ---
   const containerStyle: React.CSSProperties = simKiosk ? {
     position: "fixed", top: "50%", left: "50%",
-    width: 768, height: 1366, // Exactly matches an 18.5" PORTRAIT Touchscreen
+    width: 768, height: 1366, 
     transform: `translate(-50%, -50%) scale(${simScale})`,
     transformOrigin: "center center",
     display: "flex", overflow: "hidden", background: bg, 
     fontFamily: "'Inter', sans-serif", color: textPrimary,
-    boxShadow: "0 25px 50px -12px rgba(0,0,0,0.8), 0 0 0 16px #111", // Simulates Monitor Bezel
+    boxShadow: "0 25px 50px -12px rgba(0,0,0,0.8), 0 0 0 16px #111", 
     borderRadius: 16
   } : {
     position: "fixed", top: 0, bottom: 0, left: 0, right: 0, 
@@ -467,7 +459,6 @@ export default function App() {
           </div>
         )}
 
-        {/* AUTH/RESET OVERFLOW FIX (maxHeight + overflowY added to prevent cutoff) */}
         {showResetModal && (
           <div style={{ position: "absolute", inset: 0, zIndex: 999999, background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)", padding: 20 }}>
              <div style={{ position: "relative", width: "100%", maxWidth: 380, maxHeight: "90vh", overflowY: "auto", padding: 24, background: dark ? "#1e1e24" : "#ffffff", borderRadius: 20, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", border: dark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.05)" }}>
@@ -541,7 +532,8 @@ export default function App() {
           )}
 
           {!gearMode && (
-            <aside style={{ width: RAIL_W, flexShrink: 0, background: sbBg, position: isMobile ? "absolute" : "relative", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -PANEL_W) : "auto", marginLeft: !isMobile && !sidebarOpen ? -PANEL_W : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
+            // FIX: Hide the standard left sidebar completely offscreen using -RAIL_W
+            <aside style={{ width: RAIL_W, flexShrink: 0, background: sbBg, position: isMobile ? "absolute" : "relative", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : "auto", marginLeft: !isMobile && !sidebarOpen ? -RAIL_W : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
               <div style={{ position: "absolute", top: 0, bottom: 0, right: -GEAR_VIS, width: GEAR_VIS, zIndex: 1 }}>
                 <GearAbs id="left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + 100} rotation={-leftAngle * RATIO + (180 / N_SM)} onClick={() => setSidebarOpen(true)} />
               </div>
@@ -761,7 +753,6 @@ export default function App() {
           {showCalendar && <AcademicCalendar dark={dark} user={currentUser} onClose={() => setShowCalendar(false)} />}
         </>
 
-        {/* --- ON-SCREEN VIRTUAL KEYBOARD (Only renders in Kiosk Simulator) --- */}
         {simKiosk && kbOpen && (
           <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "12px 6px", background: dark ? "rgba(28, 27, 34, 0.95)" : "rgba(229, 231, 235, 0.95)", backdropFilter: "blur(10px)", borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, zIndex: 999999, display: "flex", flexDirection: "column", gap: 8, boxShadow: "0 -10px 40px rgba(0,0,0,0.4)", animation: "slideUp 0.2s ease-out" }}>
             {virtualKeyRows.map((row, i) => (
@@ -789,7 +780,6 @@ export default function App() {
 
       </div>
 
-      {/* GLOBAL FULLSCREEN MODALS */}
       {fullScreenMedia && (
         <div onClick={() => setFullScreenMedia(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', padding: 24 }}>
           <img src={fullScreenMedia} alt="Fullscreen View" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }} />
