@@ -10,13 +10,16 @@ interface Props {
   currentUser: User | null;
   isMobile: boolean;
   onEnlarge: (url: string) => void;
+  onOpenIframe: (url: string) => void; // <--- 1. ADD THIS LINE
   onLoad: () => void;
 }
 
-export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onEnlarge, onLoad }: Props) {
+
+export function ChatMessageBubble({ msg, dark, currentUser, isMobile,onOpenIframe, onEnlarge, onLoad }: Props) {
   const [copied, setCopied] = useState(false);
   const textMuted = dark ? "#9aa0a6" : "#6b7280";
-
+  const isPdf = (url: string) => url.toLowerCase().includes('.pdf');
+  const isImage = (url: string) => /\.(jpeg|jpg|gif|png|webp|bmp)$/i.test(url) || url.includes('cloudinary.com/image');
   const handleCopy = () => {
     navigator.clipboard.writeText(msg.content);
     setCopied(true);
