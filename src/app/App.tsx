@@ -17,12 +17,14 @@ import { Message, Chat, User, ToastMsg } from "../types";
 import { QUICK_PROMPTS, ORGANIZATIONS, MAJORS, DOCUMENTS, MID_CHOICES, API_URL, DEFAULT_CATEGORIES, ALL_DEPTS } from "../config";
 
 export default function App() {
+  const [simKiosk, setSimKiosk] = useState(false);
+  
+  // FIX: Force Mobile Layout if screen is small OR if Kiosk Simulator is running
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth <= 1024);
   
   const [appLoading, setAppLoading] = useState(true); 
   const [dark, setDark] = useState(true);
   
-  const [simKiosk, setSimKiosk] = useState(false);
   const [simScale, setSimScale] = useState(1);
   const [kbOpen, setKbOpen] = useState(false);
   
@@ -148,12 +150,13 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // FIX: Kiosk Simulator now cleanly forces mobile mode to render hamburger menus
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth <= 1024;
-      setIsMobile(mobile);
-      if (mobile && sidebarOpen) setSidebarOpen(false); 
-      else if (!mobile && !sidebarOpen) setSidebarOpen(true); 
+      const isMobileDevice = window.innerWidth <= 1024 || simKiosk;
+      setIsMobile(isMobileDevice);
+      if (isMobileDevice && sidebarOpen) setSidebarOpen(false); 
+      else if (!isMobileDevice && !sidebarOpen) setSidebarOpen(true); 
       
       const scale = Math.min(window.innerWidth / 768, window.innerHeight / 1366) * 0.95;
       setSimScale(scale);
@@ -162,7 +165,7 @@ export default function App() {
     handleResize(); 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [sidebarOpen]);
+  }, [sidebarOpen, simKiosk]);
 
   useEffect(() => {
     if (!simKiosk) { setKbOpen(false); return; }
@@ -311,17 +314,16 @@ export default function App() {
     setShowAuthPopup(true);
   };
 
+  // FIX: Force React to recognize Virtual Keyboard changes
   const handleVirtualKeyPress = (key: string, e: React.MouseEvent) => {
     e.preventDefault(); 
     const el = document.activeElement as HTMLInputElement | HTMLTextAreaElement;
     if (!el || !['INPUT', 'TEXTAREA'].includes(el.tagName)) return;
 
+    let newValue = el.value;
+
     if (key === 'BACK') {
-      const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value')?.set;
-      if (setter) {
-         setter.call(el, el.value.slice(0, -1));
-         el.dispatchEvent(new Event('input', { bubbles: true }));
-      }
+      newValue = newValue.slice(0, -1);
     } else if (key === 'ENTER') {
       const form = el.closest('form');
       if (form) {
@@ -330,25 +332,32 @@ export default function App() {
       } else {
          el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
       }
+      return;
     } else if (key === 'CLOSE') {
       setKbOpen(false);
       el.blur();
+      return;
     } else if (key === 'SPACE') {
-      const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value')?.set;
-      if (setter) {
-         setter.call(el, el.value + ' ');
-         el.dispatchEvent(new Event('input', { bubbles: true }));
-      }
+      newValue += ' ';
     } else {
-      const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value')?.set;
-      if (setter) {
-         setter.call(el, el.value + key);
-         el.dispatchEvent(new Event('input', { bubbles: true }));
-      }
+      newValue += key;
     }
+
+    // Bypass React tracking to force state update
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+    const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+
+    if (el.tagName === 'INPUT' && nativeInputValueSetter) {
+      nativeInputValueSetter.call(el, newValue);
+    } else if (el.tagName === 'TEXTAREA' && nativeTextAreaValueSetter) {
+      nativeTextAreaValueSetter.call(el, newValue);
+    } else {
+      el.value = newValue; 
+    }
+
+    el.dispatchEvent(new Event('input', { bubbles: true }));
   };
 
-  // --- PERFECTED SIDEBAR ARCHITECTURE ---
   const renderRail = (side: "left" | "right", topSlot?: React.ReactNode) => {
     const gearsRight = side === "right";
     const currentAngle = gearsRight ? rightAngle : leftAngle;
@@ -379,17 +388,13 @@ export default function App() {
         ];
 
     const isOpen = gearsRight ? rightRailOpen : sidebarOpen;
-    
-    // Layout Fix: 
-    // - Left sidebar is RELATIVE on Desktop to push the chat.
-    // - Right sidebar is ALWAYS ABSOLUTE so it doesn't break Flexbox space.
     const railStyle: React.CSSProperties = {
       width: RAIL_W, flexShrink: 0, background: bg, 
       position: (side === "left" && !isMobile) ? "relative" : "absolute", 
       top: 0, bottom: 0,
-      left: side === "left" ? (isMobile ? (isOpen ? 0 : -PANEL_W) : "auto") : "auto",
+      left: side === "left" ? (isMobile ? (isOpen ? 0 : -RAIL_W) : "auto") : "auto",
       marginLeft: (side === "left" && !isMobile) ? (isOpen ? 0 : -PANEL_W) : 0,
-      right: side === "right" ? (isOpen ? 0 : -PANEL_W) : "auto",
+      right: side === "right" ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
       zIndex: 60, transition: "all 0.3s ease",
       boxShadow: isMobile && isOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", 
       overflow: "visible"
@@ -660,6 +665,7 @@ export default function App() {
             </aside>
           )}
 
+          {/* FIX: main dynamically adjusts paddingBottom so keyboard never covers input */}
           <main style={{ 
             flex: 1, 
             display: "flex", 
@@ -667,24 +673,26 @@ export default function App() {
             overflow: "hidden", 
             minWidth: 0, 
             position: "relative",
-            paddingRight: gearMode ? GEAR_VIS : 0 
+            paddingBottom: simKiosk && kbOpen ? 300 : 0, 
+            transition: "padding 0.2s ease"
           }}>
             
             <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: isMobile ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {(isMobile || !sidebarOpen) && (
+                {(isMobile || (!gearMode && !sidebarOpen)) && (
                   <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center" }}><Menu size={22} /></button>
                 )}
+                {(!gearMode && (isMobile || !sidebarOpen)) && (
+                  <><div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}><Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} /></div><ChatCITLogo dark={dark} /></>
+                )}
               </div>
-
-              {(isMobile || !sidebarOpen || gearMode) && (
+              {gearMode && (
                 <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}><Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} /></div><ChatCITLogo dark={dark} />
                 </div>
               )}
-
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                {isMobile && gearMode && <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}><MoreVertical size={20} /></button>}
+                {isMobile && <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}><MoreVertical size={20} /></button>}
               </div>
             </header>
 
@@ -747,7 +755,8 @@ export default function App() {
             )}
           </main>
           
-          {gearMode && renderRail("right", 
+          {/* FIX: Right rail components rendered unconditionally for Desktop View */}
+          {renderRail("right", 
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <button onClick={() => setShowBugModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#ef4444", cursor: "pointer", transition: "background 0.2s" }} title="Report a Bug"><Bug size={22} /></button>
               <button onClick={() => setShowCalendar(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#10b981", cursor: "pointer", transition: "background 0.2s" }} title="Academic Calendar"><Calendar size={22} /></button>
