@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, Menu, UserCog, X, MoreVertical, Bot, Calendar } from "lucide-react";
+import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, Menu, UserCog, X, MoreVertical, Bot, Calendar, Smartphone } from "lucide-react";
 
 import { AuthScreen } from "../components/authmodal";
 import { AdminPanel } from "../components/admindashboard";
@@ -17,13 +17,18 @@ import { Message, Chat, User, ToastMsg } from "../types";
 import { QUICK_PROMPTS, ORGANIZATIONS, MAJORS, DOCUMENTS, MID_CHOICES, API_URL, DEFAULT_CATEGORIES, ALL_DEPTS } from "../config";
 
 export default function App() {
-  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 768);
+  // --- KIOSK SIMULATOR STATES ---
+  const [simKiosk, setSimKiosk] = useState(false);
+  const [simScale, setSimScale] = useState(1);
+  const [kbOpen, setKbOpen] = useState(false);
+
+  // FIX: Increased threshold to 1280px so 12.5" Tablets correctly get the Hamburger Menu Layout
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && (window.innerWidth <= 1280 || simKiosk));
+  
   const [appLoading, setAppLoading] = useState(true); 
   const [dark, setDark] = useState(true);
   
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
-
-  // PASSWORD RESET STATES
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [showResetModal, setShowResetModal] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -43,7 +48,6 @@ export default function App() {
   const [viewMode, setViewMode] = useState<"chat" | "admin">("chat"); 
   const [chats, setChats] = useState<Chat[]>([]);
 
-  // ADMIN CMS STATES (Lifted to Sidebar)
   const [adminTab, setAdminTab] = useState<'knowledge' | 'faq' | 'unanswered' | 'bugs' | 'users'>('knowledge');
   const [adminCategory, setAdminCategory] = useState("All");
   const [adminDept, setAdminDept] = useState("All");
@@ -52,7 +56,6 @@ export default function App() {
 
   const allDynamicCategories = Array.from(new Set([...DEFAULT_CATEGORIES.filter(c => c !== "All"), ...customCategories, ...dbCategories]));
 
-  // Intercept Reset Password Token on Load
   useEffect(() => {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
@@ -102,7 +105,6 @@ export default function App() {
     }
   }, [currentUser, viewMode, chats, appLoading]);
 
-  // Forces Gear Mode off if entering Admin View
   useEffect(() => {
     if (viewMode === 'admin') setGearMode(false);
   }, [viewMode]);
@@ -110,13 +112,14 @@ export default function App() {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  
   const [fullScreenMedia, setFullScreenMedia] = useState<string | null>(null);
+  const [fullScreenIframe, setFullScreenIframe] = useState<string | null>(null); 
 
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [rightRailOpen, setRightRailOpen] = useState(false); 
   const [gearMode, setGearMode] = useState(false);
   
-  // MODAL STATES
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showBugModal, setShowBugModal] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -136,16 +139,78 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activeChat = chats.find((c) => c.id === activeChatId) ?? null;
 
+  // --- KIOSK HOTKEY LISTENER (Ctrl + K) ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSimKiosk(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // WINDOW RESIZE AND AUTO SCALING
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      if (mobile && sidebarOpen) setSidebarOpen(false); 
-      else if (!mobile && !sidebarOpen) setSidebarOpen(true); 
+      const scale = Math.min(window.innerWidth / 768, window.innerHeight / 1366) * 0.95;
+      setSimScale(scale);
+      
+      // Increased to 1280px to safely convert medium landscape tablets to hamburger menus
+      const mobile = window.innerWidth <= 1280 || simKiosk;
+      setIsMobile(prevMobile => {
+        if (!prevMobile && mobile) {
+            setSidebarOpen(false); 
+        } else if (prevMobile && !mobile && !simKiosk) {
+            setSidebarOpen(true); 
+        }
+        return mobile;
+      });
     };
+    
+    handleResize(); 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [sidebarOpen]);
+  }, [simKiosk]); 
+
+  // KIOSK TOGGLE MANAGER
+  useEffect(() => {
+    if (simKiosk) {
+      setIsMobile(true);
+      setSidebarOpen(false);
+      setRightRailOpen(false);
+      setKbOpen(false);
+    } else {
+      const mobile = window.innerWidth <= 1280;
+      setIsMobile(mobile);
+      if (!mobile) setSidebarOpen(true);
+    }
+  }, [simKiosk]);
+
+  // VIRTUAL KEYBOARD FOCUS DETECTOR
+  useEffect(() => {
+    if (!simKiosk) { setKbOpen(false); return; }
+    
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName) && target.getAttribute('type') !== 'file') {
+        setKbOpen(true);
+      }
+    };
+    const handleFocusOut = () => {
+      setTimeout(() => {
+        const el = document.activeElement;
+        if (!el || !['INPUT', 'TEXTAREA'].includes(el.tagName)) {
+          setKbOpen(false);
+        }
+      }, 100);
+    };
+
+    window.addEventListener('focusin', handleFocusIn);
+    window.addEventListener('focusout', handleFocusOut);
+    return () => { window.removeEventListener('focusin', handleFocusIn); window.removeEventListener('focusout', handleFocusOut); };
+  }, [simKiosk]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Date.now();
@@ -271,12 +336,55 @@ export default function App() {
     setShowAuthPopup(true);
   };
 
+  const handleVirtualKeyPress = (key: string, e: React.MouseEvent) => {
+    e.preventDefault(); 
+    const el = document.activeElement as HTMLInputElement | HTMLTextAreaElement;
+    if (!el || !['INPUT', 'TEXTAREA'].includes(el.tagName)) return;
+
+    let newValue = el.value;
+
+    if (key === 'BACK') {
+      newValue = newValue.slice(0, -1);
+    } else if (key === 'ENTER') {
+      const form = el.closest('form');
+      if (form) {
+         const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+         if (submitBtn && !submitBtn.disabled) submitBtn.click();
+      } else {
+         el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+      }
+      return;
+    } else if (key === 'CLOSE') {
+      setKbOpen(false);
+      el.blur();
+      return;
+    } else if (key === 'SPACE') {
+      newValue += ' ';
+    } else {
+      newValue += key;
+    }
+
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+    const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+
+    if (el.tagName === 'INPUT' && nativeInputValueSetter) {
+      nativeInputValueSetter.call(el, newValue);
+    } else if (el.tagName === 'TEXTAREA' && nativeTextAreaValueSetter) {
+      nativeTextAreaValueSetter.call(el, newValue);
+    } else {
+      el.value = newValue; 
+    }
+
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
   const renderRail = (side: "left" | "right", topSlot?: React.ReactNode) => {
     const gearsRight = side === "right";
     const currentAngle = gearsRight ? rightAngle : leftAngle;
     const r = { mid: currentAngle, sm: -currentAngle * RATIO + (180 / N_SM) };
     
-    const gearAreaH = (typeof window !== "undefined" ? window.innerHeight : 800) - TOP_H;
+    const vh = simKiosk ? 1366 : (typeof window !== "undefined" ? window.innerHeight : 800);
+    const gearAreaH = vh - TOP_H;
     const span = OR_SM + CENTER_D * 2 + OR_SM;
     const margin = Math.max(OR_SM * 0.2, (gearAreaH - span) / 2);
     const y1 = TOP_H + margin + OR_SM, y2 = y1 + CENTER_D, y3 = y2 + CENTER_D;
@@ -300,7 +408,7 @@ export default function App() {
 
     const isOpen = gearsRight ? rightRailOpen : sidebarOpen;
     const railStyle: React.CSSProperties = {
-      width: RAIL_W, flexShrink: 0, background: bg, position: "fixed", top: 0, bottom: 0,
+      width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0,
       left: !gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
       right: gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
       zIndex: 60, transition: "all 0.3s ease",
@@ -344,305 +452,384 @@ export default function App() {
     );
   }
 
+  const containerStyle: React.CSSProperties = simKiosk ? {
+    position: "fixed", top: "50%", left: "50%",
+    width: 768, height: 1366, // Exact Portrait bounds
+    transform: `translate(-50%, -50%) scale(${simScale})`,
+    transformOrigin: "center center",
+    display: "flex", overflow: "hidden", background: bg, 
+    fontFamily: "'Inter', sans-serif", color: textPrimary,
+    boxShadow: "0 25px 50px -12px rgba(0,0,0,0.8), 0 0 0 16px #111", 
+    borderRadius: 16
+  } : {
+    position: "fixed", top: 0, bottom: 0, left: 0, right: 0, display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary 
+  };
+
+  const virtualKeyRows = [
+    ['1','2','3','4','5','6','7','8','9','0'],
+    ['q','w','e','r','t','y','u','i','o','p'],
+    ['a','s','d','f','g','h','j','k','l'],
+    ['z','x','c','v','b','n','m', 'BACK'],
+    ['SPACE', 'ENTER', 'CLOSE']
+  ];
+
   return (
-    <div className={dark ? "dark-mode" : "light-mode"} style={{ position: "fixed", top: 0, bottom: 0, left: 0, right: 0, display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary }}>
-
-      {showResetModal && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 999999, background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)", padding: 20 }}>
-           <div style={{ position: "relative", width: "100%", maxWidth: 380, padding: 24, background: dark ? "#1e1e24" : "#ffffff", borderRadius: 20, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", border: dark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.05)" }}>
-              <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, color: textPrimary }}>Reset Password</h2>
-              <p style={{ fontSize: 13, color: textMuted, marginBottom: 20 }}>Enter your new password below to regain access to your account.</p>
-              <input 
-                type="password" 
-                placeholder="New Password (min 6 chars)" 
-                value={newPassword} 
-                onChange={e => setNewPassword(e.target.value)} 
-                style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: dark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)", background: dark ? "rgba(0,0,0,0.2)" : "#f9fafb", color: textPrimary, fontSize: 14, marginBottom: 16, outline: "none" }}
-              />
-              <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => { setShowResetModal(false); setResetToken(null); setNewPassword(""); }} style={{ flex: 1, padding: "10px 0", borderRadius: 12, background: "transparent", border: dark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)", color: textPrimary, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-                <button onClick={handlePasswordReset} disabled={isResetting} style={{ flex: 1, padding: "10px 0", borderRadius: 12, background: "#4285f4", border: "none", color: "#fff", fontWeight: 600, cursor: isResetting ? "not-allowed" : "pointer", opacity: isResetting ? 0.7 : 1 }}>{isResetting ? "Saving..." : "Save Password"}</button>
-              </div>
-           </div>
+    <>
+      <style>{`.theme-toggle-wrapper input[type="checkbox"] { display: none !important; opacity: 0 !important; width: 0px !important; height: 0px !important; position: absolute; z-index: -100; }`}</style>
+      
+      {simKiosk && <div style={{ position: "fixed", inset: 0, background: "#0a0a0a", zIndex: -1 }} />}
+      
+      {simKiosk && (
+        <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", background: "#ef4444", color: "#fff", padding: "8px 16px", borderRadius: 24, fontSize: 13, fontWeight: 700, zIndex: 999999, display: "flex", alignItems: "center", gap: 6, boxShadow: "0 4px 12px rgba(239, 68, 68, 0.4)" }}>
+          <Smartphone size={16} /> PORTRAIT KIOSK SIMULATOR (1366x768) - Press Ctrl+K to exit
         </div>
       )}
 
-      {showAuthPopup && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 999998, background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)", padding: 20 }}>
-           <div style={{ position: "relative", width: "100%", maxWidth: 380, background: dark ? "#1e1e24" : "#ffffff", borderRadius: 20, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", border: dark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.05)" }}>
-              <button onClick={() => setShowAuthPopup(false)} style={{ position: "absolute", top: 16, right: 16, zIndex: 50, background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", border: "none", color: textPrimary, width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"} onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}>
-                <X size={18} />
-              </button>
-              <AuthScreen 
-                dark={dark} 
-                initialIsLogin={authMode === "login"}
-                onSuccess={(userData: User, userChats: Chat[]) => { 
-                  setCurrentUser(userData); setChats(userChats); setViewMode("chat"); setShowAuthPopup(false); 
-                  showToast(`Welcome back, ${userData.username || 'Bulsuan'}!`, "success"); 
-                }} 
-              />
-           </div>
-        </div>
-      )}
+      <div className={dark ? "dark-mode" : "light-mode"} style={containerStyle}>
 
-      <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, display: "flex", flexDirection: "column", gap: 10 }}>
-        {toasts.map((t: ToastMsg) => (
-          <div key={t.id} style={{ background: dark ? '#25242c' : '#fff', border: `1px solid ${t.type === 'error' ? '#ef4444' : t.type === 'success' ? '#10b981' : '#4285f4'}`, color: textPrimary, padding: "12px 16px", borderRadius: 8, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.2)", fontSize: 14, fontWeight: 500, minWidth: 280, animation: "badgePop 0.3s cubic-bezier(0.2, 1.5, 0.5, 1)" }}>
-            {t.type === 'success' && <CheckCircle size={18} color="#10b981" />}
-            {t.type === 'error' && <AlertCircle size={18} color="#ef4444" />}
-            {t.type === 'info' && <Info size={18} color="#4285f4" />}
-            {t.message}
-          </div>
-        ))}
-      </div>
-
-      {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
-      {isMobile && rightRailOpen && <div onClick={() => setRightRailOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
-
-      <>
-        {gearMode && renderRail("left", 
-          <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
-            {currentUser && Number(currentUser.id) !== -1 ? (
-              <>
-                <button onClick={() => setGearMode(false)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 8, background: dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)", border: "none", color: textPrimary, cursor: "pointer", marginRight: 4 }} title="Exit Taskbar Mode"><ArrowLeft size={16} /></button>
-                <Avatar name={currentUser?.username || currentUser?.email || "User"} size={30} bg="#7c3aed" />
-                <div style={{ fontSize: 13, fontWeight: 600, color: textPrimary, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentUser?.username || currentUser?.email.split('@')[0]}</div>
-                <button onClick={() => setShowProfileModal(true)} style={{ color: textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Edit Profile"><UserCog size={15} /></button>
-                {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(isMobile) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#4285f4" : textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Admin Panel"><Database size={15} /></button>}
-                <button onClick={handleLogout} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Logout"><LogOut size={15} /></button>
-              </>
-            ) : (
-              <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
-                <button onClick={() => { setAuthMode("login"); setShowAuthPopup(true); }} style={{ padding: "6px 16px", borderRadius: 20, background: dark ? "#fff" : "#1a1a2e", color: dark ? "#1a1a2e" : "#fff", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}>Log in to Save Chats</button>
-              </div>
-            )}
+        {showResetModal && (
+          <div style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 999999, background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)", padding: 20 }}>
+             <div style={{ position: "relative", width: "100%", maxWidth: 380, padding: 24, background: dark ? "#1e1e24" : "#ffffff", borderRadius: 20, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", border: dark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.05)" }}>
+                <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, color: textPrimary }}>Reset Password</h2>
+                <p style={{ fontSize: 13, color: textMuted, marginBottom: 20 }}>Enter your new password below to regain access to your account.</p>
+                <input 
+                  type="password" 
+                  placeholder="New Password (min 6 chars)" 
+                  value={newPassword} 
+                  onChange={e => setNewPassword(e.target.value)} 
+                  style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: dark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)", background: dark ? "rgba(0,0,0,0.2)" : "#f9fafb", color: textPrimary, fontSize: 14, marginBottom: 16, outline: "none" }}
+                />
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => { setShowResetModal(false); setResetToken(null); setNewPassword(""); }} style={{ flex: 1, padding: "10px 0", borderRadius: 12, background: "transparent", border: dark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)", color: textPrimary, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+                  <button onClick={handlePasswordReset} disabled={isResetting} style={{ flex: 1, padding: "10px 0", borderRadius: 12, background: "#4285f4", border: "none", color: "#fff", fontWeight: 600, cursor: isResetting ? "not-allowed" : "pointer", opacity: isResetting ? 0.7 : 1 }}>{isResetting ? "Saving..." : "Save Password"}</button>
+                </div>
+             </div>
           </div>
         )}
 
-        {!gearMode && (
-          <aside style={{ width: RAIL_W, flexShrink: 0, background: sbBg, position: isMobile ? "fixed" : "relative", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : "auto", marginLeft: !isMobile && !sidebarOpen ? -RAIL_W : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
-            <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}>
-                    <Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} />
-                  </div>
-                  <ChatCITLogo dark={dark} onBlue />
+        {showAuthPopup && (
+          <div style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 999998, background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)", padding: 20 }}>
+             <div style={{ position: "relative", width: "100%", maxWidth: 380, background: dark ? "#1e1e24" : "#ffffff", borderRadius: 20, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", border: dark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.05)" }}>
+                <button onClick={() => setShowAuthPopup(false)} style={{ position: "absolute", top: 16, right: 16, zIndex: 50, background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", border: "none", color: textPrimary, width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"} onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}>
+                  <X size={18} />
+                </button>
+                <AuthScreen 
+                  dark={dark} 
+                  initialIsLogin={authMode === "login"}
+                  onSuccess={(userData: User, userChats: Chat[]) => { 
+                    setCurrentUser(userData); setChats(userChats); setViewMode("chat"); setShowAuthPopup(false); 
+                    showToast(`Welcome back, ${userData.username || 'Bulsuan'}!`, "success"); 
+                  }} 
+                />
+             </div>
+          </div>
+        )}
+
+        <div style={{ position: "absolute", bottom: 24, right: 24, zIndex: 9999, display: "flex", flexDirection: "column", gap: 10 }}>
+          {toasts.map((t: ToastMsg) => (
+            <div key={t.id} style={{ background: dark ? '#25242c' : '#fff', border: `1px solid ${t.type === 'error' ? '#ef4444' : t.type === 'success' ? '#10b981' : '#4285f4'}`, color: textPrimary, padding: "12px 16px", borderRadius: 8, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.2)", fontSize: 14, fontWeight: 500, minWidth: 280, animation: "badgePop 0.3s cubic-bezier(0.2, 1.5, 0.5, 1)" }}>
+              {t.type === 'success' && <CheckCircle size={18} color="#10b981" />}
+              {t.type === 'error' && <AlertCircle size={18} color="#ef4444" />}
+              {t.type === 'info' && <Info size={18} color="#4285f4" />}
+              {t.message}
+            </div>
+          ))}
+        </div>
+
+        {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
+        {isMobile && rightRailOpen && <div onClick={() => setRightRailOpen(false)} style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
+
+        <>
+          {gearMode && renderRail("left", 
+            <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+              {currentUser && Number(currentUser.id) !== -1 ? (
+                <>
+                  <button onClick={() => setGearMode(false)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 8, background: dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)", border: "none", color: textPrimary, cursor: "pointer", marginRight: 4 }} title="Exit Taskbar Mode"><ArrowLeft size={16} /></button>
+                  <Avatar name={currentUser?.username || currentUser?.email || "User"} size={30} bg="#7c3aed" />
+                  <div style={{ fontSize: 13, fontWeight: 600, color: textPrimary, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentUser?.username || currentUser?.email.split('@')[0]}</div>
+                  <button onClick={() => setShowProfileModal(true)} style={{ color: textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Edit Profile"><UserCog size={15} /></button>
+                  {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(isMobile) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#4285f4" : textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Admin Panel"><Database size={15} /></button>}
+                  <button onClick={handleLogout} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Logout"><LogOut size={15} /></button>
+                </>
+              ) : (
+                <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+                  <button onClick={() => { setAuthMode("login"); setShowAuthPopup(true); }} style={{ padding: "6px 16px", borderRadius: 20, background: dark ? "#fff" : "#1a1a2e", color: dark ? "#1a1a2e" : "#fff", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}>Log in to Save Chats</button>
                 </div>
-                <button onClick={() => setSidebarOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: sb.muted }}><ArrowLeft size={15} /></button>
-              </div>
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                <div style={{ padding: "12px 12px 0 12px", display: "flex", flexDirection: "column", height: "100%", overflowY: "auto" }}>
-                  
-                  {viewMode === "admin" ? (
-                    // --- ADMIN SIDEBAR CONTENT ---
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
-                      <button onClick={() => { setViewMode("chat"); if(isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer", background: dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.25)", color: sb.text, fontSize: 13, fontWeight: 500, boxShadow: dark ? "none" : "0 2px 5px rgba(0,0,0,0.05)" }}>
-                        <div style={{ width: 22, height: 22, borderRadius: "50%", background: dark ? "rgba(255,255,255,0.18)" : "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", color: dark ? "#fff" : "#1558d6" }}><ArrowLeft size={13} /></div>Back to Chat
-                      </button>
+              )}
+            </div>
+          )}
 
-                      {adminTab === 'knowledge' && (
-                        <div style={{ marginTop: 8 }}>
-                          <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Database Categories</span></div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                            {["All", ...allDynamicCategories].map(cat => (
-                              <button key={cat} onClick={() => { setAdminCategory(cat); if(isMobile) setSidebarOpen(false); }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: adminCategory === cat ? sb.active : "transparent", color: adminCategory === cat ? sb.text : sb.muted, border: `1px solid ${adminCategory === cat ? sb.border : 'transparent'}`, fontSize: 13, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={(e) => { if(adminCategory !== cat) e.currentTarget.style.background = sb.hover; }} onMouseLeave={(e) => { if(adminCategory !== cat) e.currentTarget.style.background = "transparent"; }}>{cat}</button>
-                            ))}
-                            <button onClick={() => {
-                              const newCat = window.prompt("Enter new category name:");
-                              if (newCat && newCat.trim() !== "") {
-                                setCustomCategories(prev => Array.from(new Set([...prev, newCat.trim()])));
-                                setAdminCategory(newCat.trim());
-                                showToast(`Added new tab: ${newCat.trim()}`, "success");
-                              }
-                            }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: "transparent", color: sb.muted, border: `1px dashed ${sb.faint}`, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.background = sb.hover} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}><Plus size={14}/> Add Custom Tab</button>
+          {!gearMode && (
+            <aside style={{ width: RAIL_W, flexShrink: 0, background: sbBg, position: simKiosk ? "absolute" : (isMobile ? "fixed" : "relative"), top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : "auto", marginLeft: !isMobile && !sidebarOpen ? -RAIL_W : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
+              <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}>
+                      <Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} />
+                    </div>
+                    <ChatCITLogo dark={dark} onBlue />
+                  </div>
+                  <button onClick={() => setSidebarOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: sb.muted }}><ArrowLeft size={15} /></button>
+                </div>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                  <div style={{ padding: "12px 12px 0 12px", display: "flex", flexDirection: "column", height: "100%", overflowY: "auto" }}>
+                    
+                    {viewMode === "admin" ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
+                        <button onClick={() => { setViewMode("chat"); if(isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer", background: dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.25)", color: sb.text, fontSize: 13, fontWeight: 500, boxShadow: dark ? "none" : "0 2px 5px rgba(0,0,0,0.05)" }}>
+                          <div style={{ width: 22, height: 22, borderRadius: "50%", background: dark ? "rgba(255,255,255,0.18)" : "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", color: dark ? "#fff" : "#1558d6" }}><ArrowLeft size={13} /></div>Back to Chat
+                        </button>
+
+                        {adminTab === 'knowledge' && (
+                          <div style={{ marginTop: 8 }}>
+                            <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Database Categories</span></div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                              {["All", ...allDynamicCategories].map(cat => (
+                                <button key={cat} onClick={() => { setAdminCategory(cat); if(isMobile) setSidebarOpen(false); }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: adminCategory === cat ? sb.active : "transparent", color: adminCategory === cat ? sb.text : sb.muted, border: `1px solid ${adminCategory === cat ? sb.border : 'transparent'}`, fontSize: 13, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={(e) => { if(adminCategory !== cat) e.currentTarget.style.background = sb.hover; }} onMouseLeave={(e) => { if(adminCategory !== cat) e.currentTarget.style.background = "transparent"; }}>{cat}</button>
+                              ))}
+                              <button onClick={() => {
+                                const newCat = window.prompt("Enter new category name:");
+                                if (newCat && newCat.trim() !== "") {
+                                  setCustomCategories(prev => Array.from(new Set([...prev, newCat.trim()])));
+                                  setAdminCategory(newCat.trim());
+                                  showToast(`Added new tab: ${newCat.trim()}`, "success");
+                                }
+                              }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: "transparent", color: sb.muted, border: `1px dashed ${sb.faint}`, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.background = sb.hover} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}><Plus size={14}/> Add Custom Tab</button>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {adminTab === 'users' && (
-                        <div style={{ marginTop: 8 }}>
-                          <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Departments Filter</span></div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                            {ALL_DEPTS.map(dept => (
-                              <button key={dept} onClick={() => { setAdminDept(dept); if(isMobile) setSidebarOpen(false); }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: adminDept === dept ? sb.active : "transparent", color: adminDept === dept ? sb.text : sb.muted, border: `1px solid ${adminDept === dept ? sb.border : 'transparent'}`, fontSize: 13, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={(e) => { if(adminDept !== dept) e.currentTarget.style.background = sb.hover; }} onMouseLeave={(e) => { if(adminDept !== dept) e.currentTarget.style.background = "transparent"; }}>{dept}</button>
-                            ))}
+                        {adminTab === 'users' && (
+                          <div style={{ marginTop: 8 }}>
+                            <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Departments Filter</span></div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                              {ALL_DEPTS.map(dept => (
+                                <button key={dept} onClick={() => { setAdminDept(dept); if(isMobile) setSidebarOpen(false); }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: adminDept === dept ? sb.active : "transparent", color: adminDept === dept ? sb.text : sb.muted, border: `1px solid ${adminDept === dept ? sb.border : 'transparent'}`, fontSize: 13, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={(e) => { if(adminDept !== dept) e.currentTarget.style.background = sb.hover; }} onMouseLeave={(e) => { if(adminDept !== dept) e.currentTarget.style.background = "transparent"; }}>{dept}</button>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {adminTab !== 'knowledge' && adminTab !== 'users' && (
-                        <div style={{ padding: "24px 4px", textAlign: "center", color: sb.faint, fontSize: 12 }}>
-                           Select 'Database' or 'Users' to view filters.
+                        {adminTab !== 'knowledge' && adminTab !== 'users' && (
+                          <div style={{ padding: "24px 4px", textAlign: "center", color: sb.faint, fontSize: 12 }}>
+                             Select 'Database' or 'Users' to view filters.
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
+                          <button onClick={() => {setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false);}} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer", background: dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.25)", color: sb.text, fontSize: 13, fontWeight: 500, boxShadow: dark ? "none" : "0 2px 5px rgba(0,0,0,0.05)" }}>
+                            <div style={{ width: 22, height: 22, borderRadius: "50%", background: dark ? "rgba(255,255,255,0.18)" : "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", color: dark ? "#fff" : "#1558d6" }}><Plus size={13} /></div>New chat
+                          </button>
+                          <button onClick={() => { setGearMode(true); if(isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: `1px solid ${sb.border}`, background: "transparent", color: sb.text, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+                            <Settings size={14} /> Change taskbar mode
+                          </button>
                         </div>
-                      )}
+
+                        <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Quick Prompts</span></div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 24 }}>
+                          {QUICK_PROMPTS.map((lbl: string) => (
+                            <button key={lbl} onClick={() => { sendMessage(lbl); if(isMobile) setSidebarOpen(false); }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: "transparent", color: sb.muted, border: `1px solid ${sb.border}`, fontSize: 13, cursor: "pointer" }} onMouseEnter={(e) => { e.currentTarget.style.background = sb.hover; e.currentTarget.style.color = sb.text; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = sb.muted; }}>{lbl}</button>
+                          ))}
+                        </div>
+                        
+                        {currentUser && Number(currentUser.id) !== -1 && chats.length > 0 && (
+                          <>
+                            <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Recent</span></div>
+                            <div style={{ maxHeight: 200, overflowY: "auto", padding: "0 4px", display: "flex", flexDirection: "column", gap: 3 }}>
+                              {chats.slice(0, 5).map((chat: Chat) => (
+                                <div key={chat.id} className="group" style={{ display: "flex", alignItems: "center", width: "100%", borderRadius: 10, background: activeChatId === chat.id && viewMode === "chat" ? sb.active : "transparent" }}>
+                                  <button onClick={() => { setActiveChatId(chat.id); setViewMode("chat"); if(isMobile) setSidebarOpen(false); }} style={{ flex: 1, textAlign: "left", padding: "9px 12px", background: "transparent", border: "none", cursor: "pointer", color: sb.text, minWidth: 0 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chat.title}</div>
+                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); deleteChat(chat.id); }} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ padding: "8px 10px", background: "transparent", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer" }}><Trash2 size={13} /></button>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div style={{ padding: "16px 12px 18px", borderTop: `1px solid ${sb.border}`, flexShrink: 0 }}>
+                  {currentUser && Number(currentUser.id) === -1 ? (
+                    <div style={{ display: "flex", gap: 8, width: "100%" }}>
+                      <button onClick={() => { setAuthMode("login"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "#fff", color: "#1a1a2e", fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", transition: "opacity 0.2s" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.9"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Log in</button>
+                      <button onClick={() => { setAuthMode("signup"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 13, fontWeight: 600, border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}>Sign up</button>
                     </div>
                   ) : (
-                    // --- STANDARD CHAT SIDEBAR CONTENT ---
-                    <>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
-                        <button onClick={() => {setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false);}} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer", background: dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.25)", color: sb.text, fontSize: 13, fontWeight: 500, boxShadow: dark ? "none" : "0 2px 5px rgba(0,0,0,0.05)" }}>
-                          <div style={{ width: 22, height: 22, borderRadius: "50%", background: dark ? "rgba(255,255,255,0.18)" : "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", color: dark ? "#fff" : "#1558d6" }}><Plus size={13} /></div>New chat
-                        </button>
-                        <button onClick={() => { setGearMode(true); if(isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: `1px solid ${sb.border}`, background: "transparent", color: sb.text, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
-                          <Settings size={14} /> Change taskbar mode
-                        </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div onClick={() => setShowProfileModal(true)} style={{ cursor: "pointer", transition: "transform 0.2s" }} onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"} onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}>
+                        <Avatar name={currentUser?.username || currentUser?.email || "User"} size={34} bg="#7c3aed" />
                       </div>
-
-                      <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Quick Prompts</span></div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 24 }}>
-                        {QUICK_PROMPTS.map((lbl: string) => (
-                          <button key={lbl} onClick={() => { sendMessage(lbl); if(isMobile) setSidebarOpen(false); }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: "transparent", color: sb.muted, border: `1px solid ${sb.border}`, fontSize: 13, cursor: "pointer" }} onMouseEnter={(e) => { e.currentTarget.style.background = sb.hover; e.currentTarget.style.color = sb.text; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = sb.muted; }}>{lbl}</button>
-                        ))}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: sb.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentUser?.username || currentUser?.email?.split('@')[0]}</div>
+                        <div style={{ fontSize: 11, color: sb.faint }}>{currentUser?.role === 'superadmin' ? 'Superadmin' : currentUser?.role === 'admin' ? 'Administrator' : 'Student'}</div>
                       </div>
-                      
-                      {currentUser && Number(currentUser.id) !== -1 && chats.length > 0 && (
-                        <>
-                          <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Recent</span></div>
-                          <div style={{ maxHeight: 200, overflowY: "auto", padding: "0 4px", display: "flex", flexDirection: "column", gap: 3 }}>
-                            {chats.slice(0, 5).map((chat: Chat) => (
-                              <div key={chat.id} className="group" style={{ display: "flex", alignItems: "center", width: "100%", borderRadius: 10, background: activeChatId === chat.id && viewMode === "chat" ? sb.active : "transparent" }}>
-                                <button onClick={() => { setActiveChatId(chat.id); setViewMode("chat"); if(isMobile) setSidebarOpen(false); }} style={{ flex: 1, textAlign: "left", padding: "9px 12px", background: "transparent", border: "none", cursor: "pointer", color: sb.text, minWidth: 0 }}>
-                                  <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chat.title}</div>
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); deleteChat(chat.id); }} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ padding: "8px 10px", background: "transparent", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer" }}><Trash2 size={13} /></button>
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </>
+                      <button onClick={() => setShowProfileModal(true)} style={{ color: sb.muted, background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Edit Profile"><UserCog size={15} /></button>
+                      {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(isMobile) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#fff" : sb.muted, background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Admin Dashboard"><Database size={15} /></button>}
+                      <button onClick={handleLogout} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Logout"><LogOut size={15} /></button>
+                    </div>
                   )}
                 </div>
               </div>
-              <div style={{ padding: "16px 12px 18px", borderTop: `1px solid ${sb.border}`, flexShrink: 0 }}>
-                {currentUser && Number(currentUser.id) === -1 ? (
-                  <div style={{ display: "flex", gap: 8, width: "100%" }}>
-                    <button onClick={() => { setAuthMode("login"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "#fff", color: "#1a1a2e", fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", transition: "opacity 0.2s" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.9"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Log in</button>
-                    <button onClick={() => { setAuthMode("signup"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 13, fontWeight: 600, border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}>Sign up</button>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div onClick={() => setShowProfileModal(true)} style={{ cursor: "pointer", transition: "transform 0.2s" }} onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"} onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}>
-                      <Avatar name={currentUser?.username || currentUser?.email || "User"} size={34} bg="#7c3aed" />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: sb.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentUser?.username || currentUser?.email?.split('@')[0]}</div>
-                      <div style={{ fontSize: 11, color: sb.faint }}>{currentUser?.role === 'superadmin' ? 'Superadmin' : currentUser?.role === 'admin' ? 'Administrator' : 'Student'}</div>
-                    </div>
-                    <button onClick={() => setShowProfileModal(true)} style={{ color: sb.muted, background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Edit Profile"><UserCog size={15} /></button>
-                    {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(isMobile) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#fff" : sb.muted, background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Admin Dashboard"><Database size={15} /></button>}
-                    <button onClick={handleLogout} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Logout"><LogOut size={15} /></button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </aside>
-        )}
+            </aside>
+          )}
 
-        <main style={{ 
-          flex: 1, 
-          display: "flex", 
-          flexDirection: "column", 
-          overflow: "hidden", 
-          minWidth: 0, 
-          position: "relative",
-          marginLeft: gearMode && !isMobile ? RAIL_W : 0,
-          marginRight: !isMobile ? RAIL_W : 0
-        }}>
-          
-          <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: isMobile ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {(isMobile || (!gearMode && !sidebarOpen)) && (
-                <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center" }}><Menu size={22} /></button>
-              )}
-              {(!gearMode && (isMobile || !sidebarOpen)) && (
-                <><div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}><Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} /></div><ChatCITLogo dark={dark} /></>
-              )}
-            </div>
-            {gearMode && (
-              <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}><Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} /></div><ChatCITLogo dark={dark} />
-              </div>
-            )}
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {isMobile && <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}><MoreVertical size={20} /></button>}
-            </div>
-          </header>
-
-          <div id="chat-scroll-container" style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+          <main style={{ 
+            flex: 1, 
+            display: "flex", 
+            flexDirection: "column", 
+            overflow: "hidden", 
+            minWidth: 0, 
+            position: "relative",
+            marginLeft: gearMode && !isMobile ? RAIL_W : 0,
+            marginRight: !isMobile ? RAIL_W : 0,
+            paddingBottom: simKiosk && kbOpen ? 360 : 0, 
+            transition: "padding-bottom 0.2s ease"
+          }}>
             
-            {viewMode === "admin" && currentUser ? (
-              <AdminPanel 
-                dark={dark} showToast={showToast} currentUser={currentUser} 
-                activeTab={adminTab} setActiveTab={setAdminTab}
-                activeCategoryTab={adminCategory} activeDeptTab={adminDept}
-                allCategories={allDynamicCategories} setDbCategories={setDbCategories}
-              />
-            ) : !activeChat || activeChat.messages.length === 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100%", padding: "48px 16px" }}>
-                <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
-                  <div style={{ position: "absolute", transform: isMobile ? "scale(0.65)" : "scale(0.85)" }}>
-                    <GearboxLoader />
-                  </div>
-                </div>
-                <h1 style={{ fontSize: isMobile ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{currentUser && Number(currentUser.id) === -1 ? "Guest" : currentUser?.username || currentUser?.email?.split('@')[0] || "Bulsuan"}!</strong></h1>
-                <p style={{ color: textMuted, fontSize: 15, marginBottom: 32, textAlign: "center" }}>How can I help you today?</p>
-                {topFaqs.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, maxWidth: 700 }}>
-                    {topFaqs.slice(0, isMobile ? 3 : topFaqs.length).map((faq, idx) => {
-                      const primaryTag = faq.keyword ? faq.keyword.split(',')[0].trim() : "Question";
-                      return (
-                        <button key={idx} onClick={() => sendMessage(primaryTag)} style={{ padding: "10px 18px", borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? "rgba(255,255,255,0.03)" : "#fff", color: textPrimary, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s ease" }} onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.08)" : "#ffffff"} onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.03)" : "#fff"}>
-                          {primaryTag}
-                        </button>
-                      );
-                    })}
-                  </div>
+            <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: isMobile ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {(isMobile || (!gearMode && !sidebarOpen)) && (
+                  <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center" }}><Menu size={22} /></button>
+                )}
+                {(!gearMode && (isMobile || !sidebarOpen)) && (
+                  <><div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}><Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} /></div><ChatCITLogo dark={dark} /></>
                 )}
               </div>
-            ) : (
-              <div style={{ maxWidth: 768, margin: "0 auto", padding: isMobile ? "16px 12px" : "24px 16px", display: "flex", flexDirection: "column", gap: 24 }}>
-                {activeChat.messages.map((msg: Message) => (
-                  <ChatMessageBubble key={msg.id} msg={msg} dark={dark} currentUser={currentUser} isMobile={isMobile} onEnlarge={setFullScreenMedia} onLoad={scrollToBottom} />
-                ))}
-                {isTyping && (
-                  <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                    <div style={{ flexShrink: 0, marginTop: 4, width: 28, height: 28, display: "flex", justifyContent: "center", alignItems: "center" }}><Bot color="#4285f4" size={28} className="animate-pulse" /></div>
-                    <div style={{ paddingTop: 3 }}><ChatLoader /></div>
+              {gearMode && (
+                <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}><Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} /></div><ChatCITLogo dark={dark} />
+                </div>
+              )}
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                {isMobile && <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}><MoreVertical size={20} /></button>}
+              </div>
+            </header>
+
+            <div id="chat-scroll-container" style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+              
+              {viewMode === "admin" && currentUser ? (
+                <AdminPanel 
+                  dark={dark} showToast={showToast} currentUser={currentUser} 
+                  activeTab={adminTab} setActiveTab={setAdminTab}
+                  activeCategoryTab={adminCategory} activeDeptTab={adminDept}
+                  allCategories={allDynamicCategories} setDbCategories={setDbCategories}
+                />
+              ) : !activeChat || activeChat.messages.length === 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100%", padding: "48px 16px" }}>
+                  <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+                    <div style={{ position: "absolute", transform: isMobile ? "scale(0.65)" : "scale(0.85)" }}>
+                      <GearboxLoader />
+                    </div>
                   </div>
-                )}
-                <div ref={messagesEndRef} />
+                  <h1 style={{ fontSize: isMobile ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{currentUser && Number(currentUser.id) === -1 ? "Guest" : currentUser?.username || currentUser?.email?.split('@')[0] || "Bulsuan"}!</strong></h1>
+                  <p style={{ color: textMuted, fontSize: 15, marginBottom: 32, textAlign: "center" }}>How can I help you today?</p>
+                  {topFaqs.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, maxWidth: 700 }}>
+                      {topFaqs.slice(0, isMobile ? 3 : topFaqs.length).map((faq, idx) => {
+                        const primaryTag = faq.keyword ? faq.keyword.split(',')[0].trim() : "Question";
+                        return (
+                          <button key={idx} onClick={() => sendMessage(primaryTag)} style={{ padding: "10px 18px", borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? "rgba(255,255,255,0.03)" : "#fff", color: textPrimary, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s ease" }} onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.08)" : "#ffffff"} onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.03)" : "#fff"}>
+                            {primaryTag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ maxWidth: 768, margin: "0 auto", padding: isMobile ? "16px 12px" : "24px 16px", display: "flex", flexDirection: "column", gap: 24 }}>
+                  {activeChat.messages.map((msg: Message) => (
+                    <ChatMessageBubble key={msg.id} msg={msg} dark={dark} currentUser={currentUser} isMobile={isMobile} onEnlarge={setFullScreenMedia} onOpenIframe={setFullScreenIframe} onLoad={scrollToBottom} />
+                  ))}
+                  {isTyping && (
+                    <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                      <div style={{ flexShrink: 0, marginTop: 4, width: 28, height: 28, display: "flex", justifyContent: "center", alignItems: "center" }}><Bot color="#4285f4" size={28} className="animate-pulse" /></div>
+                      <div style={{ paddingTop: 3 }}><ChatLoader /></div>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
+            </div>
+
+            {viewMode === "chat" && (
+              <div style={{ flexShrink: 0, padding: isMobile ? "8px 12px 12px" : "8px 16px 16px" }}>
+                <div style={{ maxWidth: 768, margin: "0 auto" }}>
+                  <CosmicInput input={input} setInput={setInput} onSend={() => sendMessage()} isTyping={isTyping} dark={dark} />
+                  <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, color: textFaint, letterSpacing: "0.2px" }}>
+                    ChatCIT is AI. By using it, you agree to our <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Terms</span> & <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Privacy Policy</span>.
+                  </div>
+                </div>
               </div>
             )}
-          </div>
-
-          {viewMode === "chat" && (
-            <div style={{ flexShrink: 0, padding: isMobile ? "8px 12px 12px" : "8px 16px 16px" }}>
-              <div style={{ maxWidth: 768, margin: "0 auto" }}>
-                <CosmicInput input={input} setInput={setInput} onSend={() => sendMessage()} isTyping={isTyping} dark={dark} />
-                <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, color: textFaint, letterSpacing: "0.2px" }}>
-                  ChatCIT is AI. By using it, you agree to our <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Terms</span> & <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Privacy Policy</span>.
-                </div>
+          </main>
+          
+          {renderRail("right", 
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <button onClick={() => setShowBugModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#ef4444", cursor: "pointer", transition: "background 0.2s" }} title="Report a Bug"><Bug size={22} /></button>
+              <button onClick={() => setShowCalendar(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#10b981", cursor: "pointer", transition: "background 0.2s" }} title="Academic Calendar"><Calendar size={22} /></button>
+              <div className="theme-toggle-wrapper" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44 }}>
+                <DayNightToggle dark={dark} toggleDark={() => setDark(!dark)} />
               </div>
             </div>
           )}
-        </main>
-        
-        {renderRail("right", 
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button onClick={() => setShowBugModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#ef4444", cursor: "pointer", transition: "background 0.2s" }} title="Report a Bug"><Bug size={22} /></button>
-            <button onClick={() => setShowCalendar(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#10b981", cursor: "pointer", transition: "background 0.2s" }} title="Academic Calendar"><Calendar size={22} /></button>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44 }}>
-              <DayNightToggle dark={dark} toggleDark={() => setDark(!dark)} />
-            </div>
+
+          {showProfileModal && currentUser && <ProfileModal dark={dark} user={currentUser} onClose={() => setShowProfileModal(false)} onUpdate={(updated: User) => { setCurrentUser(updated); showToast("Profile updated successfully!", "success"); }} showToast={showToast} />}
+          {showBugModal && <BugModal dark={dark} user={currentUser} onClose={() => setShowBugModal(false)} showToast={showToast} />}
+          {showCalendar && <AcademicCalendar dark={dark} user={currentUser} onClose={() => setShowCalendar(false)} />}
+        </>
+
+        {simKiosk && kbOpen && (
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "16px 8px 24px", background: dark ? "rgba(28, 27, 34, 0.98)" : "rgba(229, 231, 235, 0.98)", backdropFilter: "blur(20px)", borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, zIndex: 999999, display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 -10px 40px rgba(0,0,0,0.5)", animation: "slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }}>
+            {virtualKeyRows.map((row, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "center", gap: 8 }}>
+                {row.map(k => (
+                  <button 
+                    key={k} 
+                    onMouseDown={(e) => handleVirtualKeyPress(k, e)} 
+                    style={{ 
+                      padding: "16px 0", flex: k === 'SPACE' ? 2.5 : (k === 'ENTER' || k === 'BACK' || k === 'CLOSE') ? 1.5 : 1, 
+                      maxWidth: k.length === 1 ? 64 : 'none', fontSize: 18, fontWeight: 600, 
+                      background: k === 'ENTER' ? '#4285f4' : k === 'CLOSE' ? '#ef4444' : (dark ? '#333340' : '#fff'), 
+                      color: (k === 'ENTER' || k === 'CLOSE') ? '#fff' : (dark ? '#fff' : '#000'), 
+                      border: "none", borderRadius: 10, cursor: "pointer", textTransform: k.length > 1 ? 'uppercase' : 'lowercase',
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.3)"
+                    }}
+                  >
+                    {k === 'BACK' ? '⌫' : k === 'ENTER' ? '↵' : k === 'CLOSE' ? '✕' : k}
+                  </button>
+                ))}
+              </div>
+            ))}
           </div>
         )}
 
-        {showProfileModal && currentUser && <ProfileModal dark={dark} user={currentUser} onClose={() => setShowProfileModal(false)} onUpdate={(updated: User) => { setCurrentUser(updated); showToast("Profile updated successfully!", "success"); }} showToast={showToast} />}
-        {showBugModal && <BugModal dark={dark} user={currentUser} onClose={() => setShowBugModal(false)} showToast={showToast} />}
-        {showCalendar && <AcademicCalendar dark={dark} user={currentUser} onClose={() => setShowCalendar(false)} />}
-      </>
-    </div>
+      </div>
+
+      {fullScreenMedia && (
+        <div onClick={() => setFullScreenMedia(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', padding: 24 }}>
+          <img src={fullScreenMedia} alt="Fullscreen View" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }} />
+          <button onClick={() => setFullScreenMedia(null)} style={{ position: 'absolute', top: 24, right: 24, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}>
+            <X size={24} />
+          </button>
+        </div>
+      )}
+
+      {fullScreenIframe && (
+        <div onClick={() => setFullScreenIframe(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ width: '100%', maxWidth: 1200, height: '90vh', background: dark ? '#1c1b22' : '#fff', borderRadius: 12, overflow: 'hidden', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }} onClick={e => e.stopPropagation()}>
+            <iframe src={fullScreenIframe} style={{ width: '100%', height: '100%', border: 'none' }} allowFullScreen />
+            <button onClick={() => setFullScreenIframe(null)} style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.2s' }}>
+              <X size={24} />
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -10,6 +10,7 @@ interface Props {
   currentUser: User | null;
   isMobile: boolean;
   onEnlarge: (url: string) => void;
+  onOpenIframe: (url: string) => void; // <--- 1. ADD THIS LINE
   onLoad: () => void;
 }
 
