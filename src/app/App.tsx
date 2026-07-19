@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, Menu, UserCog, X, MoreVertical, Bot, Calendar, Smartphone } from "lucide-react";
+import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, Menu, UserCog, X, MoreVertical, Bot, Calendar, Monitor } from "lucide-react";
 
 import { AuthScreen } from "../components/authmodal";
 import { AdminPanel } from "../components/admindashboard";
@@ -17,16 +17,15 @@ import { Message, Chat, User, ToastMsg } from "../types";
 import { QUICK_PROMPTS, ORGANIZATIONS, MAJORS, DOCUMENTS, MID_CHOICES, API_URL, DEFAULT_CATEGORIES, ALL_DEPTS } from "../config";
 
 export default function App() {
-  const [simKiosk, setSimKiosk] = useState(false);
-  
-  // FIX: Force Mobile Layout if screen is small OR if Kiosk Simulator is running
-  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && (window.innerWidth <= 1024 || simKiosk));
+  // 1. TABLET FIX: Changed from 768 to 1024 to properly catch 12.5" Tablets
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth <= 1024);
   
   const [appLoading, setAppLoading] = useState(true); 
   const [dark, setDark] = useState(true);
   
+  // 2. KIOSK SIMULATOR STATES
+  const [simKiosk, setSimKiosk] = useState(false);
   const [simScale, setSimScale] = useState(1);
-  const [kbOpen, setKbOpen] = useState(false);
   
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [resetToken, setResetToken] = useState<string | null>(null);
@@ -139,7 +138,7 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activeChat = chats.find((c) => c.id === activeChatId) ?? null;
 
-  // --- KIOSK SIMULATOR LOGIC & HOTKEY (Ctrl + K) ---
+  // KIOSK SIMULATOR LOGIC & HOTKEY (Ctrl + K)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key.toLowerCase() === 'k') {
@@ -151,51 +150,24 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Window Resize & Kiosk Auto-Scaling
+  // WINDOW RESIZE LISTENER FOR TABLETS AND KIOSK AUTO-SCALING
   useEffect(() => {
     const handleResize = () => {
-      const isMobileDevice = window.innerWidth <= 1024 || simKiosk;
+      // Catch Tablets explicitly (<= 1024)
+      const mobile = window.innerWidth <= 1024;
+      setIsMobile(mobile);
+      if (mobile && sidebarOpen) setSidebarOpen(false); 
+      else if (!mobile && !sidebarOpen) setSidebarOpen(true); 
       
-      setIsMobile(prevMobile => {
-        // Only automatically toggle the sidebar if crossing the mobile/desktop boundary
-        if (prevMobile !== isMobileDevice) {
-            setSidebarOpen(!isMobileDevice);
-        }
-        return isMobileDevice;
-      });
-      
-      const scale = Math.min(window.innerWidth / 768, window.innerHeight / 1366) * 0.95;
+      // Auto-scale the Kiosk Simulator to fit your PC screen perfectly
+      const scale = Math.min(window.innerWidth / 1366, window.innerHeight / 768) * 0.92;
       setSimScale(scale);
     };
     
-    handleResize(); 
+    handleResize(); // Run immediately on mount
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [simKiosk]);
-
-  // Virtual Keyboard Focus Trigger
-  useEffect(() => {
-    if (!simKiosk) { setKbOpen(false); return; }
-    
-    const handleFocusIn = (e: FocusEvent) => {
-      const target = e.target as HTMLElement;
-      if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName) && target.getAttribute('type') !== 'file') {
-        setKbOpen(true);
-      }
-    };
-    const handleFocusOut = () => {
-      setTimeout(() => {
-        const el = document.activeElement;
-        if (!el || !['INPUT', 'TEXTAREA'].includes(el.tagName)) {
-          setKbOpen(false);
-        }
-      }, 100);
-    };
-
-    window.addEventListener('focusin', handleFocusIn);
-    window.addEventListener('focusout', handleFocusOut);
-    return () => { window.removeEventListener('focusin', handleFocusIn); window.removeEventListener('focusout', handleFocusOut); };
-  }, [simKiosk]);
+  }, [sidebarOpen]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Date.now();
@@ -321,56 +293,13 @@ export default function App() {
     setShowAuthPopup(true);
   };
 
-  // --- VIRTUAL KEYBOARD COMPONENT ---
-  const handleVirtualKeyPress = (key: string, e: React.MouseEvent) => {
-    e.preventDefault(); 
-    const el = document.activeElement as HTMLInputElement | HTMLTextAreaElement;
-    if (!el || !['INPUT', 'TEXTAREA'].includes(el.tagName)) return;
-
-    let newValue = el.value;
-
-    if (key === 'BACK') {
-      newValue = newValue.slice(0, -1);
-    } else if (key === 'ENTER') {
-      const form = el.closest('form');
-      if (form) {
-         const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
-         if (submitBtn && !submitBtn.disabled) submitBtn.click();
-      } else {
-         el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
-      }
-      return;
-    } else if (key === 'CLOSE') {
-      setKbOpen(false);
-      el.blur();
-      return;
-    } else if (key === 'SPACE') {
-      newValue += ' ';
-    } else {
-      newValue += key;
-    }
-
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
-    const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-
-    if (el.tagName === 'INPUT' && nativeInputValueSetter) {
-      nativeInputValueSetter.call(el, newValue);
-    } else if (el.tagName === 'TEXTAREA' && nativeTextAreaValueSetter) {
-      nativeTextAreaValueSetter.call(el, newValue);
-    } else {
-      el.value = newValue; 
-    }
-
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  };
-
-  // --- REBUILT DYNAMIC RAIL RENDERER ---
   const renderRail = (side: "left" | "right", topSlot?: React.ReactNode) => {
     const gearsRight = side === "right";
     const currentAngle = gearsRight ? rightAngle : leftAngle;
     const r = { mid: currentAngle, sm: -currentAngle * RATIO + (180 / N_SM) };
     
-    const vh = simKiosk ? 1366 : (typeof window !== "undefined" ? window.innerHeight : 800);
+    // Fix viewport height scaling inside simulator
+    const vh = simKiosk ? 768 : (typeof window !== "undefined" ? window.innerHeight : 800);
     const gearAreaH = vh - TOP_H;
     const span = OR_SM + CENTER_D * 2 + OR_SM;
     const margin = Math.max(OR_SM * 0.2, (gearAreaH - span) / 2);
@@ -378,15 +307,8 @@ export default function App() {
 
     const grayTint = dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" };
     const blueTint = dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" };
-    
-    const panelBase: React.CSSProperties = { position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: gearsRight ? "right" : "left", ...(gearsRight ? { right: 0 } : { left: 0 }) };
-    
-    // Solid background added to buttons so they remain readable if they overlap gears
-    const btnStyle: React.CSSProperties = { 
-      width: "100%", textAlign: gearsRight ? "right" : "left", padding: "8px 12px", borderRadius: 9, 
-      background: dark ? "rgba(28, 27, 34, 0.9)" : "rgba(255, 255, 255, 0.9)", backdropFilter: "blur(4px)",
-      color: textPrimary, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none", zIndex: 10
-    };
+    const panelBase: React.CSSProperties = { position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: gearsRight ? "right" : "left", ...(gearsRight ? { right: GEAR_VIS } : { left: GEAR_VIS }) };
+    const btnStyle: React.CSSProperties = { width: "100%", textAlign: gearsRight ? "right" : "left", padding: "8px 12px", borderRadius: 9, background: dark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)", color: textPrimary, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none" };
 
     const panels = gearsRight
       ? [
@@ -401,24 +323,17 @@ export default function App() {
         ];
 
     const isOpen = gearsRight ? rightRailOpen : sidebarOpen;
-    
-    // FIX: Perfected absolute/relative layout handling.
     const railStyle: React.CSSProperties = {
-      width: RAIL_W, flexShrink: 0, background: bg, 
-      position: (side === "left" && !isMobile) ? "relative" : "absolute", 
-      top: 0, bottom: 0,
-      left: side === "left" ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
-      marginLeft: (side === "left" && !isMobile) ? (isOpen ? 0 : -RAIL_W) : 0,
-      right: side === "right" ? (isOpen ? 0 : -RAIL_W) : "auto",
+      width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0,
+      left: !gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
+      right: gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
       zIndex: 60, transition: "all 0.3s ease",
-      boxShadow: isMobile && isOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", 
-      overflow: "visible"
+      boxShadow: isMobile && isOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden"
     };
 
     return (
       <aside style={railStyle}>
-        {/* FIX: Gears pushed OUTSIDE the rail boundaries using negative placement and pointerEvents none */}
-        <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, pointerEvents: "none", ...(gearsRight ? { left: -GEAR_VIS } : { right: -GEAR_VIS }) }}>
+        <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, ...(gearsRight ? { right: 0 } : { left: 0 }) }}>
           <GearAbs id={`g-${side}-top`} side={side} OR={OR_SM} IR={IR_SM} n={N_SM} tint={grayTint} holeColor={bg} centerY={y1} rotation={r.sm} onClick={panels[0].onGear} />
           <GearAbs id={`g-${side}-mid`} side={side} OR={OR_LG} IR={IR_LG} n={N_LG} tint={blueTint} holeColor={bg} centerY={y2} rotation={r.mid} onClick={panels[1].onGear} />
           <GearAbs id={`g-${side}-bot`} side={side} OR={OR_SM} IR={IR_SM} n={N_SM} tint={grayTint} holeColor={bg} centerY={y3} rotation={r.sm} onClick={panels[2].onGear} />
@@ -427,7 +342,7 @@ export default function App() {
         {panels.map((p: any, i: number) => (
           <div key={i} style={{ ...panelBase, top: p.y, zIndex: 10 }}>
             {p.label && <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: textFaint, marginBottom: 8 }}>{p.label}</div>}
-            <button onClick={p.onPick} style={p.mid ? { ...btnStyle, display: "flex", alignItems: "center", gap: 8, justifyContent: gearsRight ? "flex-end" : "flex-start" } : p.sub ? { ...btnStyle, padding: "4px 8px" } : btnStyle}>
+            <button onClick={p.onPick} style={p.mid ? { ...btnStyle, display: "flex", alignItems: "center", gap: 8, justifyContent: gearsRight ? "flex-end" : "flex-start" } : p.sub ? { ...btnStyle, background: "transparent", padding: "2px 0" } : btnStyle}>
               {p.mid && (midIdx === 0 ? <Plus size={15} /> : <Settings size={15} />)}
               {p.sub ? (<><div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.value}</div><div style={{ fontSize: 11, color: textFaint, marginTop: 3 }}>{p.sub}</div></>) : p.value}
             </button>
@@ -453,47 +368,38 @@ export default function App() {
     );
   }
 
+  // --- THE CORE WRAPPER: Handles Standard vs Kiosk Simulation ---
   const containerStyle: React.CSSProperties = simKiosk ? {
     position: "fixed", top: "50%", left: "50%",
-    width: 768, height: 1366, 
+    width: 1366, height: 768, // Exactly matches an 18.5" Landscape Touchscreen
     transform: `translate(-50%, -50%) scale(${simScale})`,
     transformOrigin: "center center",
     display: "flex", overflow: "hidden", background: bg, 
     fontFamily: "'Inter', sans-serif", color: textPrimary,
-    boxShadow: "0 25px 50px -12px rgba(0,0,0,0.8), 0 0 0 16px #111", 
-    borderRadius: 16, zIndex: 99999
+    boxShadow: "0 25px 50px -12px rgba(0,0,0,0.8), 0 0 0 16px #111", // Simulates Monitor Bezel
+    borderRadius: 8
   } : {
-    position: "fixed", inset: 0, 
+    position: "fixed", top: 0, bottom: 0, left: 0, right: 0, 
     display: "flex", overflow: "hidden", background: bg, 
     fontFamily: "'Inter', sans-serif", color: textPrimary 
   };
 
-  const virtualKeyRows = [
-    ['1','2','3','4','5','6','7','8','9','0'],
-    ['q','w','e','r','t','y','u','i','o','p'],
-    ['a','s','d','f','g','h','j','k','l'],
-    ['z','x','c','v','b','n','m', 'BACK'],
-    ['SPACE', 'ENTER', 'CLOSE']
-  ];
-
   return (
     <>
-      {/* CSS INJECTION: Guaranteed fix to kill any stray unstyled checkboxes globally */}
-      <style>{`.theme-toggle-wrapper input[type="checkbox"], .hidden-checkbox-force { display: none !important; }`}</style>
-      
+      {/* GLOBAL BACKGROUND DIMMER FOR KIOSK MODE */}
       {simKiosk && <div style={{ position: "fixed", inset: 0, background: "#0a0a0a", zIndex: -1 }} />}
       
       <div className={dark ? "dark-mode" : "light-mode"} style={containerStyle}>
         
         {simKiosk && (
-          <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", background: "#ef4444", color: "#fff", padding: "6px 16px", borderRadius: 24, fontSize: 12, fontWeight: 700, zIndex: 99999, display: "flex", alignItems: "center", gap: 8, boxShadow: "0 4px 12px rgba(239, 68, 68, 0.4)" }}>
-            <Smartphone size={16} /> PORTRAIT KIOSK SIMULATOR - Press Ctrl+K to exit
+          <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", background: "#ef4444", color: "#fff", padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, zIndex: 99999, display: "flex", alignItems: "center", gap: 6, boxShadow: "0 4px 12px rgba(239, 68, 68, 0.4)" }}>
+            <Monitor size={14} /> KIOSK SIMULATOR (1366x768) - Press Ctrl+K to exit
           </div>
         )}
 
         {showResetModal && (
           <div style={{ position: "absolute", inset: 0, zIndex: 999999, background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)", padding: 20 }}>
-             <div style={{ position: "relative", width: "100%", maxWidth: 380, maxHeight: "90vh", overflowY: "auto", padding: 24, background: dark ? "#1e1e24" : "#ffffff", borderRadius: 20, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", border: dark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.05)" }}>
+             <div style={{ position: "relative", width: "100%", maxWidth: 380, padding: 24, background: dark ? "#1e1e24" : "#ffffff", borderRadius: 20, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", border: dark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.05)" }}>
                 <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, color: textPrimary }}>Reset Password</h2>
                 <p style={{ fontSize: 13, color: textMuted, marginBottom: 20 }}>Enter your new password below to regain access to your account.</p>
                 <input 
@@ -513,7 +419,7 @@ export default function App() {
 
         {showAuthPopup && (
           <div style={{ position: "absolute", inset: 0, zIndex: 999998, background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)", padding: 20 }}>
-             <div style={{ position: "relative", width: "100%", maxWidth: 400, maxHeight: "90vh", overflowY: "auto", background: dark ? "#1e1e24" : "#ffffff", borderRadius: 20, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", border: dark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.05)", msOverflowStyle: "none", scrollbarWidth: "none" }}>
+             <div style={{ position: "relative", width: "100%", maxWidth: 380, background: dark ? "#1e1e24" : "#ffffff", borderRadius: 20, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", border: dark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.05)" }}>
                 <button onClick={() => setShowAuthPopup(false)} style={{ position: "absolute", top: 16, right: 16, zIndex: 50, background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", border: "none", color: textPrimary, width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"} onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}>
                   <X size={18} />
                 </button>
@@ -564,20 +470,8 @@ export default function App() {
           )}
 
           {!gearMode && (
-            <aside style={{ 
-              width: RAIL_W, flexShrink: 0, background: sbBg, 
-              position: isMobile ? "absolute" : "relative", 
-              top: 0, bottom: 0, 
-              left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : "auto", 
-              marginLeft: !isMobile ? (sidebarOpen ? 0 : -RAIL_W) : 0, 
-              zIndex: 60, transition: "all 0.3s ease", 
-              boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" 
-            }}>
-              <div style={{ position: "absolute", top: 0, bottom: 0, right: -GEAR_VIS, width: GEAR_VIS, zIndex: 1, pointerEvents: "none" }}>
-                <GearAbs id="left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + 100} rotation={-leftAngle * RATIO + (180 / N_SM)} onClick={() => {}} />
-              </div>
-
-              <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, background: sbBg }}>
+            <aside style={{ width: RAIL_W, flexShrink: 0, background: sbBg, position: isMobile ? "absolute" : "relative", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : "auto", marginLeft: !isMobile && !sidebarOpen ? -RAIL_W : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
+              <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -623,6 +517,12 @@ export default function App() {
                                 <button key={dept} onClick={() => { setAdminDept(dept); if(isMobile) setSidebarOpen(false); }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: adminDept === dept ? sb.active : "transparent", color: adminDept === dept ? sb.text : sb.muted, border: `1px solid ${adminDept === dept ? sb.border : 'transparent'}`, fontSize: 13, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={(e) => { if(adminDept !== dept) e.currentTarget.style.background = sb.hover; }} onMouseLeave={(e) => { if(adminDept !== dept) e.currentTarget.style.background = "transparent"; }}>{dept}</button>
                               ))}
                             </div>
+                          </div>
+                        )}
+
+                        {adminTab !== 'knowledge' && adminTab !== 'users' && (
+                          <div style={{ padding: "24px 4px", textAlign: "center", color: sb.faint, fontSize: 12 }}>
+                             Select 'Database' or 'Users' to view filters.
                           </div>
                         )}
                       </div>
@@ -695,26 +595,26 @@ export default function App() {
             overflow: "hidden", 
             minWidth: 0, 
             position: "relative",
-            paddingBottom: simKiosk && kbOpen ? 300 : 0, 
-            paddingRight: (!isMobile && gearMode && rightRailOpen) ? GEAR_VIS : 0, // FIXED: Dynamic Right Padding stops text hiding under right gears
-            transition: "padding 0.2s ease"
+            marginLeft: gearMode && !isMobile ? RAIL_W : 0,
+            marginRight: !isMobile ? RAIL_W : 0
           }}>
             
             <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: isMobile ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {(isMobile || (!gearMode && !sidebarOpen)) && (
-                  <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", zIndex: 60 }}><Menu size={22} /></button>
+                  <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center" }}><Menu size={22} /></button>
+                )}
+                {(!gearMode && (isMobile || !sidebarOpen)) && (
+                  <><div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}><Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} /></div><ChatCITLogo dark={dark} /></>
                 )}
               </div>
-
-              {(isMobile || !sidebarOpen || gearMode) && (
+              {gearMode && (
                 <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}><Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} /></div><ChatCITLogo dark={dark} />
                 </div>
               )}
-
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                {isMobile && gearMode && <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer", zIndex: 60 }}><MoreVertical size={20} /></button>}
+                {isMobile && <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}><MoreVertical size={20} /></button>}
               </div>
             </header>
 
@@ -777,22 +677,11 @@ export default function App() {
             )}
           </main>
           
-          {/* FIX: Unconditional Right Rail Rendering on Desktop for Feature Buttons */}
-          {(!isMobile && !gearMode) && (
-            <div style={{ position: "absolute", top: 16, right: 16, zIndex: 60, display: "flex", alignItems: "center", gap: 10 }}>
-              <button onClick={() => setShowBugModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#ef4444", cursor: "pointer", transition: "background 0.2s" }} title="Report a Bug"><Bug size={22} /></button>
-              <button onClick={() => setShowCalendar(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#10b981", cursor: "pointer", transition: "background 0.2s" }} title="Academic Calendar"><Calendar size={22} /></button>
-              <div className="theme-toggle-wrapper" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44 }}>
-                <DayNightToggle dark={dark} toggleDark={() => setDark(!dark)} />
-              </div>
-            </div>
-          )}
-
-          {gearMode && renderRail("right", 
+          {renderRail("right", 
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <button onClick={() => setShowBugModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#ef4444", cursor: "pointer", transition: "background 0.2s" }} title="Report a Bug"><Bug size={22} /></button>
               <button onClick={() => setShowCalendar(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#10b981", cursor: "pointer", transition: "background 0.2s" }} title="Academic Calendar"><Calendar size={22} /></button>
-              <div className="theme-toggle-wrapper" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44 }}>
                 <DayNightToggle dark={dark} toggleDark={() => setDark(!dark)} />
               </div>
             </div>
@@ -802,32 +691,6 @@ export default function App() {
           {showBugModal && <BugModal dark={dark} user={currentUser} onClose={() => setShowBugModal(false)} showToast={showToast} />}
           {showCalendar && <AcademicCalendar dark={dark} user={currentUser} onClose={() => setShowCalendar(false)} />}
         </>
-
-        {simKiosk && kbOpen && (
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "12px 6px", background: dark ? "rgba(28, 27, 34, 0.95)" : "rgba(229, 231, 235, 0.95)", backdropFilter: "blur(10px)", borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, zIndex: 999999, display: "flex", flexDirection: "column", gap: 8, boxShadow: "0 -10px 40px rgba(0,0,0,0.4)", animation: "slideUp 0.2s ease-out" }}>
-            {virtualKeyRows.map((row, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "center", gap: 6 }}>
-                {row.map(k => (
-                  <button 
-                    key={k} 
-                    onMouseDown={(e) => handleVirtualKeyPress(k, e)} 
-                    style={{ 
-                      padding: "16px 0", flex: k === 'SPACE' ? 2 : (k === 'ENTER' || k === 'BACK' || k === 'CLOSE') ? 1.5 : 1, 
-                      maxWidth: k.length === 1 ? 64 : 'none', fontSize: 18, fontWeight: 600, 
-                      background: k === 'ENTER' ? '#4285f4' : k === 'CLOSE' ? '#ef4444' : (dark ? '#25242c' : '#fff'), 
-                      color: (k === 'ENTER' || k === 'CLOSE') ? '#fff' : (dark ? '#fff' : '#000'), 
-                      border: "none", borderRadius: 8, cursor: "pointer", textTransform: k.length > 1 ? 'uppercase' : 'lowercase',
-                      boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
-                    }}
-                  >
-                    {k === 'BACK' ? '⌫' : k === 'ENTER' ? '↵' : k === 'CLOSE' ? '✕' : k}
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
-
       </div>
 
       {fullScreenMedia && (
