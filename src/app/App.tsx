@@ -22,7 +22,6 @@ export default function App() {
   const [simScale, setSimScale] = useState(1);
   const [kbOpen, setKbOpen] = useState(false);
 
-  // FIX: Increased threshold to 1280px so 12.5" Tablets correctly get the Hamburger Menu Layout
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && (window.innerWidth <= 1280 || simKiosk));
   
   const [appLoading, setAppLoading] = useState(true); 
@@ -139,6 +138,20 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activeChat = chats.find((c) => c.id === activeChatId) ?? null;
 
+  // --- STRICT GUEST TRAP HANDLER ---
+  const requireAuth = (action: () => void) => {
+    if (currentUser && Number(currentUser.id) === -1) {
+      setAuthMode("signup");
+      setShowAuthPopup(true);
+      if (isMobile) {
+        setSidebarOpen(false);
+        setRightRailOpen(false);
+      }
+    } else {
+      action();
+    }
+  };
+
   // --- KIOSK HOTKEY LISTENER (Ctrl + K) ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -157,7 +170,6 @@ export default function App() {
       const scale = Math.min(window.innerWidth / 768, window.innerHeight / 1366) * 0.95;
       setSimScale(scale);
       
-      // Increased to 1280px to safely convert medium landscape tablets to hamburger menus
       const mobile = window.innerWidth <= 1280 || simKiosk;
       setIsMobile(prevMobile => {
         if (!prevMobile && mobile) {
@@ -277,7 +289,7 @@ export default function App() {
       const newCount = guestMessageCount + 1;
       setGuestMessageCount(newCount);
       if (newCount % 3 === 0) {
-        setAuthMode("login");
+        setAuthMode("signup"); // Pop Sign Up form instead of login
         setShowAuthPopup(true);
       }
     }
@@ -301,7 +313,7 @@ export default function App() {
     try {
       const response = await fetch(`${API_URL}/chat`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: content, history: messagesToSend })
+        body: JSON.stringify({ chatId: chatId, message: content, history: messagesToSend })
       });
       const data = await response.json();
       if (data.error) throw new Error(data.error);
@@ -392,32 +404,39 @@ export default function App() {
     const grayTint = dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" };
     const blueTint = dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" };
     const panelBase: React.CSSProperties = { position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: gearsRight ? "right" : "left", ...(gearsRight ? { right: GEAR_VIS } : { left: GEAR_VIS }) };
-    const btnStyle: React.CSSProperties = { width: "100%", textAlign: gearsRight ? "right" : "left", padding: "8px 12px", borderRadius: 9, background: dark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)", color: textPrimary, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none" };
+    const btnStyle: React.CSSProperties = { width: "100%", textAlign: gearsRight ? "right" : "left", padding: "8px 12px", borderRadius: 9, background: dark ? "rgba(25,25,30,0.8)" : "rgba(255,255,255,0.8)", backdropFilter: "blur(2px)", color: textPrimary, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none", zIndex: 10 };
 
     const panels = gearsRight
       ? [
-          { y: y1, label: "Organizations", value: ORGANIZATIONS[orgIdx], onPick: () => { sendMessage(`Tell me about ${ORGANIZATIONS[orgIdx]}`); if(isMobile) setRightRailOpen(false); }, onGear: () => { setRightAngle(a => a + STEP_DEG); setOrgIdx(i => (i + 1) % ORGANIZATIONS.length); } },
+          { y: y1, label: "Organizations", value: ORGANIZATIONS[orgIdx], onPick: () => requireAuth(() => { sendMessage(`Tell me about ${ORGANIZATIONS[orgIdx]}`); if(isMobile) setRightRailOpen(false); }), onGear: () => { setRightAngle(a => a + STEP_DEG); setOrgIdx(i => (i + 1) % ORGANIZATIONS.length); } },
           { y: y2, label: "Majors", value: MAJORS[majIdx], onPick: () => { sendMessage(`Tell me about the ${MAJORS[majIdx]} program`); if(isMobile) setRightRailOpen(false); }, onGear: () => { setRightAngle(a => a + STEP_DEG); setMajIdx(i => (i + 1) % MAJORS.length); } },
-          { y: y3, label: "Documents", value: DOCUMENTS[docIdx], onPick: () => { sendMessage(`Show me the ${DOCUMENTS[docIdx]}`); if(isMobile) setRightRailOpen(false); }, onGear: () => { setRightAngle(a => a + STEP_DEG); setDocIdx(i => (i + 1) % DOCUMENTS.length); } },
+          { y: y3, label: "Documents", value: DOCUMENTS[docIdx], onPick: () => requireAuth(() => { sendMessage(`Show me the ${DOCUMENTS[docIdx]}`); if(isMobile) setRightRailOpen(false); }), onGear: () => { setRightAngle(a => a + STEP_DEG); setDocIdx(i => (i + 1) % DOCUMENTS.length); } },
         ]
       : [
-          { y: y1, label: "Quick Prompts", value: QUICK_PROMPTS[quickIdx], onPick: () => { sendMessage(QUICK_PROMPTS[quickIdx]); if(isMobile) setSidebarOpen(false); }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => (i + 1) % QUICK_PROMPTS.length); } },
-          { y: y2, label: "", value: MID_CHOICES[midIdx], onPick: () => { if (midIdx === 0) { setActiveChatId(null); setViewMode("chat"); } else setGearMode(g => !g); if(isMobile) setSidebarOpen(false); }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setMidIdx(i => (i + 1) % MID_CHOICES.length); }, mid: true },
-          { y: y3, label: "Recent", value: chats.length > 0 ? chats[recentsIdx].title : "No chats", onPick: () => { if(chats.length) { setActiveChatId(chats[recentsIdx].id); setViewMode("chat"); if(isMobile) setSidebarOpen(false); } }, onGear: () => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => (i + 1) % chats.length); }, sub: chats.length > 0 ? "Past Conversation" : "" },
+          { y: y1, label: "Quick Prompts", value: QUICK_PROMPTS[quickIdx], onPick: () => { 
+            if (QUICK_PROMPTS[quickIdx].toLowerCase() === 'facilities') {
+              sendMessage(QUICK_PROMPTS[quickIdx]); if(isMobile) setSidebarOpen(false);
+            } else {
+              requireAuth(() => { sendMessage(QUICK_PROMPTS[quickIdx]); if(isMobile) setSidebarOpen(false); });
+            }
+          }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => (i + 1) % QUICK_PROMPTS.length); } },
+          { y: y2, label: "", value: MID_CHOICES[midIdx], onPick: () => { if (midIdx === 0) { requireAuth(() => { setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false); }); } else { setGearMode(g => !g); if(isMobile) setSidebarOpen(false); } }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setMidIdx(i => (i + 1) % MID_CHOICES.length); }, mid: true },
+          { y: y3, label: "Recent", value: chats.length > 0 ? chats[recentsIdx].title : "No chats", onPick: () => requireAuth(() => { if(chats.length) { setActiveChatId(chats[recentsIdx].id); setViewMode("chat"); if(isMobile) setSidebarOpen(false); } }), onGear: () => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => (i + 1) % chats.length); }, sub: chats.length > 0 ? "Past Conversation" : "" },
         ];
 
     const isOpen = gearsRight ? rightRailOpen : sidebarOpen;
+    
     const railStyle: React.CSSProperties = {
       width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0,
       left: !gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
       right: gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
       zIndex: 60, transition: "all 0.3s ease",
-      boxShadow: isMobile && isOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden"
+      boxShadow: isMobile && isOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible"
     };
 
     return (
       <aside style={railStyle}>
-        <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, ...(gearsRight ? { right: 0 } : { left: 0 }) }}>
+        <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, pointerEvents: "none", ...(gearsRight ? { left: -GEAR_VIS } : { right: -GEAR_VIS }) }}>
           <GearAbs id={`g-${side}-top`} side={side} OR={OR_SM} IR={IR_SM} n={N_SM} tint={grayTint} holeColor={bg} centerY={y1} rotation={r.sm} onClick={panels[0].onGear} />
           <GearAbs id={`g-${side}-mid`} side={side} OR={OR_LG} IR={IR_LG} n={N_LG} tint={blueTint} holeColor={bg} centerY={y2} rotation={r.mid} onClick={panels[1].onGear} />
           <GearAbs id={`g-${side}-bot`} side={side} OR={OR_SM} IR={IR_SM} n={N_SM} tint={grayTint} holeColor={bg} centerY={y3} rotation={r.sm} onClick={panels[2].onGear} />
@@ -454,7 +473,7 @@ export default function App() {
 
   const containerStyle: React.CSSProperties = simKiosk ? {
     position: "fixed", top: "50%", left: "50%",
-    width: 768, height: 1366, // Exact Portrait bounds
+    width: 768, height: 1366, 
     transform: `translate(-50%, -50%) scale(${simScale})`,
     transformOrigin: "center center",
     display: "flex", overflow: "hidden", background: bg, 
@@ -480,7 +499,7 @@ export default function App() {
       {simKiosk && <div style={{ position: "fixed", inset: 0, background: "#0a0a0a", zIndex: -1 }} />}
       
       {simKiosk && (
-        <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", background: "#ef4444", color: "#fff", padding: "8px 16px", borderRadius: 24, fontSize: 13, fontWeight: 700, zIndex: 999999, display: "flex", alignItems: "center", gap: 6, boxShadow: "0 4px 12px rgba(239, 68, 68, 0.4)" }}>
+        <div style={{ position: "fixed", top: 8, left: "50%", transform: "translateX(-50%)", background: "#ef4444", color: "#fff", padding: "8px 16px", borderRadius: 24, fontSize: 13, fontWeight: 700, zIndex: 999999, display: "flex", alignItems: "center", gap: 6, boxShadow: "0 4px 12px rgba(239, 68, 68, 0.4)", pointerEvents: "none" }}>
           <Smartphone size={16} /> PORTRAIT KIOSK SIMULATOR (1366x768) - Press Ctrl+K to exit
         </div>
       )}
@@ -525,7 +544,7 @@ export default function App() {
           </div>
         )}
 
-        <div style={{ position: "absolute", bottom: 24, right: 24, zIndex: 9999, display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, display: "flex", flexDirection: "column", gap: 10 }}>
           {toasts.map((t: ToastMsg) => (
             <div key={t.id} style={{ background: dark ? '#25242c' : '#fff', border: `1px solid ${t.type === 'error' ? '#ef4444' : t.type === 'success' ? '#10b981' : '#4285f4'}`, color: textPrimary, padding: "12px 16px", borderRadius: 8, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.2)", fontSize: 14, fontWeight: 500, minWidth: 280, animation: "badgePop 0.3s cubic-bezier(0.2, 1.5, 0.5, 1)" }}>
               {t.type === 'success' && <CheckCircle size={18} color="#10b981" />}
@@ -561,7 +580,12 @@ export default function App() {
 
           {!gearMode && (
             <aside style={{ width: RAIL_W, flexShrink: 0, background: sbBg, position: simKiosk ? "absolute" : (isMobile ? "fixed" : "relative"), top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : "auto", marginLeft: !isMobile && !sidebarOpen ? -RAIL_W : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
-              <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
+              
+              <div style={{ position: "absolute", top: 0, bottom: 0, right: -GEAR_VIS, width: GEAR_VIS, zIndex: 1 }}>
+                <GearAbs id="left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + 100} rotation={-leftAngle * RATIO + (180 / N_SM)} onClick={() => setSidebarOpen(true)} />
+              </div>
+
+              <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, background: sbBg }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -587,14 +611,14 @@ export default function App() {
                               {["All", ...allDynamicCategories].map(cat => (
                                 <button key={cat} onClick={() => { setAdminCategory(cat); if(isMobile) setSidebarOpen(false); }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: adminCategory === cat ? sb.active : "transparent", color: adminCategory === cat ? sb.text : sb.muted, border: `1px solid ${adminCategory === cat ? sb.border : 'transparent'}`, fontSize: 13, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={(e) => { if(adminCategory !== cat) e.currentTarget.style.background = sb.hover; }} onMouseLeave={(e) => { if(adminCategory !== cat) e.currentTarget.style.background = "transparent"; }}>{cat}</button>
                               ))}
-                              <button onClick={() => {
+                              <button onClick={() => requireAuth(() => {
                                 const newCat = window.prompt("Enter new category name:");
                                 if (newCat && newCat.trim() !== "") {
                                   setCustomCategories(prev => Array.from(new Set([...prev, newCat.trim()])));
                                   setAdminCategory(newCat.trim());
                                   showToast(`Added new tab: ${newCat.trim()}`, "success");
                                 }
-                              }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: "transparent", color: sb.muted, border: `1px dashed ${sb.faint}`, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.background = sb.hover} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}><Plus size={14}/> Add Custom Tab</button>
+                              })} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: "transparent", color: sb.muted, border: `1px dashed ${sb.faint}`, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.background = sb.hover} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}><Plus size={14}/> Add Custom Tab</button>
                             </div>
                           </div>
                         )}
@@ -619,7 +643,7 @@ export default function App() {
                     ) : (
                       <>
                         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
-                          <button onClick={() => {setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false);}} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer", background: dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.25)", color: sb.text, fontSize: 13, fontWeight: 500, boxShadow: dark ? "none" : "0 2px 5px rgba(0,0,0,0.05)" }}>
+                          <button onClick={() => requireAuth(() => {setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false);})} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer", background: dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.25)", color: sb.text, fontSize: 13, fontWeight: 500, boxShadow: dark ? "none" : "0 2px 5px rgba(0,0,0,0.05)" }}>
                             <div style={{ width: 22, height: 22, borderRadius: "50%", background: dark ? "rgba(255,255,255,0.18)" : "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", color: dark ? "#fff" : "#1558d6" }}><Plus size={13} /></div>New chat
                           </button>
                           <button onClick={() => { setGearMode(true); if(isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: `1px solid ${sb.border}`, background: "transparent", color: sb.text, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
@@ -630,7 +654,13 @@ export default function App() {
                         <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Quick Prompts</span></div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 24 }}>
                           {QUICK_PROMPTS.map((lbl: string) => (
-                            <button key={lbl} onClick={() => { sendMessage(lbl); if(isMobile) setSidebarOpen(false); }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: "transparent", color: sb.muted, border: `1px solid ${sb.border}`, fontSize: 13, cursor: "pointer" }} onMouseEnter={(e) => { e.currentTarget.style.background = sb.hover; e.currentTarget.style.color = sb.text; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = sb.muted; }}>{lbl}</button>
+                            <button key={lbl} onClick={() => { 
+                              if (lbl.toLowerCase() === 'facilities') {
+                                sendMessage(lbl); if(isMobile) setSidebarOpen(false);
+                              } else {
+                                requireAuth(() => { sendMessage(lbl); if(isMobile) setSidebarOpen(false); });
+                              }
+                            }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: "transparent", color: sb.muted, border: `1px solid ${sb.border}`, fontSize: 13, cursor: "pointer" }} onMouseEnter={(e) => { e.currentTarget.style.background = sb.hover; e.currentTarget.style.color = sb.text; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = sb.muted; }}>{lbl}</button>
                           ))}
                         </div>
                         
@@ -640,10 +670,10 @@ export default function App() {
                             <div style={{ maxHeight: 200, overflowY: "auto", padding: "0 4px", display: "flex", flexDirection: "column", gap: 3 }}>
                               {chats.slice(0, 5).map((chat: Chat) => (
                                 <div key={chat.id} className="group" style={{ display: "flex", alignItems: "center", width: "100%", borderRadius: 10, background: activeChatId === chat.id && viewMode === "chat" ? sb.active : "transparent" }}>
-                                  <button onClick={() => { setActiveChatId(chat.id); setViewMode("chat"); if(isMobile) setSidebarOpen(false); }} style={{ flex: 1, textAlign: "left", padding: "9px 12px", background: "transparent", border: "none", cursor: "pointer", color: sb.text, minWidth: 0 }}>
+                                  <button onClick={() => requireAuth(() => { setActiveChatId(chat.id); setViewMode("chat"); if(isMobile) setSidebarOpen(false); })} style={{ flex: 1, textAlign: "left", padding: "9px 12px", background: "transparent", border: "none", cursor: "pointer", color: sb.text, minWidth: 0 }}>
                                     <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chat.title}</div>
                                   </button>
-                                  <button onClick={(e) => { e.stopPropagation(); deleteChat(chat.id); }} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ padding: "8px 10px", background: "transparent", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer" }}><Trash2 size={13} /></button>
+                                  <button onClick={(e) => { e.stopPropagation(); requireAuth(() => deleteChat(chat.id)); }} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ padding: "8px 10px", background: "transparent", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer" }}><Trash2 size={13} /></button>
                                 </div>
                               ))}
                             </div>
@@ -688,13 +718,13 @@ export default function App() {
             marginLeft: gearMode && !isMobile ? RAIL_W : 0,
             marginRight: !isMobile ? RAIL_W : 0,
             paddingBottom: simKiosk && kbOpen ? 360 : 0, 
-            transition: "padding-bottom 0.2s ease"
+            transition: "padding-bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
           }}>
             
             <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: isMobile ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {(isMobile || (!gearMode && !sidebarOpen)) && (
-                  <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center" }}><Menu size={22} /></button>
+                  <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", zIndex: 60 }}><Menu size={22} /></button>
                 )}
                 {(!gearMode && (isMobile || !sidebarOpen)) && (
                   <><div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}><Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} /></div><ChatCITLogo dark={dark} /></>
@@ -706,7 +736,15 @@ export default function App() {
                 </div>
               )}
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                {isMobile && <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer" }}><MoreVertical size={20} /></button>}
+                {isMobile && <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer", zIndex: 60 }}><MoreVertical size={20} /></button>}
+                
+                {(!isMobile && !gearMode) && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <button onClick={() => requireAuth(() => setShowBugModal(true))} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 8, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "none", color: "#ef4444", cursor: "pointer" }}><Bug size={18} /></button>
+                    <button onClick={() => requireAuth(() => setShowCalendar(true))} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 8, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "none", color: "#10b981", cursor: "pointer" }}><Calendar size={18} /></button>
+                    <div className="theme-toggle-wrapper"><DayNightToggle dark={dark} toggleDark={() => setDark(!dark)} /></div>
+                  </div>
+                )}
               </div>
             </header>
 
@@ -728,7 +766,9 @@ export default function App() {
                   </div>
                   <h1 style={{ fontSize: isMobile ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{currentUser && Number(currentUser.id) === -1 ? "Guest" : currentUser?.username || currentUser?.email?.split('@')[0] || "Bulsuan"}!</strong></h1>
                   <p style={{ color: textMuted, fontSize: 15, marginBottom: 32, textAlign: "center" }}>How can I help you today?</p>
-                  {topFaqs.length > 0 && (
+                  
+                  {/* HIDE TOP FAQS IF GUEST */}
+                  {topFaqs.length > 0 && (!currentUser || Number(currentUser.id) !== -1) && (
                     <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, maxWidth: 700 }}>
                       {topFaqs.slice(0, isMobile ? 3 : topFaqs.length).map((faq, idx) => {
                         const primaryTag = faq.keyword ? faq.keyword.split(',')[0].trim() : "Question";
@@ -771,8 +811,8 @@ export default function App() {
           
           {renderRail("right", 
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <button onClick={() => setShowBugModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#ef4444", cursor: "pointer", transition: "background 0.2s" }} title="Report a Bug"><Bug size={22} /></button>
-              <button onClick={() => setShowCalendar(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#10b981", cursor: "pointer", transition: "background 0.2s" }} title="Academic Calendar"><Calendar size={22} /></button>
+              <button onClick={() => requireAuth(() => setShowBugModal(true))} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#ef4444", cursor: "pointer", transition: "background 0.2s" }} title="Report a Bug"><Bug size={22} /></button>
+              <button onClick={() => requireAuth(() => setShowCalendar(true))} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(128,128,128,0.2)", color: "#10b981", cursor: "pointer", transition: "background 0.2s" }} title="Academic Calendar"><Calendar size={22} /></button>
               <div className="theme-toggle-wrapper" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44 }}>
                 <DayNightToggle dark={dark} toggleDark={() => setDark(!dark)} />
               </div>
