@@ -141,7 +141,7 @@ export default function App() {
   // --- STRICT GUEST TRAP HANDLER ---
   const requireAuth = (action: () => void) => {
     if (currentUser && Number(currentUser.id) === -1) {
-      setAuthMode("signup");
+      setAuthMode("login"); 
       setShowAuthPopup(true);
       if (isMobile) {
         setSidebarOpen(false);
@@ -289,7 +289,7 @@ export default function App() {
       const newCount = guestMessageCount + 1;
       setGuestMessageCount(newCount);
       if (newCount % 3 === 0) {
-        setAuthMode("signup"); // Pop Sign Up form instead of login
+        setAuthMode("login"); 
         setShowAuthPopup(true);
       }
     }
@@ -404,7 +404,6 @@ export default function App() {
     const grayTint = dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" };
     const blueTint = dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" };
     const panelBase: React.CSSProperties = { position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: gearsRight ? "right" : "left", ...(gearsRight ? { right: GEAR_VIS } : { left: GEAR_VIS }) };
-    const btnStyle: React.CSSProperties = { width: "100%", textAlign: gearsRight ? "right" : "left", padding: "8px 12px", borderRadius: 9, background: dark ? "rgba(25,25,30,0.8)" : "rgba(255,255,255,0.8)", backdropFilter: "blur(2px)", color: textPrimary, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none", zIndex: 10 };
 
     const panels = gearsRight
       ? [
@@ -414,7 +413,7 @@ export default function App() {
         ]
       : [
           { y: y1, label: "Quick Prompts", value: QUICK_PROMPTS[quickIdx], onPick: () => { 
-            if (QUICK_PROMPTS[quickIdx].toLowerCase() === 'facilities') {
+            if (QUICK_PROMPTS[quickIdx].toLowerCase().includes('facilities')) {
               sendMessage(QUICK_PROMPTS[quickIdx]); if(isMobile) setSidebarOpen(false);
             } else {
               requireAuth(() => { sendMessage(QUICK_PROMPTS[quickIdx]); if(isMobile) setSidebarOpen(false); });
@@ -431,27 +430,57 @@ export default function App() {
       left: !gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
       right: gearsRight ? (isMobile ? (isOpen ? 0 : -RAIL_W) : 0) : "auto",
       zIndex: 60, transition: "all 0.3s ease",
-      boxShadow: isMobile && isOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible"
+      boxShadow: isMobile && isOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden"
     };
 
     return (
       <aside style={railStyle}>
-        <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, pointerEvents: "none", ...(gearsRight ? { left: -GEAR_VIS } : { right: -GEAR_VIS }) }}>
+        <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, ...(gearsRight ? { right: 0 } : { left: 0 }) }}>
           <GearAbs id={`g-${side}-top`} side={side} OR={OR_SM} IR={IR_SM} n={N_SM} tint={grayTint} holeColor={bg} centerY={y1} rotation={r.sm} onClick={panels[0].onGear} />
           <GearAbs id={`g-${side}-mid`} side={side} OR={OR_LG} IR={IR_LG} n={N_LG} tint={blueTint} holeColor={bg} centerY={y2} rotation={r.mid} onClick={panels[1].onGear} />
           <GearAbs id={`g-${side}-bot`} side={side} OR={OR_SM} IR={IR_SM} n={N_SM} tint={grayTint} holeColor={bg} centerY={y3} rotation={r.sm} onClick={panels[2].onGear} />
         </div>
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: gearsRight ? "flex-end" : "flex-start", padding: "14px 16px 0", zIndex: 20 }}>{topSlot}</div>
-        {panels.map((p: any, i: number) => (
-          <div key={i} style={{ ...panelBase, top: p.y, zIndex: 10 }}>
-            {p.label && <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: textFaint, marginBottom: 8 }}>{p.label}</div>}
-            <button onClick={p.onPick} style={p.mid ? { ...btnStyle, display: "flex", alignItems: "center", gap: 8, justifyContent: gearsRight ? "flex-end" : "flex-start" } : p.sub ? { ...btnStyle, background: "transparent", padding: "2px 0" } : btnStyle}>
-              {p.mid && (midIdx === 0 ? <Plus size={15} /> : <Settings size={15} />)}
-              {p.sub ? (<><div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.value}</div><div style={{ fontSize: 11, color: textFaint, marginTop: 3 }}>{p.sub}</div></>) : p.value}
-            </button>
-            <div style={{ fontSize: 10, color: textFaint, marginTop: 6, opacity: 0.75 }}>click gear to cycle</div>
-          </div>
-        ))}
+        
+        {panels.map((p: any, i: number) => {
+          const isMidBtn = p.mid;
+          const justify = isMidBtn ? (gearsRight ? "flex-end" : "flex-start") : "center";
+          const align = isMidBtn ? "center" : (gearsRight ? "flex-end" : "flex-start");
+          const textDirection = isMidBtn ? "row" : "column";
+
+          return (
+            <div key={i} style={{ ...panelBase, top: p.y, zIndex: 10 }}>
+              {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: gearsRight ? "right" : "left" }}>{p.label}</div>}
+              
+              <button 
+                onClick={p.onPick} 
+                className={`gear-panel-btn ${p.sub ? 'is-sub' : ''}`}
+                style={{
+                  flexDirection: textDirection,
+                  alignItems: align,
+                  justifyContent: justify,
+                  gap: isMidBtn ? "8px" : "0",
+                  textAlign: gearsRight ? "right" : "left"
+                }}
+              >
+                {isMidBtn && (midIdx === 0 ? <Plus size={16} style={{ flexShrink: 0 }} /> : <Settings size={16} style={{ flexShrink: 0 }} />)}
+                
+                {p.sub ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', width: '100%', alignItems: gearsRight ? 'flex-end' : 'flex-start' }}>
+                    <div style={{ width: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.value}</div>
+                    <div style={{ fontSize: 10, color: textFaint, marginTop: 4, fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase" }}>{p.sub}</div>
+                  </div>
+                ) : (
+                  <span style={{ display: "block", width: "100%", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>
+                    {isMidBtn && midIdx === 0 ? p.value.replace(/^\+\s*/, '') : p.value}
+                  </span>
+                )}
+              </button>
+              
+              <div style={{ fontSize: 10, color: textFaint, marginTop: 8, opacity: 0.8, fontWeight: 500, textAlign: gearsRight ? "right" : "left" }}>click gear to cycle</div>
+            </div>
+          );
+        })}
       </aside>
     );
   };
@@ -494,7 +523,146 @@ export default function App() {
 
   return (
     <>
-      <style>{`.theme-toggle-wrapper input[type="checkbox"] { display: none !important; opacity: 0 !important; width: 0px !important; height: 0px !important; position: absolute; z-index: -100; }`}</style>
+      <style>{`
+        .theme-toggle-wrapper input[type="checkbox"] { display: none !important; opacity: 0 !important; width: 0px !important; height: 0px !important; position: absolute; z-index: -100; }
+        
+        /* FIX: Aggressively target ALL internal parts of the ChatCIT logo to force pure white in the light mode sidebar */
+        .light-mode aside .brand-logo-fix * {
+           fill: #ffffff !important;
+           stroke: #ffffff !important;
+           color: #ffffff !important;
+        }
+
+        /* GEAR PANEL BUTTONS */
+        .gear-panel-btn {
+          width: 100%;
+          padding: 10px 14px;
+          border-radius: 12px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+          backdrop-filter: blur(12px);
+          z-index: 10;
+          position: relative;
+          display: flex;
+        }
+
+        .dark-mode .gear-panel-btn {
+          background: linear-gradient(135deg, rgba(30, 35, 50, 0.7) 0%, rgba(15, 18, 25, 0.7) 100%);
+          border: 1px solid rgba(66, 133, 244, 0.2);
+          color: #e8eaed;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+        }
+        .dark-mode .gear-panel-btn:hover {
+          background: linear-gradient(135deg, rgba(40, 50, 75, 0.9) 0%, rgba(20, 25, 35, 0.9) 100%);
+          border-color: rgba(66, 133, 244, 0.9);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 20px rgba(66, 133, 244, 0.4);
+          transform: scale(1.04) translateY(-2px);
+          color: #fff;
+          text-shadow: 0 0 8px rgba(255,255,255,0.3);
+        }
+
+        .light-mode .gear-panel-btn {
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(230, 240, 255, 0.95) 100%);
+          border: 1px solid rgba(66, 133, 244, 0.4);
+          color: #0f172a;
+          box-shadow: 0 4px 12px rgba(66, 133, 244, 0.15), inset 0 2px 4px rgba(255, 255, 255, 1);
+        }
+        .light-mode .gear-panel-btn:hover {
+          background: linear-gradient(135deg, #ffffff 0%, rgba(220, 235, 255, 1) 100%);
+          border-color: rgba(66, 133, 244, 0.9);
+          box-shadow: 0 8px 24px rgba(66, 133, 244, 0.3), 0 0 20px rgba(66, 133, 244, 0.35);
+          transform: scale(1.04) translateY(-2px);
+          color: #1558d6;
+        }
+
+        .gear-panel-btn:active {
+          transform: scale(0.98) !important;
+        }
+
+        .gear-panel-btn.is-sub {
+          background: transparent !important;
+          border: 1px dashed rgba(150, 150, 150, 0.3) !important;
+          box-shadow: none !important;
+          padding: 8px 12px;
+        }
+        .dark-mode .gear-panel-btn.is-sub:hover {
+          border-color: rgba(66, 133, 244, 0.6) !important;
+          background: rgba(66, 133, 244, 0.1) !important;
+        }
+        .light-mode .gear-panel-btn.is-sub:hover {
+          border-color: rgba(66, 133, 244, 0.6) !important;
+          background: rgba(66, 133, 244, 0.05) !important;
+        }
+
+        /* NEW STANDARD SIDEBAR BUTTONS */
+        .sidebar-btn {
+          width: 100%;
+          padding: 10px 14px;
+          border-radius: 12px; 
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          border: 1px solid transparent;
+          text-align: left;
+        }
+
+        .dark-mode .sidebar-btn {
+          background: rgba(255,255,255,0.03);
+          color: #9aa0a6; 
+          border-color: rgba(255,255,255,0.05);
+        }
+        .dark-mode .sidebar-btn.primary {
+          background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.02) 100%);
+          color: #fff;
+          border-color: rgba(255,255,255,0.15);
+          font-weight: 600;
+          box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+        }
+        .dark-mode .sidebar-btn:hover {
+          background: linear-gradient(135deg, rgba(66, 133, 244, 0.2) 0%, rgba(66, 133, 244, 0.05) 100%);
+          border-color: rgba(66, 133, 244, 0.5);
+          color: #fff;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        /* FIX: Made the normal sidebar buttons distinct frosted white glass on the blue light mode sidebar */
+        .light-mode .sidebar-btn {
+          background: rgba(255,255,255,0.1);
+          color: #ffffff; 
+          border-color: rgba(255,255,255,0.2);
+        }
+        .light-mode .sidebar-btn.primary {
+          background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%);
+          color: #1558d6;
+          border-color: rgba(66, 133, 244, 0.3);
+          font-weight: 600;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .light-mode .sidebar-btn:hover {
+          background: rgba(255,255,255,0.25);
+          border-color: rgba(255,255,255,0.4);
+          color: #ffffff;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .light-mode .sidebar-btn.primary:hover {
+          background: linear-gradient(135deg, #ffffff 0%, #eef2ff 100%);
+          border-color: rgba(66, 133, 244, 0.6);
+          color: #1558d6;
+          box-shadow: 0 4px 12px rgba(66, 133, 244, 0.15);
+        }
+
+        .sidebar-btn:active {
+          transform: scale(0.98) !important;
+        }
+      `}</style>
       
       {simKiosk && <div style={{ position: "fixed", inset: 0, background: "#0a0a0a", zIndex: -1 }} />}
       
@@ -581,7 +749,7 @@ export default function App() {
           {!gearMode && (
             <aside style={{ width: RAIL_W, flexShrink: 0, background: sbBg, position: simKiosk ? "absolute" : (isMobile ? "fixed" : "relative"), top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : "auto", marginLeft: !isMobile && !sidebarOpen ? -RAIL_W : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
               
-              <div style={{ position: "absolute", top: 0, bottom: 0, right: -GEAR_VIS, width: GEAR_VIS, zIndex: 1 }}>
+              <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: GEAR_VIS, zIndex: 1, pointerEvents: "none" }}>
                 <GearAbs id="left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + 100} rotation={-leftAngle * RATIO + (180 / N_SM)} onClick={() => setSidebarOpen(true)} />
               </div>
 
@@ -591,7 +759,10 @@ export default function App() {
                     <div style={{ width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center" }}>
                       <Settings color={dark ? "#4285f4" : "#1e3a8a"} className="animate-spin" style={{ animationDuration: '3s' }} size={24} />
                     </div>
-                    <ChatCITLogo dark={dark} onBlue />
+                    {/* ENFORCED BRAND LOGO FIX DIV */}
+                    <div className="brand-logo-fix">
+                      <ChatCITLogo dark={dark} onBlue />
+                    </div>
                   </div>
                   <button onClick={() => setSidebarOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: sb.muted }}><ArrowLeft size={15} /></button>
                 </div>
@@ -600,8 +771,8 @@ export default function App() {
                     
                     {viewMode === "admin" ? (
                       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
-                        <button onClick={() => { setViewMode("chat"); if(isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer", background: dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.25)", color: sb.text, fontSize: 13, fontWeight: 500, boxShadow: dark ? "none" : "0 2px 5px rgba(0,0,0,0.05)" }}>
-                          <div style={{ width: 22, height: 22, borderRadius: "50%", background: dark ? "rgba(255,255,255,0.18)" : "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", color: dark ? "#fff" : "#1558d6" }}><ArrowLeft size={13} /></div>Back to Chat
+                        <button onClick={() => { setViewMode("chat"); if(isMobile) setSidebarOpen(false); }} className="sidebar-btn primary">
+                          <ArrowLeft size={16} /> Back to Chat
                         </button>
 
                         {adminTab === 'knowledge' && (
@@ -609,7 +780,7 @@ export default function App() {
                             <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Database Categories</span></div>
                             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                               {["All", ...allDynamicCategories].map(cat => (
-                                <button key={cat} onClick={() => { setAdminCategory(cat); if(isMobile) setSidebarOpen(false); }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: adminCategory === cat ? sb.active : "transparent", color: adminCategory === cat ? sb.text : sb.muted, border: `1px solid ${adminCategory === cat ? sb.border : 'transparent'}`, fontSize: 13, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={(e) => { if(adminCategory !== cat) e.currentTarget.style.background = sb.hover; }} onMouseLeave={(e) => { if(adminCategory !== cat) e.currentTarget.style.background = "transparent"; }}>{cat}</button>
+                                <button key={cat} onClick={() => { setAdminCategory(cat); if(isMobile) setSidebarOpen(false); }} className={`sidebar-btn ${adminCategory === cat ? 'primary' : ''}`}>{cat}</button>
                               ))}
                               <button onClick={() => requireAuth(() => {
                                 const newCat = window.prompt("Enter new category name:");
@@ -618,7 +789,7 @@ export default function App() {
                                   setAdminCategory(newCat.trim());
                                   showToast(`Added new tab: ${newCat.trim()}`, "success");
                                 }
-                              })} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: "transparent", color: sb.muted, border: `1px dashed ${sb.faint}`, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.background = sb.hover} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}><Plus size={14}/> Add Custom Tab</button>
+                              })} className="sidebar-btn" style={{ border: `1px dashed ${sb.faint}` }}><Plus size={14}/> Add Custom Tab</button>
                             </div>
                           </div>
                         )}
@@ -628,7 +799,7 @@ export default function App() {
                             <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Departments Filter</span></div>
                             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                               {ALL_DEPTS.map(dept => (
-                                <button key={dept} onClick={() => { setAdminDept(dept); if(isMobile) setSidebarOpen(false); }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: adminDept === dept ? sb.active : "transparent", color: adminDept === dept ? sb.text : sb.muted, border: `1px solid ${adminDept === dept ? sb.border : 'transparent'}`, fontSize: 13, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={(e) => { if(adminDept !== dept) e.currentTarget.style.background = sb.hover; }} onMouseLeave={(e) => { if(adminDept !== dept) e.currentTarget.style.background = "transparent"; }}>{dept}</button>
+                                <button key={dept} onClick={() => { setAdminDept(dept); if(isMobile) setSidebarOpen(false); }} className={`sidebar-btn ${adminDept === dept ? 'primary' : ''}`}>{dept}</button>
                               ))}
                             </div>
                           </div>
@@ -643,11 +814,11 @@ export default function App() {
                     ) : (
                       <>
                         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
-                          <button onClick={() => requireAuth(() => {setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false);})} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer", background: dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.25)", color: sb.text, fontSize: 13, fontWeight: 500, boxShadow: dark ? "none" : "0 2px 5px rgba(0,0,0,0.05)" }}>
-                            <div style={{ width: 22, height: 22, borderRadius: "50%", background: dark ? "rgba(255,255,255,0.18)" : "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", color: dark ? "#fff" : "#1558d6" }}><Plus size={13} /></div>New chat
+                          <button onClick={() => requireAuth(() => {setActiveChatId(null); setViewMode("chat"); if(isMobile) setSidebarOpen(false);})} className="sidebar-btn primary">
+                            <Plus size={16} /> New chat
                           </button>
-                          <button onClick={() => { setGearMode(true); if(isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: `1px solid ${sb.border}`, background: "transparent", color: sb.text, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
-                            <Settings size={14} /> Change taskbar mode
+                          <button onClick={() => { setGearMode(true); if(isMobile) setSidebarOpen(false); }} className="sidebar-btn primary">
+                            <Settings size={16} /> Change taskbar mode
                           </button>
                         </div>
 
@@ -655,25 +826,25 @@ export default function App() {
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 24 }}>
                           {QUICK_PROMPTS.map((lbl: string) => (
                             <button key={lbl} onClick={() => { 
-                              if (lbl.toLowerCase() === 'facilities') {
+                              if (lbl.toLowerCase().includes('facilities')) {
                                 sendMessage(lbl); if(isMobile) setSidebarOpen(false);
                               } else {
                                 requireAuth(() => { sendMessage(lbl); if(isMobile) setSidebarOpen(false); });
                               }
-                            }} style={{ textAlign: "left", padding: "8px 14px", borderRadius: 10, background: "transparent", color: sb.muted, border: `1px solid ${sb.border}`, fontSize: 13, cursor: "pointer" }} onMouseEnter={(e) => { e.currentTarget.style.background = sb.hover; e.currentTarget.style.color = sb.text; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = sb.muted; }}>{lbl}</button>
+                            }} className="sidebar-btn">{lbl}</button>
                           ))}
                         </div>
                         
                         {currentUser && Number(currentUser.id) !== -1 && chats.length > 0 && (
                           <>
                             <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Recent</span></div>
-                            <div style={{ maxHeight: 200, overflowY: "auto", padding: "0 4px", display: "flex", flexDirection: "column", gap: 3 }}>
+                            <div style={{ maxHeight: 200, overflowY: "auto", padding: "0 4px", display: "flex", flexDirection: "column", gap: 4 }}>
                               {chats.slice(0, 5).map((chat: Chat) => (
-                                <div key={chat.id} className="group" style={{ display: "flex", alignItems: "center", width: "100%", borderRadius: 10, background: activeChatId === chat.id && viewMode === "chat" ? sb.active : "transparent" }}>
-                                  <button onClick={() => requireAuth(() => { setActiveChatId(chat.id); setViewMode("chat"); if(isMobile) setSidebarOpen(false); })} style={{ flex: 1, textAlign: "left", padding: "9px 12px", background: "transparent", border: "none", cursor: "pointer", color: sb.text, minWidth: 0 }}>
-                                    <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chat.title}</div>
+                                <div key={chat.id} className="group" style={{ display: "flex", alignItems: "center", width: "100%", gap: 4 }}>
+                                  <button onClick={() => requireAuth(() => { setActiveChatId(chat.id); setViewMode("chat"); if(isMobile) setSidebarOpen(false); })} className={`sidebar-btn ${activeChatId === chat.id && viewMode === "chat" ? 'primary' : ''}`} style={{ flex: 1, padding: "8px 12px" }}>
+                                    <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>{chat.title}</div>
                                   </button>
-                                  <button onClick={(e) => { e.stopPropagation(); requireAuth(() => deleteChat(chat.id)); }} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ padding: "8px 10px", background: "transparent", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer" }}><Trash2 size={13} /></button>
+                                  <button onClick={(e) => { e.stopPropagation(); requireAuth(() => deleteChat(chat.id)); }} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ padding: "8px", background: "transparent", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer" }}><Trash2 size={15} /></button>
                                 </div>
                               ))}
                             </div>
@@ -737,14 +908,7 @@ export default function App() {
               )}
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 {isMobile && <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer", zIndex: 60 }}><MoreVertical size={20} /></button>}
-                
-                {(!isMobile && !gearMode) && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <button onClick={() => requireAuth(() => setShowBugModal(true))} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 8, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "none", color: "#ef4444", cursor: "pointer" }}><Bug size={18} /></button>
-                    <button onClick={() => requireAuth(() => setShowCalendar(true))} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 8, background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", border: "none", color: "#10b981", cursor: "pointer" }}><Calendar size={18} /></button>
-                    <div className="theme-toggle-wrapper"><DayNightToggle dark={dark} toggleDark={() => setDark(!dark)} /></div>
-                  </div>
-                )}
+                {/* DELIBERATELY DELETED DUPLICATE HEADER BUTTONS HERE SO THEY ONLY RENDER ON THE RIGHT RAIL */}
               </div>
             </header>
 
@@ -767,7 +931,7 @@ export default function App() {
                   <h1 style={{ fontSize: isMobile ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{currentUser && Number(currentUser.id) === -1 ? "Guest" : currentUser?.username || currentUser?.email?.split('@')[0] || "Bulsuan"}!</strong></h1>
                   <p style={{ color: textMuted, fontSize: 15, marginBottom: 32, textAlign: "center" }}>How can I help you today?</p>
                   
-                  {/* HIDE TOP FAQS IF GUEST */}
+                  {/* HIDE TOP FAQS FOR GUESTS */}
                   {topFaqs.length > 0 && (!currentUser || Number(currentUser.id) !== -1) && (
                     <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, maxWidth: 700 }}>
                       {topFaqs.slice(0, isMobile ? 3 : topFaqs.length).map((faq, idx) => {
