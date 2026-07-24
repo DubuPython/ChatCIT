@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { GearboxLoader } from "./helpers";
+import { GearboxLoader } from "./helpers"; 
 
 export function CanvasPDFViewer({ fileUrl, dark, onEnlarge, onLoad, isMobile }: { fileUrl: string, dark: boolean, onEnlarge: (url: string) => void, onLoad: () => void, isMobile: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -29,7 +29,18 @@ export function CanvasPDFViewer({ fileUrl, dark, onEnlarge, onLoad, isMobile }: 
       }
       
       try {
-         const cleanUrl = fileUrl.split('#')[0];
+         let cleanUrl = fileUrl.split('#')[0];
+         const lowerUrl = cleanUrl.toLowerCase();
+         
+         // BULLETPROOF FILE PATH ROUTER
+         if (lowerUrl.includes('handbook')) {
+             cleanUrl = '/handbook.pdf';
+         } else if (lowerUrl.includes('magna')) {
+             cleanUrl = '/magna-carta.pdf'; // Fixed exact spelling from your screenshot!
+         } else if (cleanUrl.includes('/docs/')) {
+             cleanUrl = cleanUrl.replace('/docs/', '/');
+         }
+
          const loadingTask = (window as any).pdfjsLib.getDocument(cleanUrl);
          const pdf = await loadingTask.promise;
          
@@ -41,6 +52,7 @@ export function CanvasPDFViewer({ fileUrl, dark, onEnlarge, onLoad, isMobile }: 
            setPage(startPage);
          }
       } catch(e) {
+         console.error("Chat PDF Error:", e);
          if(isMounted) setLoading(false);
       }
     };
@@ -64,7 +76,9 @@ export function CanvasPDFViewer({ fileUrl, dark, onEnlarge, onLoad, isMobile }: 
           const renderContext = { canvasContext: ctx, viewport: viewport };
           await pdfPage.render(renderContext).promise;
           onLoad();
-        } catch(e) {}
+        } catch(e) {
+          console.error("Render Page Error", e);
+        }
         setLoading(false);
      };
      renderPage();
@@ -88,7 +102,7 @@ export function CanvasPDFViewer({ fileUrl, dark, onEnlarge, onLoad, isMobile }: 
             </div>
           </div>
         )}
-        <canvas ref={canvasRef} onClick={() => { if(canvasRef.current) { try { onEnlarge(canvasRef.current.toDataURL()); } catch(e) {} } }} style={{ width: '100%', height: 'auto', display: 'block', opacity: loading ? 0.3 : 1, transition: 'opacity 0.3s', cursor: 'zoom-in' }} />
+        <canvas ref={canvasRef} onClick={() => { if(canvasRef.current) { try { onEnlarge(canvasRef.current.toDataURL()); } catch(e) {} } }} style={{ width: '100%', height: 'auto', display: 'block', opacity: loading ? 0.3 : 1, transition: 'opacity 0.3s', cursor: 'zoom-in', background: '#fff' }} />
       </div>
     </div>
   );
