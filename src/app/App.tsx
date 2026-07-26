@@ -169,7 +169,7 @@ export default function App() {
   const [docIdx, setDocIdx] = useState(0);
 
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
-  const [topFaqs, setTopFaqs] = useState<{keyword: string}[]>([]);
+  const [topFaqs, setTopFaqs] = useState<{keyword: string, display_name?: string}[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activeChat = chats.find((c) => c.id === activeChatId) ?? null;
@@ -628,13 +628,23 @@ export default function App() {
                 <p style={{ color: textMuted, fontSize: 15, marginBottom: 32, textAlign: "center" }}>How can I help you today?</p>
                 
                 {topFaqs.length > 0 && (!currentUser || Number(currentUser.id) !== -1) && (
-                  <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, maxWidth: 700 }}>
-                    {topFaqs.slice(0, isMobile ? 3 : topFaqs.length).map((faq, idx) => {
-                      const primaryTag = faq.keyword ? faq.keyword.split(',')[0].trim() : "Question";
-                      return (
-                        <button key={idx} onClick={() => sendMessage(primaryTag)} style={{ padding: "10px 18px", borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? "rgba(255,255,255,0.03)" : "#fff", color: textPrimary, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s ease" }} onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.08)" : "#ffffff"} onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.03)" : "#fff"}>{primaryTag}</button>
-                      );
-                    })}
+                  <div className="no-scrollbar" style={{ width: "100%", maxWidth: 700, overflowX: "auto", display: "flex", padding: "4px 0" }}>
+                    <div style={{ display: "flex", gap: 10, margin: "0 auto", padding: "0 16px" }}>
+                      {topFaqs.slice(0, isMobile ? 5 : topFaqs.length).map((faq, idx) => {
+                        const primaryTag = faq.display_name || (faq.keyword ? faq.keyword.split(',')[0].trim() : "Question");
+                        return (
+                          <button 
+                            key={idx} 
+                            onClick={() => sendMessage(primaryTag)} 
+                            style={{ flexShrink: 0, padding: "10px 18px", borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? "rgba(255,255,255,0.03)" : "#fff", color: textPrimary, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "nowrap" }} 
+                            onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.08)" : "#ffffff"} 
+                            onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.03)" : "#fff"}
+                          >
+                            {primaryTag}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>

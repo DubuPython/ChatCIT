@@ -299,15 +299,15 @@ export function AdminPanel({
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button onClick={handleResetFaqCounters} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: "rgba(239, 68, 68, 0.1)", color: "#ef4444", cursor: "pointer", fontWeight: 600, fontSize: 13 }}><RotateCcw size={14} /> Reset All Counters</button>
           </div>
-          <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto" }}>
+          <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", maxHeight: "60vh", overflowY: "auto" }} className="no-scrollbar">
             {data.length === 0 ? (
               <div style={{ padding: 40, textAlign: "center", opacity: 0.5 }}>No data found.</div>
             ) : (
               <table style={{ width: "100%", minWidth: 600, borderCollapse: "collapse", textAlign: "left", fontSize: 14 }}>
-                <thead>
-                  <tr style={{ borderBottom: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" }}>
+                <thead style={{ position: "sticky", top: 0, zIndex: 10, background: dark ? "#25242c" : "#fff" }}>
+                  <tr style={{ borderBottom: `1px solid ${border}` }}>
                     <th style={{ padding: "14px 16px", fontWeight: 600, width: 60 }}>Rank</th>
-                    <th style={{ padding: "14px 16px", fontWeight: 600 }}>Keywords</th>
+                    <th style={{ padding: "14px 16px", fontWeight: 600 }}>Keywords & Name</th>
                     <th style={{ padding: "14px 16px", fontWeight: 600 }}>Factual Response</th>
                     <th style={{ padding: "14px 16px", fontWeight: 600, textAlign: "right" }}>Times Asked</th>
                   </tr>
@@ -316,7 +316,10 @@ export function AdminPanel({
                   {[...data].sort((a: any, b: any) => (b.usage_count || 0) - (a.usage_count || 0)).map((row: any, index) => (
                     <tr key={row.id} style={{ borderBottom: `1px solid ${border}` }}>
                       <td style={{ padding: "14px 16px", verticalAlign: "top", fontWeight: 700, color: "#4285f4" }}>#{index + 1}</td>
-                      <td style={{ padding: "14px 16px", verticalAlign: "top", fontWeight: 500 }}>{row.keyword}</td>
+                      <td style={{ padding: "14px 16px", verticalAlign: "top" }}>
+                        <div style={{ fontWeight: 600, color: dark ? '#fff' : '#000' }}>{row.display_name || row.keyword.split(',')[0]}</div>
+                        {row.display_name && <div style={{ fontSize: 11, color: textMuted, marginTop: 4 }}>{row.keyword}</div>}
+                      </td>
                       <td style={{ padding: "14px 16px", verticalAlign: "top", opacity: 0.9, lineHeight: 1.5 }}><div style={{ maxHeight: 42, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{row.response}</div></td>
                       <td style={{ padding: "14px 16px", verticalAlign: "top", textAlign: "right", fontWeight: 600, fontSize: 16 }}>{row.usage_count || 0}</td>
                     </tr>
@@ -329,13 +332,13 @@ export function AdminPanel({
       )}
 
       {activeTab === 'unanswered' && (
-        <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto" }}>
+        <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", maxHeight: "60vh", overflowY: "auto" }} className="no-scrollbar">
           {filteredUnanswered.length === 0 ? (
             <div style={{ padding: 40, textAlign: "center", color: textMuted }}>No unanswered queries found.</div>
           ) : (
             <table style={{ width: "100%", minWidth: 600, borderCollapse: "collapse", textAlign: "left", fontSize: 14 }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" }}>
+              <thead style={{ position: "sticky", top: 0, zIndex: 10, background: dark ? "#25242c" : "#fff" }}>
+                <tr style={{ borderBottom: `1px solid ${border}` }}>
                   <th style={{ padding: "14px 16px", fontWeight: 600 }}>Unanswered Question from User</th>
                   <th style={{ padding: "14px 16px", fontWeight: 600, width: 200, textAlign: "right" }}>Actions</th>
                 </tr>
@@ -357,13 +360,13 @@ export function AdminPanel({
       )}
 
       {activeTab === 'bugs' && (
-        <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto" }}>
+        <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", maxHeight: "60vh", overflowY: "auto" }} className="no-scrollbar">
           {filteredBugs.length === 0 ? (
             <div style={{ padding: 40, textAlign: "center", color: textMuted }}>No bug reports found.</div>
           ) : (
             <table style={{ width: "100%", minWidth: 600, borderCollapse: "collapse", textAlign: "left", fontSize: 14 }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" }}>
+              <thead style={{ position: "sticky", top: 0, zIndex: 10, background: dark ? "#25242c" : "#fff" }}>
+                <tr style={{ borderBottom: `1px solid ${border}` }}>
                   <th style={{ padding: "14px 16px", fontWeight: 600, width: 150 }}>Reported By</th>
                   <th style={{ padding: "14px 16px", fontWeight: 600 }}>Issue Description</th>
                   <th style={{ padding: "14px 16px", fontWeight: 600, width: 80, textAlign: "right" }}>Actions</th>
@@ -376,47 +379,6 @@ export function AdminPanel({
                     <td style={{ padding: "14px 16px", verticalAlign: "top", opacity: 0.9, lineHeight: 1.5 }}>{row.description}</td>
                     <td style={{ padding: "14px 16px", verticalAlign: "top", textAlign: "right" }}>
                       <button onClick={() => handleDelete('bugs', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 6 }} title="Resolve / Delete"><CheckCircle size={16} /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'users' && (
-        <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto" }}>
-          {filteredUsers.length === 0 ? (
-            <div style={{ padding: 40, textAlign: "center", color: textMuted }}>No users found.</div>
-          ) : (
-            <table style={{ width: "100%", minWidth: 600, borderCollapse: "collapse", textAlign: "left", fontSize: 14 }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" }}>
-                  <th style={{ padding: "14px 16px", fontWeight: 600 }}>Username / Email</th>
-                  <th style={{ padding: "14px 16px", fontWeight: 600 }}>Department</th>
-                  <th style={{ padding: "14px 16px", fontWeight: 600 }}>Role</th>
-                  <th style={{ padding: "14px 16px", fontWeight: 600, width: 140, textAlign: "right" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((user: any) => (
-                  <tr key={user.id} style={{ borderBottom: `1px solid ${border}` }}>
-                    <td style={{ padding: "14px 16px", verticalAlign: "middle", fontWeight: 500 }}>
-                      {user.username || "—"} <br />
-                      <span style={{ fontSize: 12, color: textMuted, fontWeight: 400 }}>{user.email}</span>
-                    </td>
-                    <td style={{ padding: "14px 16px", verticalAlign: "middle", color: dark ? "#fff" : "#000" }}>{user.department || "Others"}</td>
-                    <td style={{ padding: "14px 16px", verticalAlign: "middle" }}>
-                      <select value={user.role} disabled={currentUser?.role !== 'superadmin' && user.role === 'superadmin'} onChange={(e) => handleRoleChange(user.id, e.target.value)} style={{ padding: "6px 8px", borderRadius: 6, background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', color: user.role === 'admin' || user.role === 'superadmin' ? '#4285f4' : textMuted, border: `1px solid ${border}`, outline: "none", cursor: (currentUser?.role !== 'superadmin' && user.role === 'superadmin') ? "not-allowed" : "pointer", fontWeight: 600 }}>
-                        <option value="student" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Student</option>
-                        <option value="admin" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Admin</option>
-                        {(currentUser?.role === 'superadmin' || user.role === 'superadmin') && (<option value="superadmin" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Superadmin</option>)}
-                      </select>
-                    </td>
-                    <td style={{ padding: "14px 16px", verticalAlign: "middle", textAlign: "right", whiteSpace: "nowrap" }}>
-                      <button onClick={() => handleResetPassword(user.id, user.email)} style={{ background: "none", border: "none", color: "#f59e0b", cursor: "pointer", padding: 6 }} title="Generate New Password"><Key size={16} /></button>
-                      <button onClick={() => handleDelete('users', user.id)} disabled={user.role === 'admin' || user.role === 'superadmin'} style={{ background: "none", border: "none", color: (user.role === 'admin' || user.role === 'superadmin') ? textMuted : "#ef4444", cursor: (user.role === 'admin' || user.role === 'superadmin') ? "not-allowed" : "pointer", padding: 6, marginLeft: 4 }} title={(user.role === 'admin' || user.role === 'superadmin') ? "Cannot delete admins" : "Delete User Account"}><Trash2 size={16} /></button>
                     </td>
                   </tr>
                 ))}
