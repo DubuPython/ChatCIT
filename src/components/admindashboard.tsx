@@ -5,42 +5,25 @@ import { Knowledge, Unanswered, BugReport, User } from "../types";
 import { API_URL } from "../config";
 
 const defaultCategoryColors: Record<string, string> = {
-  "All": "#6b7280", 
-  "Organizations": "#8b5cf6", 
-  "Majors": "#3b82f6", 
-  "Documents": "#10b981", 
-  "Handbook": "#f59e0b",
-  "Industry Partners": "#ef4444",
-  "Facilities": "#14b8a6",
-  "Faculty & Teachers": "#ec4899",
-  "Faculty & Professors": "#ec4899",
-  "Magna Carta": "#eab308", 
-  "General": "#ef4444"
+  "All": "#6b7280", "Organizations": "#8b5cf6", "Majors": "#3b82f6", "Documents": "#10b981", "Handbook": "#f59e0b",
+  "Industry Partners": "#ef4444", "Facilities": "#14b8a6", "Faculty & Teachers": "#ec4899", "Faculty & Professors": "#ec4899",
+  "Magna Carta": "#eab308", "General": "#ef4444"
 };
 
 const getColorForCategory = (cat: string) => {
   if (defaultCategoryColors[cat]) return defaultCategoryColors[cat];
-  let hash = 0;
-  for (let i = 0; i < cat.length; i++) hash = cat.charCodeAt(i) + ((hash << 5) - hash);
+  let hash = 0; for (let i = 0; i < cat.length; i++) hash = cat.charCodeAt(i) + ((hash << 5) - hash);
   return `hsl(${hash % 360}, 70%, 55%)`;
 }
 
 export function AdminPanel({
-  dark, showToast, currentUser,
-  activeTab, setActiveTab,
-  activeCategoryTab, activeDeptTab,
-  allCategories, mergedSubCategoriesMap,
-  setDbCategories, setDbSubCategories
+  dark, showToast, currentUser, activeTab, setActiveTab, activeCategoryTab, activeDeptTab,
+  allCategories, mergedSubCategoriesMap, setDbCategories, setDbSubCategories
 }: {
   dark: boolean; showToast: (msg: string, type: 'success' | 'error' | 'info') => void; currentUser: User;
-  activeTab: 'knowledge'|'faq'|'unanswered'|'bugs'|'users';
-  setActiveTab: (t: 'knowledge'|'faq'|'unanswered'|'bugs'|'users') => void;
-  activeCategoryTab: string;
-  activeDeptTab: string;
-  allCategories: string[];
-  mergedSubCategoriesMap: Record<string, string[]>;
-  setDbCategories: (cats: string[]) => void;
-  setDbSubCategories: (cats: Record<string, string[]>) => void;
+  activeTab: 'knowledge'|'faq'|'unanswered'|'bugs'|'users'; setActiveTab: (t: 'knowledge'|'faq'|'unanswered'|'bugs'|'users') => void;
+  activeCategoryTab: string; activeDeptTab: string; allCategories: string[]; mergedSubCategoriesMap: Record<string, string[]>;
+  setDbCategories: (cats: string[]) => void; setDbSubCategories: (cats: Record<string, string[]>) => void;
 }) {
   
   const [data, setData] = useState<Knowledge[]>([]);
@@ -49,7 +32,6 @@ export function AdminPanel({
   const [users, setUsers] = useState<User[]>([]); 
 
   const [editingId, setEditingId] = useState<number | null>(null);
-  
   const [form, setForm] = useState({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All", display_name: "" });
   const [keywordInput, setKeywordInput] = useState(""); 
   
@@ -57,82 +39,41 @@ export function AdminPanel({
   const [searchQuery, setSearchQuery] = useState(""); 
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false); 
-
   const [fullScreenMedia, setFullScreenMedia] = useState<string | null>(null);
 
-  const [modal, setModal] = useState<{
-    isOpen: boolean, type: 'confirm' | 'prompt', title: string, message: string, inputValue: string, onConfirm: (val?: string) => void
-  }>({ isOpen: false, type: 'confirm', title: '', message: '', inputValue: '', onConfirm: () => {} });
+  const [modal, setModal] = useState<{ isOpen: boolean, type: 'confirm' | 'prompt', title: string, message: string, inputValue: string, onConfirm: (val?: string) => void }>({ isOpen: false, type: 'confirm', title: '', message: '', inputValue: '', onConfirm: () => {} });
 
-  const CLOUD_NAME = "xjzuq0fq";       
-  const UPLOAD_PRESET = "chatcit_preset"; 
+  const CLOUD_NAME = "xjzuq0fq"; const UPLOAD_PRESET = "chatcit_preset"; 
 
   const fetchData = async () => {
     setIsSyncing(true);
     try {
-      const [kRes, uRes, bRes, userRes] = await Promise.all([
-        fetch(`${API_URL}/knowledge`),
-        fetch(`${API_URL}/unanswered`),
-        fetch(`${API_URL}/bugs`),
-        fetch(`${API_URL}/users`) 
-      ]);
-      const kData = await kRes.json();
-      setData(kData);
-      setUnanswered(await uRes.json());
-      setBugs(await bRes.json());
-      setUsers(await userRes.json());
+      const [kRes, uRes, bRes, userRes] = await Promise.all([ fetch(`${API_URL}/knowledge`), fetch(`${API_URL}/unanswered`), fetch(`${API_URL}/bugs`), fetch(`${API_URL}/users`) ]);
+      const kData = await kRes.json(); setData(kData); setUnanswered(await uRes.json()); setBugs(await bRes.json()); setUsers(await userRes.json());
       
       setDbCategories(Array.from(new Set(kData.map((d: any) => d.category || "Handbook"))));
-      
       const groupedSubs: Record<string, string[]> = {};
-      kData.forEach((d: any) => {
-         const cat = d.category || "Handbook";
-         const sub = d.subcategory;
-         if (sub && sub !== 'All') {
-            if (!groupedSubs[cat]) groupedSubs[cat] = [];
-            if (!groupedSubs[cat].includes(sub)) groupedSubs[cat].push(sub);
-         }
-      });
+      kData.forEach((d: any) => { const cat = d.category || "Handbook"; const sub = d.subcategory; if (sub && sub !== 'All') { if (!groupedSubs[cat]) groupedSubs[cat] = []; if (!groupedSubs[cat].includes(sub)) groupedSubs[cat].push(sub); } });
       setDbSubCategories(groupedSubs);
-      
-    } catch (e) { 
-      showToast("Failed to fetch dashboard data.", "error"); 
-    } finally { 
-      setLoading(false); setIsSyncing(false);
-    }
+    } catch (e) { showToast("Failed to fetch dashboard data.", "error"); } finally { setLoading(false); setIsSyncing(false); }
   };
   
   useEffect(() => { fetchData(); }, []);
   useEffect(() => { setSearchQuery(""); }, [activeTab]);
 
   const keywordsList = form.keyword ? form.keyword.split(',').map(k => k.trim()).filter(Boolean) : [];
-
-  const handleAddKeyword = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      const val = keywordInput.trim().replace(/,/g, '');
-      if (val && !keywordsList.includes(val)) setForm({ ...form, keyword: [...keywordsList, val].join(', ') });
-      setKeywordInput("");
-    }
-  };
-
+  const handleAddKeyword = (e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); const val = keywordInput.trim().replace(/,/g, ''); if (val && !keywordsList.includes(val)) setForm({ ...form, keyword: [...keywordsList, val].join(', ') }); setKeywordInput(""); } };
   const removeKeyword = (toRemove: string) => { setForm({ ...form, keyword: keywordsList.filter(k => k !== toRemove).join(', ') }); };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadingImage(true);
-    const formData = new FormData();
-    formData.append("file", file); formData.append("upload_preset", UPLOAD_PRESET); formData.append("cloud_name", CLOUD_NAME);
-
+    const file = e.target.files?.[0]; if (!file) return; setUploadingImage(true);
+    const formData = new FormData(); formData.append("file", file); formData.append("upload_preset", UPLOAD_PRESET); formData.append("cloud_name", CLOUD_NAME);
     try {
       const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
       const uploadedData = await res.json();
       if (uploadedData.secure_url) { setForm({ ...form, picture_url: uploadedData.secure_url }); showToast("Image uploaded successfully!", "success"); } 
       else { showToast(`Upload failed: ${uploadedData.error?.message || "Check Console"}`, "error"); }
-    } catch (err) { showToast("Network error. Check your connection or Cloudinary API URL.", "error"); } 
-    finally { setUploadingImage(false); }
+    } catch (err) { showToast("Network error. Check your connection or Cloudinary API URL.", "error"); } finally { setUploadingImage(false); }
   };
 
   const handleSaveKnowledge = async (id?: number) => {
@@ -140,15 +81,20 @@ export function AdminPanel({
     try {
       const res = await fetch(id ? `${API_URL}/knowledge/${id}` : `${API_URL}/knowledge`, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
       if (!res.ok) throw new Error((await res.json()).error || "Server failed to save record.");
-      setEditingId(null); setForm({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All", display_name: "" }); setKeywordInput("");
-      fetchData(); showToast(id ? "Record updated!" : "New record added!", "success");
+      setEditingId(null); setForm({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All", display_name: "" }); setKeywordInput(""); fetchData(); showToast(id ? "Record updated!" : "New record added!", "success");
     } catch (e: any) { showToast(e.message || "Error saving record.", "error"); }
   };
 
   const handleDelete = (type: 'knowledge'|'unanswered'|'bugs'|'users', id: number) => {
     setModal({
       isOpen: true, type: 'confirm', title: 'Confirm Deletion', message: `Are you sure you want to delete this ${type === 'users' ? 'user account' : 'entry'}? This action cannot be undone.`, inputValue: '',
-      onConfirm: async () => { try { await fetch(`${API_URL}/${type}/${id}`, { method: "DELETE" }); fetchData(); showToast("Deleted successfully.", "info"); } catch (e) { showToast("Error deleting item.", "error"); } }
+      onConfirm: async () => { 
+        try { 
+          const res = await fetch(`${API_URL}/${type}/${id}`, { method: "DELETE" }); 
+          if (!res.ok) throw new Error("Server rejected deletion");
+          fetchData(); showToast("Deleted successfully.", "info"); 
+        } catch (e) { showToast("Error deleting item.", "error"); } 
+      }
     });
   };
 
@@ -169,8 +115,11 @@ export function AdminPanel({
     setModal({
       isOpen: true, type: 'confirm', title: 'Reset FAQ Analytics', message: 'Are you sure you want to completely reset all "Times Asked" counters back to zero? This action cannot be undone.', inputValue: '',
       onConfirm: async () => {
-        try { const res = await fetch(`${API_URL}/faqs/reset`, { method: "PUT" }); if (res.ok) { showToast("FAQ counters have been reset to zero.", "success"); fetchData(); } else { showToast("Failed to reset counters.", "error"); } } 
-        catch (e) { showToast("Error resetting counters.", "error"); }
+        try { 
+           const res = await fetch(`${API_URL}/faqs/reset`, { method: "PUT", headers: { "Content-Type": "application/json" } }); 
+           if (!res.ok) throw new Error("Server rejected reset");
+           showToast("FAQ counters have been reset to zero.", "success"); fetchData(); 
+        } catch (e) { showToast("Error resetting counters.", "error"); }
       }
     });
   };
@@ -195,59 +144,33 @@ export function AdminPanel({
     const matchSearch = d.keyword.toLowerCase().includes(q) || d.response.toLowerCase().includes(q) || ((d as any).display_name || "").toLowerCase().includes(q);
     const dbSub = ((d as any).subcategory || "All").toLowerCase();
     const matchSub = activeDeptTab === "All" || dbSub === activeDeptTab.toLowerCase();
-    
     if (activeCategoryTab.includes('Faculty') || activeCategoryTab.includes('Industry')) { return matchCat && matchSub && matchSearch; }
     return matchCat && matchSearch;
   });
 
   const filteredUnanswered = unanswered.filter(u => u.question.toLowerCase().includes(q));
   const filteredBugs = bugs.filter(b => b.user_info.toLowerCase().includes(q) || b.description.toLowerCase().includes(q));
-  
   const filteredUsers = users.filter(u => {
     const matchesSearch = u.email.toLowerCase().includes(q) || (u.username && u.username.toLowerCase().includes(q));
     const matchesDept = activeDeptTab === "All" || (u.department || "Others") === activeDeptTab;
     return matchesSearch && matchesDept;
   });
 
-  const departmentCounts = users.reduce((acc, u) => {
-    const dept = (u as any).department || "Others";
-    acc[dept] = (acc[dept] || 0) + 1; acc["Total Users"] = (acc["Total Users"] || 0) + 1; return acc;
-  }, {} as Record<string, number>);
+  const departmentCounts = users.reduce((acc, u) => { const dept = (u as any).department || "Others"; acc[dept] = (acc[dept] || 0) + 1; acc["Total Users"] = (acc["Total Users"] || 0) + 1; return acc; }, {} as Record<string, number>);
+  const bg = dark ? "#25242c" : "#fff"; const border = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"; const textMuted = dark ? "#9aa0a6" : "#6b7280";
 
-  const bg = dark ? "#25242c" : "#fff";
-  const border = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)";
-  const textMuted = dark ? "#9aa0a6" : "#6b7280";
-
-  if (loading) {
-    return (
-      <div style={{ display: "flex", height: "80vh", width: "100%", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ transform: "scale(0.8)" }}><GearboxLoader /></div>
-      </div>
-    );
-  }
+  if (loading) return (<div style={{ display: "flex", height: "80vh", width: "100%", alignItems: "center", justifyContent: "center" }}><div style={{ transform: "scale(0.8)" }}><GearboxLoader /></div></div>);
 
   return (
-    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 16px" }}>
+    <div style={{ maxWidth: 1400, width: "100%", margin: "0 auto", padding: "32px 16px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 16 }}>
-        <h2 style={{ margin: 0, fontSize: 24, fontWeight: 600, display: "flex", alignItems: "center", gap: 10 }}>
-          <Database size={24} color="#4285f4" /> Admin Dashboard
-        </h2>
+        <h2 style={{ margin: 0, fontSize: 24, fontWeight: 600, display: "flex", alignItems: "center", gap: 10 }}><Database size={24} color="#4285f4" /> Admin Dashboard</h2>
         <div style={{ display: "flex", background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", borderRadius: 10, padding: 4, flexWrap: "nowrap", overflowX: "auto", maxWidth: "100%" }}>
-          <button onClick={() => setActiveTab('knowledge')} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: activeTab === 'knowledge' ? "#4285f4" : "transparent", color: activeTab === 'knowledge' ? "#fff" : textMuted, fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}>
-            <Database size={14} /> Database
-          </button>
-          <button onClick={() => setActiveTab('faq')} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: activeTab === 'faq' ? "#4285f4" : "transparent", color: activeTab === 'faq' ? "#fff" : textMuted, fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}>
-            <TrendingUp size={14} /> FAQ Analytics
-          </button>
-          <button onClick={() => setActiveTab('unanswered')} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: activeTab === 'unanswered' ? "#4285f4" : "transparent", color: activeTab === 'unanswered' ? "#fff" : textMuted, fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}>
-            <HelpCircle size={14} /> Unanswered <span style={{ background: activeTab === 'unanswered' ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.1)", padding: "2px 6px", borderRadius: 12, fontSize: 11 }}>{unanswered.length}</span>
-          </button>
-          <button onClick={() => setActiveTab('bugs')} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: activeTab === 'bugs' ? "#4285f4" : "transparent", color: activeTab === 'bugs' ? "#fff" : textMuted, fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}>
-            <Bug size={14} /> Bugs <span style={{ background: activeTab === 'bugs' ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.1)", padding: "2px 6px", borderRadius: 12, fontSize: 11 }}>{bugs.length}</span>
-          </button>
-          <button onClick={() => setActiveTab('users')} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: activeTab === 'users' ? "#4285f4" : "transparent", color: activeTab === 'users' ? "#fff" : textMuted, fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}>
-            <Users size={14} /> Users
-          </button>
+          <button onClick={() => setActiveTab('knowledge')} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: activeTab === 'knowledge' ? "#4285f4" : "transparent", color: activeTab === 'knowledge' ? "#fff" : textMuted, fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Database size={14} /> Database</button>
+          <button onClick={() => setActiveTab('faq')} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: activeTab === 'faq' ? "#4285f4" : "transparent", color: activeTab === 'faq' ? "#fff" : textMuted, fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><TrendingUp size={14} /> FAQ Analytics</button>
+          <button onClick={() => setActiveTab('unanswered')} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: activeTab === 'unanswered' ? "#4285f4" : "transparent", color: activeTab === 'unanswered' ? "#fff" : textMuted, fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><HelpCircle size={14} /> Unanswered <span style={{ background: activeTab === 'unanswered' ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.1)", padding: "2px 6px", borderRadius: 12, fontSize: 11 }}>{unanswered.length}</span></button>
+          <button onClick={() => setActiveTab('bugs')} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: activeTab === 'bugs' ? "#4285f4" : "transparent", color: activeTab === 'bugs' ? "#fff" : textMuted, fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Bug size={14} /> Bugs <span style={{ background: activeTab === 'bugs' ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.1)", padding: "2px 6px", borderRadius: 12, fontSize: 11 }}>{bugs.length}</span></button>
+          <button onClick={() => setActiveTab('users')} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: activeTab === 'users' ? "#4285f4" : "transparent", color: activeTab === 'users' ? "#fff" : textMuted, fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Users size={14} /> Users</button>
         </div>
       </div>
 
@@ -302,12 +225,7 @@ export function AdminPanel({
 
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <span style={{ fontSize: 12, color: textMuted }}>Official Display Name (Optional)</span>
-                <input 
-                  value={form.display_name || ""} 
-                  onChange={e => setForm({...form, display_name: e.target.value})} 
-                  placeholder="e.g. Ms. Vinna Nina O. Ramos"
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 14 }}
-                />
+                <input value={form.display_name || ""} onChange={e => setForm({...form, display_name: e.target.value})} placeholder="e.g. Ms. Vinna Nina O. Ramos" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 14 }} />
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -338,10 +256,10 @@ export function AdminPanel({
             {filteredData.length === 0 ? (
               <div style={{ padding: 40, textAlign: "center", opacity: 0.5 }}>No results found.</div>
             ) : (
-              <table style={{ width: "100%", minWidth: 600, borderCollapse: "collapse", textAlign: "left", fontSize: 14 }}>
+              <table style={{ width: "100%", minWidth: 800, borderCollapse: "collapse", textAlign: "left", fontSize: 14 }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" }}>
-                    <th style={{ padding: "14px 16px", fontWeight: 600, width: "30%" }}>Details & Keywords</th>
+                    <th style={{ padding: "14px 16px", fontWeight: 600, width: "35%" }}>Details & Keywords</th>
                     <th style={{ padding: "14px 16px", fontWeight: 600 }}>Factual Response</th>
                     <th style={{ padding: "14px 16px", fontWeight: 600, width: 100, textAlign: "right" }}>Actions</th>
                   </tr>
@@ -350,20 +268,14 @@ export function AdminPanel({
                   {filteredData.map((row: any) => (
                     <tr key={row.id} style={{ borderBottom: `1px solid ${border}` }}>
                       <td style={{ padding: "14px 16px", verticalAlign: "top" }}>
-                        
                         <div style={{ fontSize: 10, color: getColorForCategory(row.category || "Handbook"), fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>
                           {(row.category || "Handbook").replace('Teachers', 'Professors')}
                           {row.subcategory && row.subcategory !== 'All' && (<span style={{ color: textMuted }}> &rsaquo; {row.subcategory}</span>)}
                         </div>
-                        
-                        <div style={{ fontSize: 16, fontWeight: 700, color: dark ? '#fff' : '#000', marginBottom: 8 }}>
-                           {row.display_name || row.keyword.split(',')[0]}
-                        </div>
-
+                        <div style={{ fontSize: 16, fontWeight: 700, color: dark ? '#fff' : '#000', marginBottom: 8 }}>{row.display_name || row.keyword.split(',')[0]}</div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                           {row.keyword.split(',').map((kw: string, idx: number) => kw.trim() ? (<span key={idx} style={{ background: dark ? "rgba(255,255,255,0.08)" : "#f1f5f9", color: dark ? "#e2e8f0" : "#334155", padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 500, border: `1px solid ${border}`, whiteSpace: "nowrap" }}>{kw.trim()}</span>) : null)}
                         </div>
-
                       </td>
                       <td style={{ padding: "14px 16px", verticalAlign: "top", opacity: 0.9, lineHeight: 1.5 }}>
                         <div style={{ marginBottom: row.picture_url ? 8 : 0 }}>{row.response}</div>
@@ -382,7 +294,6 @@ export function AdminPanel({
         </>
       )}
 
-      {/* FAQs, Bugs, Users blocks omitted for brevity since they are identical to previous code */}
       {activeTab === 'faq' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -512,6 +423,27 @@ export function AdminPanel({
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {modal.isOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: 12, padding: 24, width: '100%', maxWidth: 400, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
+            <h3 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 600, color: dark ? '#fff' : '#000' }}>{modal.title}</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 14, color: textMuted, lineHeight: 1.5 }}>{modal.message}</p>
+            {modal.type === 'prompt' && (<input type="text" autoFocus placeholder="Type new password..." onChange={e => setModal({...modal, inputValue: e.target.value})} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${border}`, background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', color: 'inherit', outline: 'none', marginBottom: 20 }} />)}
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button onClick={() => setModal({ ...modal, isOpen: false })} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'transparent', color: textMuted, cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
+              <button onClick={() => { modal.onConfirm(modal.inputValue); setModal({ ...modal, isOpen: false }); }} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: "#4285f4", color: "#fff", cursor: 'pointer', fontWeight: 500 }}>{modal.type === 'prompt' ? 'Save Password' : 'Yes, Confirm'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fullScreenMedia && (
+        <div onClick={() => setFullScreenMedia(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', padding: 24 }}>
+          <img src={fullScreenMedia} alt="Fullscreen View" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }} />
+          <button onClick={() => setFullScreenMedia(null)} style={{ position: 'absolute', top: 24, right: 24, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}><X size={24} /></button>
         </div>
       )}
 

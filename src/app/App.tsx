@@ -639,7 +639,7 @@ export default function App() {
                 )}
               </div>
             ) : (
-              <div style={{ maxWidth: 768, margin: "0 auto", padding: isMobile ? "16px 12px" : "24px 16px", display: "flex", flexDirection: "column", gap: 24 }}>
+              <div style={{ maxWidth: 960, width: "100%", margin: "0 auto", padding: isMobile ? "16px 12px" : "24px 16px", display: "flex", flexDirection: "column", gap: 24 }}>
                 {activeChat.messages.map((msg: Message) => (<ChatMessageBubble key={msg.id} msg={msg} dark={dark} currentUser={currentUser} isMobile={isMobile} onEnlarge={setFullScreenMedia} onOpenIframe={setFullScreenIframe} onLoad={scrollToBottom} />))}
                 {isTyping && (<div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}><div style={{ flexShrink: 0, marginTop: 4, width: 28, height: 28, display: "flex", justifyContent: "center", alignItems: "center" }}><Bot color="#4285f4" size={28} className="animate-pulse" /></div><div style={{ paddingTop: 3 }}><ChatLoader /></div></div>)}
                 <div ref={messagesEndRef} />
@@ -649,7 +649,7 @@ export default function App() {
 
           {viewMode === "chat" && !directoryMode && (!simKiosk || screenState === "chat") && (
             <div style={{ flexShrink: 0, padding: isMobile ? "8px 12px 12px" : "8px 16px 16px" }}>
-              <div style={{ maxWidth: 768, margin: "0 auto" }}>
+              <div style={{ maxWidth: 960, width: "100%", margin: "0 auto" }}>
                 <CosmicInput input={input} setInput={setInput} onSend={() => sendMessage()} isTyping={isTyping} dark={dark} />
                 <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, color: textFaint, letterSpacing: "0.2px" }}>ChatCIT is AI. By using it, you agree to our <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Terms</span> & <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Privacy Policy</span>.</div>
               </div>
