@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { Settings, Zap, Users, GraduationCap, FileText, ChevronLeft, ChevronRight, MessageSquare, Bot, Maximize, Search, UserSquare, Building, FilterX } from "lucide-react";
-import { QUICK_PROMPTS, ORGANIZATIONS, MAJORS, DOCUMENTS } from "../config";
+import { QUICK_PROMPTS, ORGANIZATIONS, MAJORS, DOCUMENTS, API_URL } from "../config";
 import { GearboxLoader } from "./ui/helpers";
 
 const GlobalKioskStyles = ({ dark }: { dark: boolean }) => (
@@ -103,6 +103,9 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const [pdfLoading, setPdfLoading] = useState(false);
 
   // --- INTERACTIVE DIRECTORY STATE ---
+  const [dbDirectoryData, setDbDirectoryData] = useState<any[]>([]);
+  const [loadingDir, setLoadingDir] = useState(false);
+
   const [dirMajor, setDirMajor] = useState<string | null>(null);
   const [dirSearch, setDirSearch] = useState("");
   const [dirPage, setDirPage] = useState(1);
@@ -115,6 +118,17 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
          setDirMajor(null);
          setDirSearch("");
          setDirPage(1);
+         
+         // FETCH REAL DATABASE ENTRIES INSTEAD OF DUMMY DATA
+         setLoadingDir(true);
+         fetch(`${API_URL}/knowledge`)
+           .then(res => res.json())
+           .then(data => {
+             const directoryItems = data.filter((item: any) => item.category === kioskResult.title);
+             setDbDirectoryData(directoryItems);
+           })
+           .catch(err => console.error(err))
+           .finally(() => setLoadingDir(false));
      }
   }, [kioskResult?.title]);
 
@@ -214,42 +228,26 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     });
   };
 
-  // --- MOCK DIRECTORY DATA GENERATOR ---
-  // In production, this data would be fetched via your API and seeded via your backend Python script!
-  const directoryData = React.useMemo(() => {
-      if (!kioskResult?.isDirectory) return [];
-      
-      const isFaculty = kioskResult.title === "Faculty & Teachers";
-      const names = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson", "White", "Harris"];
-      const partners = ["Tech", "Systems", "Solutions", "Dynamics", "Innovations", "Global", "Networks", "Enterprises", "Soft", "Data"];
-      
-      let data = [];
-      for (let i = 0; i < 50; i++) {
-          const major = MAJORS[i % MAJORS.length];
-          if (isFaculty) {
-             data.push({
-                 id: i, name: `Dr. ${names[i % names.length]}`, major: major, 
-                 desc: `Professor of ${major.split(' ')[0]}`, email: `f${i}@bulsu.edu.ph`
-             });
-          } else {
-             data.push({
-                 id: i, name: `${names[i % names.length]} ${partners[i % partners.length]}`, major: major, 
-                 desc: `Corporate Partner for ${major.split(' ')[0]}`, email: `contact@${names[i % names.length].toLowerCase()}.com`
-             });
-          }
-      }
-      return data;
-  }, [kioskResult?.title]);
-
+  // --- REPLACED DUMMY DATA WITH REAL DATABASE FILTERING ---
   const filteredDirectory = React.useMemo(() => {
-      return directoryData
+      return dbDirectoryData
         .filter(item => {
-            const matchesSearch = item.name.toLowerCase().includes(dirSearch.toLowerCase()) || item.major.toLowerCase().includes(dirSearch.toLowerCase());
-            const matchesMajor = dirMajor ? item.major === dirMajor : true;
+            const name = item.keyword.split(',')[0] || "";
+            const major = item.subcategory || "All";
+
+            const matchesSearch = name.toLowerCase().includes(dirSearch.toLowerCase()) || 
+                                  major.toLowerCase().includes(dirSearch.toLowerCase()) ||
+                                  item.response.toLowerCase().includes(dirSearch.toLowerCase());
+                                  
+            const matchesMajor = dirMajor ? major === dirMajor : true;
             return matchesSearch && matchesMajor;
         })
-        .sort((a, b) => a.name.localeCompare(b.name));
-  }, [directoryData, dirSearch, dirMajor]);
+        .sort((a, b) => {
+            const nameA = a.keyword.split(',')[0] || "";
+            const nameB = b.keyword.split(',')[0] || "";
+            return nameA.localeCompare(nameB);
+        });
+  }, [dbDirectoryData, dirSearch, dirMajor]);
 
   const totalDirPages = Math.ceil(filteredDirectory.length / ITEMS_PER_PAGE) || 1;
   const currentDirData = filteredDirectory.slice((dirPage - 1) * ITEMS_PER_PAGE, dirPage * ITEMS_PER_PAGE);
@@ -415,7 +413,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                     </div>
                   </div>
 
-                /* --- 3B: INTERACTIVE DIRECTORY VIEWER --- */
+                /* --- 3B: INTERACTIVE DIRECTORY VIEWER (NOW PULLING REAL DATA) --- */
                 ) : kioskResult?.isDirectory ? (
                   <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <div style={{ padding: '24px 32px', background: headerBg, borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -465,44 +463,62 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                             </div>
                           </>
                        ) : (
-                          /* LIST VIEW (Shows 5 Results per page) */
-                          <>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>
-                               {currentDirData.length > 0 ? currentDirData.map((profile) => (
-                                  <div key={profile.id} className="dir-profile-card">
-                                     <div style={{ width: 80, height: 80, borderRadius: '50%', background: dark ? '#1e293b' : '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                        {kioskResult.title === "Faculty & Teachers" ? <UserSquare size={40} color="#4285f4"/> : <Building size={40} color="#10b981"/>}
-                                     </div>
-                                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                        <span style={{ fontSize: 24, fontWeight: 800, color: dark ? '#fff' : '#0f172a' }}>{profile.name}</span>
-                                        <span style={{ fontSize: 18, fontWeight: 600, color: '#4285f4' }}>{profile.major}</span>
-                                        <span style={{ fontSize: 16, color: textMuted }}>{profile.desc} • {profile.email}</span>
-                                     </div>
-                                  </div>
-                               )) : (
-                                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: textMuted, fontWeight: 600 }}>
-                                      No profiles found.
-                                  </div>
-                               )}
+                          /* LIST VIEW (Shows 5 Results per page, driven by real database records) */
+                          loadingDir ? (
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                               <GearboxLoader />
                             </div>
+                          ) : (
+                             <>
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>
+                                  {currentDirData.length > 0 ? currentDirData.map((item) => (
+                                     <div key={item.id} className="dir-profile-card">
+                                        
+                                        <div style={{ width: 80, height: 80, borderRadius: '50%', background: dark ? '#1e293b' : '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                                           {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (
+                                              <img src={item.picture_url} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                           ) : (
+                                              kioskResult.title === "Faculty & Teachers" ? <UserSquare size={40} color="#4285f4"/> : <Building size={40} color="#10b981"/>
+                                           )}
+                                        </div>
+                                        
+                                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                           <span style={{ fontSize: 24, fontWeight: 800, color: dark ? '#fff' : '#0f172a' }}>{item.keyword.split(',')[0]}</span>
+                                           {item.subcategory && item.subcategory !== "All" && (
+                                              <span style={{ fontSize: 18, fontWeight: 600, color: '#4285f4' }}>{item.subcategory}</span>
+                                           )}
+                                           <span style={{ fontSize: 16, color: textMuted, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                                              {item.response}
+                                           </span>
+                                        </div>
+                                     </div>
+                                  )) : (
+                                     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: textMuted, fontWeight: 600 }}>
+                                         No profiles found.
+                                     </div>
+                                  )}
+                               </div>
 
-                            {/* STRICT PAGINATION CONTROLS */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 32, padding: '24px', background: dark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderRadius: 16 }}>
-                               <button 
-                                 onClick={() => setDirPage(p => Math.max(1, p - 1))} disabled={dirPage <= 1}
-                                 style={{ padding: '16px 32px', fontSize: 20, fontWeight: 700, borderRadius: 12, border: 'none', background: dirPage <= 1 ? 'transparent' : '#4285f4', color: dirPage <= 1 ? textMuted : '#fff', cursor: dirPage <= 1 ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
-                               >
-                                  <ChevronLeft size={24}/> Previous
-                               </button>
-                               <span style={{ fontSize: 20, fontWeight: 700, color: dark ? '#fff' : '#000' }}>Page {dirPage} of {totalDirPages}</span>
-                               <button 
-                                 onClick={() => setDirPage(p => Math.min(totalDirPages, p + 1))} disabled={dirPage >= totalDirPages}
-                                 style={{ padding: '16px 32px', fontSize: 20, fontWeight: 700, borderRadius: 12, border: 'none', background: dirPage >= totalDirPages ? 'transparent' : '#4285f4', color: dirPage >= totalDirPages ? textMuted : '#fff', cursor: dirPage >= totalDirPages ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
-                               >
-                                  Next <ChevronRight size={24}/>
-                               </button>
-                            </div>
-                          </>
+                               {/* STRICT PAGINATION CONTROLS */}
+                               {filteredDirectory.length > 0 && (
+                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 32, padding: '24px', background: dark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderRadius: 16 }}>
+                                    <button 
+                                      onClick={() => setDirPage(p => Math.max(1, p - 1))} disabled={dirPage <= 1}
+                                      style={{ padding: '16px 32px', fontSize: 20, fontWeight: 700, borderRadius: 12, border: 'none', background: dirPage <= 1 ? 'transparent' : '#4285f4', color: dirPage <= 1 ? textMuted : '#fff', cursor: dirPage <= 1 ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
+                                    >
+                                       <ChevronLeft size={24}/> Previous
+                                    </button>
+                                    <span style={{ fontSize: 20, fontWeight: 700, color: dark ? '#fff' : '#000' }}>Page {dirPage} of {totalDirPages}</span>
+                                    <button 
+                                      onClick={() => setDirPage(p => Math.min(totalDirPages, p + 1))} disabled={dirPage >= totalDirPages}
+                                      style={{ padding: '16px 32px', fontSize: 20, fontWeight: 700, borderRadius: 12, border: 'none', background: dirPage >= totalDirPages ? 'transparent' : '#4285f4', color: dirPage >= totalDirPages ? textMuted : '#fff', cursor: dirPage >= totalDirPages ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
+                                    >
+                                       Next <ChevronRight size={24}/>
+                                    </button>
+                                 </div>
+                               )}
+                             </>
+                          )
                        )}
                     </div>
                   </div>

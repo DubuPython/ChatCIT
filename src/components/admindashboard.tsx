@@ -24,6 +24,7 @@ const getColorForCategory = (cat: string) => {
   return `hsl(${hash % 360}, 70%, 55%)`;
 }
 
+// Ensure the export matches EXACTLY what App.tsx is looking for
 export function AdminPanel({
   dark, showToast, currentUser,
   activeTab, setActiveTab,
@@ -343,7 +344,7 @@ export function AdminPanel({
       {activeTab === 'users' && (
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
           {Object.entries(departmentCounts)
-            .filter(([dept]) => dept === "Total Users" || dept === "Others") // KEEP ONLY THESE AT THE TOP
+            .filter(([dept]) => dept === "Total Users" || dept === "Others")
             .sort((a,b) => b[1]-a[1])
             .map(([dept, count]) => (
             <div key={dept} style={{ padding: "12px 16px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", display: "flex", flexDirection: "column", minWidth: 140 }}>
@@ -354,7 +355,6 @@ export function AdminPanel({
         </div>
       )}
 
-      {/* SEARCH AND NEW ENTRY BUTTONS */}
       <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, background: bg, border: `1px solid ${border}`, padding: "8px 14px", borderRadius: 8, flex: 1, minWidth: 250 }}>
           <Search size={16} color={textMuted} />
@@ -397,7 +397,6 @@ export function AdminPanel({
                 </select>
               </div>
 
-              {/* DYNAMIC SUB-CATEGORY DROPDOWN */}
               <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
                 <span style={{ fontSize: 12, color: textMuted }}>Sub-category (Folder)</span>
                 <select 
@@ -464,7 +463,6 @@ export function AdminPanel({
                       <td style={{ padding: "14px 16px", verticalAlign: "top" }}>
                         <div style={{ fontSize: 10, color: getColorForCategory(row.category || "Handbook"), fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>
                           {row.category || "Handbook"}
-                          {/* REMOVED STRICT CHECK - IT ALWAYS SHOWS IF IT EXISTS NOW */}
                           {row.subcategory && row.subcategory !== 'All' && (
                             <span style={{ color: textMuted }}> &rsaquo; {row.subcategory}</span>
                           )}
