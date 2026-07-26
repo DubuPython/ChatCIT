@@ -60,13 +60,20 @@ export default function App() {
   const [adminTab, setAdminTab] = useState<'knowledge' | 'faq' | 'unanswered' | 'bugs' | 'users'>('knowledge');
   const [adminCategory, setAdminCategory] = useState("All");
   const [adminDept, setAdminDept] = useState("All");
+  
   const [customCategories, setCustomCategories] = useState<string[]>([]);
-  const [customSubCats, setCustomSubCats] = useState<string[]>([]);
   const [dbCategories, setDbCategories] = useState<string[]>([]);
-  const [dbSubCategories, setDbSubCategories] = useState<string[]>([]);
+  
+  const [dbSubCategories, setDbSubCategories] = useState<Record<string, string[]>>({});
+  const [customSubCats, setCustomSubCats] = useState<{cat: string, sub: string}[]>([]);
+
+  const mergedSubCategoriesMap: Record<string, string[]> = { ...dbSubCategories };
+  customSubCats.forEach(({cat, sub}) => {
+     if (!mergedSubCategoriesMap[cat]) mergedSubCategoriesMap[cat] = [];
+     if (!mergedSubCategoriesMap[cat].includes(sub)) mergedSubCategoriesMap[cat].push(sub);
+  });
 
   const allDynamicCategories = Array.from(new Set([...DEFAULT_CATEGORIES.filter(c => c !== "All"), ...customCategories, ...dbCategories]));
-  const allDynamicSubCategories = Array.from(new Set(["All", ...MAJORS, ...customSubCats, ...dbSubCategories]));
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -222,7 +229,7 @@ export default function App() {
   const sendMessage = async (text: string = input) => {
     if (!text.trim() || isTyping) return;
     const content = text.trim(); setInput("");
-    setDirectoryMode(null);
+    setDirectoryMode(null); 
     
     if (simKiosk && (screenState === "screensaver" || screenState === "kiosk_result")) {
       setScreenState("chat"); setKioskCategory(null); setKioskResult(null);
@@ -261,13 +268,18 @@ export default function App() {
   const handleKioskSelection = async (category: string, item: string) => {
     const action = async () => {
       let prompt = item;
-      if (category === "Organizations") prompt = `Tell me about ${item}`;
-      if (category === "Majors") prompt = `Tell me about the ${item} program`;
-      if (category === "Documents") prompt = `Show me the ${item}`;
+      
+      if (kioskResult?.isDirectory) {
+          prompt = `Tell me about ${item}`;
+      } else {
+          if (category === "Organizations") prompt = `Tell me about ${item}`;
+          if (category === "Majors") prompt = `Tell me about the ${item} program`;
+          if (category === "Documents") prompt = `Show me the ${item}`;
+      }
       
       setScreenState("kiosk_result");
       
-      if (item === "Faculty & Teachers" || item === "Industry Partners") {
+      if (!kioskResult?.isDirectory && (item === "Faculty & Teachers" || item === "Faculty & Professors" || item === "Industry Partners")) {
          setKioskResult({ title: item, isDirectory: true, loading: false });
          return;
       }
@@ -292,7 +304,7 @@ export default function App() {
          setKioskResult({ title: item, loading: false, content: "I am having trouble connecting to the database right now. Please try again later." });
       }
     };
-    if (category === "Majors" || item.toLowerCase().includes("facilities")) { action(); } else { requireAuth(action); }
+    if (category === "Majors" || item.toLowerCase().includes("facilities") || kioskResult?.isDirectory) { action(); } else { requireAuth(action); }
   };
 
   const deleteChat = (idToDelete: string) => { setChats(prev => prev.filter(c => c.id !== idToDelete)); if (activeChatId === idToDelete) { setActiveChatId(null); setViewMode("chat"); } showToast("Chat deleted successfully.", "success"); };
@@ -471,7 +483,7 @@ export default function App() {
                         <div style={{ marginTop: 8 }}>
                           <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Database Categories</span></div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                            {["All", ...allDynamicCategories].map(cat => (<button key={cat} onClick={() => { setAdminCategory(cat); setAdminDept("All"); if(isMobile) setSidebarOpen(false); }} className={`sidebar-btn ${adminCategory === cat ? 'primary' : ''}`}>{cat}</button>))}
+                            {["All", ...allDynamicCategories].map(cat => (<button key={cat} onClick={() => { setAdminCategory(cat); setAdminDept("All"); if(isMobile) setSidebarOpen(false); }} className={`sidebar-btn ${adminCategory === cat ? 'primary' : ''}`}>{cat.replace('Teachers', 'Professors')}</button>))}
                             <button 
                                onClick={() => setUiPrompt({ 
                                   isOpen: true, title: "Enter new category name:", 
@@ -505,7 +517,19 @@ export default function App() {
 
                       <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Quick Prompts</span></div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 24 }}>
-                        {QUICK_PROMPTS.map((lbl: string) => (<button key={lbl} onClick={() => { if (lbl.toLowerCase().includes('facilities')) { sendMessage(lbl); if(isMobile) setSidebarOpen(false); } else { requireAuth(() => { sendMessage(lbl); if(isMobile) setSidebarOpen(false); }); } }} className="sidebar-btn">{lbl}</button>))}
+                        {QUICK_PROMPTS.map((lbl: string) => (
+                          <button key={lbl} onClick={() => { 
+                            if (lbl.includes('Faculty') || lbl.includes('Industry')) {
+                               setDirectoryMode(lbl); 
+                               if(isMobile) setSidebarOpen(false); 
+                            } else if (lbl.toLowerCase().includes('facilities')) { 
+                               sendMessage(lbl); 
+                               if(isMobile) setSidebarOpen(false); 
+                            } else { 
+                               requireAuth(() => { sendMessage(lbl); if(isMobile) setSidebarOpen(false); }); 
+                            } 
+                          }} className="sidebar-btn">{lbl.replace('Teachers', 'Professors')}</button>
+                        ))}
                       </div>
                       
                       {currentUser && Number(currentUser.id) !== -1 && chats.length > 0 && (
@@ -586,10 +610,17 @@ export default function App() {
           <div id="chat-scroll-container" className="no-scrollbar" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative" }}>
             {viewMode === "admin" && currentUser ? (
               <AdminPanel 
-                 dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allDynamicCategories} allSubCategories={allDynamicSubCategories} setDbCategories={setDbCategories} setDbSubCategories={setDbSubCategories} 
+                 dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allDynamicCategories} 
+                 mergedSubCategoriesMap={mergedSubCategoriesMap} 
+                 setDbCategories={setDbCategories} setDbSubCategories={setDbSubCategories} 
               />
             ) : directoryMode ? (
-              <ChatDirectory dark={dark} category={directoryMode} onClose={() => setDirectoryMode(null)} />
+              <ChatDirectory 
+                 dark={dark} 
+                 category={directoryMode} 
+                 onClose={() => setDirectoryMode(null)} 
+                 onCardClick={(name) => sendMessage(`Tell me about ${name}`)} 
+              />
             ) : !activeChat || activeChat.messages.length === 0 ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100%", padding: "48px 16px" }}>
                 <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}><div style={{ position: "absolute", transform: isMobile ? "scale(0.65)" : "scale(0.85)" }}><GearboxLoader /></div></div>
@@ -606,17 +637,6 @@ export default function App() {
                     })}
                   </div>
                 )}
-
-                <div style={{ marginTop: 40, width: "100%", maxWidth: 600, animation: "fadeIn 0.5s ease" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: textMuted, marginBottom: 16, textAlign: "center" }}>Explore Directory Choices</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 12 }}>
-                    <button onClick={() => setDirectoryMode("Faculty & Teachers")} style={{ padding: "12px 20px", borderRadius: 12, background: dark ? "rgba(66, 133, 244, 0.15)" : "rgba(66, 133, 244, 0.1)", border: `1px solid rgba(66, 133, 244, 0.3)`, color: dark ? "#60a5fa" : "#2563eb", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, transition: "transform 0.2s" }} onMouseEnter={e=>e.currentTarget.style.transform="scale(1.02)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}><User size={16}/> Faculty & Teachers</button>
-                    <button onClick={() => setDirectoryMode("Industry Partners")} style={{ padding: "12px 20px", borderRadius: 12, background: dark ? "rgba(66, 133, 244, 0.15)" : "rgba(66, 133, 244, 0.1)", border: `1px solid rgba(66, 133, 244, 0.3)`, color: dark ? "#60a5fa" : "#2563eb", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, transition: "transform 0.2s" }} onMouseEnter={e=>e.currentTarget.style.transform="scale(1.02)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}><Briefcase size={16}/> Industry Partners</button>
-                    <button onClick={() => requireAuth(() => sendMessage("Tell me about BulSU Organizations"))} style={{ padding: "12px 20px", borderRadius: 12, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, color: textPrimary, fontSize: 14, fontWeight: 500, cursor: "pointer", transition: "transform 0.2s" }} onMouseEnter={e=>e.currentTarget.style.transform="scale(1.02)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>Organizations</button>
-                    <button onClick={() => sendMessage("Tell me about the Majors offered")} style={{ padding: "12px 20px", borderRadius: 12, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, color: textPrimary, fontSize: 14, fontWeight: 500, cursor: "pointer", transition: "transform 0.2s" }} onMouseEnter={e=>e.currentTarget.style.transform="scale(1.02)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>CIT Majors</button>
-                  </div>
-                </div>
-
               </div>
             ) : (
               <div style={{ maxWidth: 768, margin: "0 auto", padding: isMobile ? "16px 12px" : "24px 16px", display: "flex", flexDirection: "column", gap: 24 }}>
@@ -647,9 +667,9 @@ export default function App() {
                    {isMobile && <button onClick={() => setRightRailOpen(false)} style={{ background: "none", border: "none", color: sb.muted, display: 'flex', alignItems: 'center', cursor: 'pointer' }}><X size={18}/></button>}
                 </div>
                 
-                {['Faculty & Teachers', 'Industry Partners'].includes(adminCategory) && adminTab === 'knowledge' ? (
+                {['Faculty & Teachers', 'Faculty & Professors', 'Industry Partners'].includes(adminCategory) && adminTab === 'knowledge' ? (
                     <div style={{ padding: "12px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
-                       {allDynamicSubCategories.map(sub => (
+                       {['All', ...(mergedSubCategoriesMap[adminCategory] || [])].map(sub => (
                           <button key={sub} onClick={() => { setAdminDept(sub); if(isMobile) setRightRailOpen(false); }} className={`sidebar-btn ${adminDept === sub ? 'primary' : 'is-sub'}`} style={{ paddingLeft: 16 }}>
                             {sub}
                           </button>
@@ -657,7 +677,7 @@ export default function App() {
                        <button 
                           onClick={() => setUiPrompt({ 
                              isOpen: true, title: "Enter new sub-category (folder):", 
-                             onSubmit: (val) => { setCustomSubCats(prev => Array.from(new Set([...prev, val]))); setAdminDept(val); showToast(`Added sub-category: ${val}`, "success"); } 
+                             onSubmit: (val) => { setCustomSubCats(prev => [...prev, {cat: adminCategory, sub: val}]); setAdminDept(val); showToast(`Added sub-category: ${val}`, "success"); } 
                           })} 
                           className="sidebar-btn is-sub" style={{ border: `1px dashed ${sb.faint}`, marginTop: 8 }}
                        >
@@ -666,7 +686,7 @@ export default function App() {
                     </div>
                 ) : (
                     <div style={{ padding: 24, textAlign: "center", color: sb.faint, fontSize: 13, lineHeight: 1.5 }}>
-                       Select 'Faculty & Teachers' or 'Industry Partners' on the left to manage their folders here.
+                       Select 'Faculty & Professors' or 'Industry Partners' on the left to manage their folders here.
                     </div>
                 )}
              </div>
