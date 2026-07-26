@@ -28,7 +28,8 @@ export function AdminPanel({
   dark, showToast, currentUser,
   activeTab, setActiveTab,
   activeCategoryTab, activeDeptTab,
-  allCategories, setDbCategories
+  allCategories, allSubCategories,
+  setDbCategories, setDbSubCategories
 }: {
   dark: boolean; showToast: (msg: string, type: 'success' | 'error' | 'info') => void; currentUser: User;
   activeTab: 'knowledge'|'faq'|'unanswered'|'bugs'|'users';
@@ -36,7 +37,9 @@ export function AdminPanel({
   activeCategoryTab: string;
   activeDeptTab: string;
   allCategories: string[];
+  allSubCategories: string[];
   setDbCategories: (cats: string[]) => void;
+  setDbSubCategories: (cats: string[]) => void;
 }) {
   
   const [data, setData] = useState<Knowledge[]>([]);
@@ -46,7 +49,7 @@ export function AdminPanel({
 
   const [editingId, setEditingId] = useState<number | null>(null);
   
-  const [form, setForm] = useState({ keyword: "", response: "", picture_url: "", category: "Handbook" });
+  const [form, setForm] = useState({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All" });
   const [keywordInput, setKeywordInput] = useState(""); 
   
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -83,8 +86,9 @@ export function AdminPanel({
       setBugs(await bRes.json());
       setUsers(await userRes.json());
       
-      // Send the dynamic db categories UP to App.tsx for the Sidebar
       setDbCategories(Array.from(new Set(kData.map((d: any) => d.category || "Handbook"))));
+      setDbSubCategories(Array.from(new Set(kData.map((d: any) => d.subcategory).filter(Boolean))));
+      
     } catch (e) { 
       showToast("Failed to fetch dashboard data.", "error"); 
     } finally { 
@@ -151,14 +155,21 @@ export function AdminPanel({
     try {
       const method = id ? "PUT" : "POST";
       const url = id ? `${API_URL}/knowledge/${id}` : `${API_URL}/knowledge`;
-      await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Server failed to save record.");
+      }
+
       setEditingId(null); 
-      setForm({ keyword: "", response: "", picture_url: "", category: "Handbook" }); 
+      setForm({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All" }); 
       setKeywordInput("");
       fetchData();
       showToast(id ? "Record updated!" : "New record added!", "success");
-    } catch (e) { 
-      showToast("Error saving record.", "error"); 
+    } catch (e: any) { 
+      showToast(e.message || "Error saving record.", "error"); 
     }
   };
 
@@ -238,7 +249,7 @@ export function AdminPanel({
     fetch(`${API_URL}/unanswered/${id}`, { method: "DELETE" }).then(fetchData);
     setActiveTab('knowledge');
     setEditingId(0);
-    setForm({ keyword: question, response: "", picture_url: "", category: "Handbook" });
+    setForm({ keyword: question, response: "", picture_url: "", category: "Handbook", subcategory: "All" });
     setKeywordInput("");
     showToast("Moved to Knowledge Base draft.", "info");
   };
@@ -260,11 +271,19 @@ export function AdminPanel({
 
   const q = searchQuery.toLowerCase();
   
-  // Apply Filters based on props from Sidebar
-  const filteredData = data.filter(d => 
-    (activeCategoryTab === "All" || (d as any).category === activeCategoryTab) &&
-    (d.keyword.toLowerCase().includes(q) || d.response.toLowerCase().includes(q))
-  );
+  const filteredData = data.filter(d => {
+    const matchCat = activeCategoryTab === "All" || (d as any).category === activeCategoryTab;
+    const matchSearch = d.keyword.toLowerCase().includes(q) || d.response.toLowerCase().includes(q);
+    
+    // Safely verify subcategories regardless of casing
+    const dbSub = ((d as any).subcategory || "All").toLowerCase();
+    const matchSub = activeDeptTab === "All" || dbSub === activeDeptTab.toLowerCase();
+    
+    if (['Faculty & Teachers', 'Industry Partners'].includes(activeCategoryTab)) {
+       return matchCat && matchSub && matchSearch;
+    }
+    return matchCat && matchSearch;
+  });
 
   const filteredUnanswered = unanswered.filter(u => u.question.toLowerCase().includes(q));
   const filteredBugs = bugs.filter(b => b.user_info.toLowerCase().includes(q) || b.description.toLowerCase().includes(q));
@@ -353,7 +372,7 @@ export function AdminPanel({
         </button>
 
         {activeTab === 'knowledge' && editingId !== 0 && (
-          <button onClick={() => { setEditingId(0); setForm({ keyword: "", response: "", picture_url: "", category: "Handbook" }); setKeywordInput(""); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontWeight: 500, whiteSpace: "nowrap" }}>
+          <button onClick={() => { setEditingId(0); setForm({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All" }); setKeywordInput(""); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontWeight: 500, whiteSpace: "nowrap" }}>
             <Plus size={16} /> Add Entry
           </button>
         )}
@@ -372,8 +391,22 @@ export function AdminPanel({
                   onChange={e => setForm({ ...form, category: e.target.value })} 
                   style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none" }}
                 >
-                  {/* FIX: Set option background strictly so it isn't white text on white background */}
                   {allCategories.filter(c => c !== "All").map(c => (
+                    <option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* DYNAMIC SUB-CATEGORY DROPDOWN */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+                <span style={{ fontSize: 12, color: textMuted }}>Sub-category (Folder)</span>
+                <select 
+                  value={form.subcategory || "All"} 
+                  onChange={e => setForm({ ...form, subcategory: e.target.value })} 
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none" }}
+                >
+                  <option value="All" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>None (Main Folder)</option>
+                  {allSubCategories.filter(c => c !== "All").map(c => (
                     <option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c}</option>
                   ))}
                 </select>
@@ -429,7 +462,13 @@ export function AdminPanel({
                   {filteredData.map((row: any) => (
                     <tr key={row.id} style={{ borderBottom: `1px solid ${border}` }}>
                       <td style={{ padding: "14px 16px", verticalAlign: "top" }}>
-                        <div style={{ fontSize: 10, color: getColorForCategory(row.category || "Handbook"), fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>{row.category || "Handbook"}</div>
+                        <div style={{ fontSize: 10, color: getColorForCategory(row.category || "Handbook"), fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>
+                          {row.category || "Handbook"}
+                          {/* REMOVED STRICT CHECK - IT ALWAYS SHOWS IF IT EXISTS NOW */}
+                          {row.subcategory && row.subcategory !== 'All' && (
+                            <span style={{ color: textMuted }}> &rsaquo; {row.subcategory}</span>
+                          )}
+                        </div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                           {row.keyword.split(',').map((kw: string, idx: number) => kw.trim() ? (
                             <span key={idx} style={{ background: dark ? "rgba(255,255,255,0.08)" : "#f1f5f9", color: dark ? "#e2e8f0" : "#334155", padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 500, border: `1px solid ${border}`, whiteSpace: "nowrap" }}>
@@ -451,7 +490,7 @@ export function AdminPanel({
                         )}
                       </td>
                       <td style={{ padding: "14px 16px", verticalAlign: "top", textAlign: "right", whiteSpace: "nowrap" }}>
-                        <button onClick={() => { setForm({ keyword: row.keyword, response: row.response, picture_url: row.picture_url || "", category: row.category || "Handbook" }); setKeywordInput(""); setEditingId(row.id); }} style={{ background: "none", border: "none", color: "#4285f4", cursor: "pointer", padding: 6 }} title="Edit"><Edit2 size={16} /></button>
+                        <button onClick={() => { setForm({ keyword: row.keyword, response: row.response, picture_url: row.picture_url || "", category: row.category || "Handbook", subcategory: row.subcategory || "All" }); setKeywordInput(""); setEditingId(row.id); }} style={{ background: "none", border: "none", color: "#4285f4", cursor: "pointer", padding: 6 }} title="Edit"><Edit2 size={16} /></button>
                         <button onClick={() => handleDelete('knowledge', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 6 }} title="Delete"><Trash2 size={16} /></button>
                       </td>
                     </tr>
@@ -584,8 +623,6 @@ export function AdminPanel({
                     <td style={{ padding: "14px 16px", verticalAlign: "middle", color: dark ? "#fff" : "#000" }}>{user.department || "Others"}</td>
                     <td style={{ padding: "14px 16px", verticalAlign: "middle" }}>
                       
-                      {/* FIX: Strictly disabled for Admins trying to edit Superadmins, 
-                               but allows Admins to change roles of Students. */}
                       <select 
                         value={user.role}
                         disabled={currentUser?.role !== 'superadmin' && user.role === 'superadmin'}

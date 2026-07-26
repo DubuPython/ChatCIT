@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, Menu, UserCog, X, MoreVertical, Bot, Calendar } from "lucide-react";
+import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, Menu, UserCog, X, MoreVertical, Bot, Calendar, Folder } from "lucide-react";
 
 import { AuthScreen } from "../components/authmodal";
 import { AdminPanel } from "../components/admindashboard";
@@ -38,6 +38,9 @@ export default function App() {
   const [newPassword, setNewPassword] = useState("");
   const [isResetting, setIsResetting] = useState(false);
 
+  // --- CUSTOM UI PROMPT MODAL ---
+  const [uiPrompt, setUiPrompt] = useState<{isOpen: boolean, title: string, onSubmit: (val: string) => void} | null>(null);
+
   const [showAuthPopup, setShowAuthPopup] = useState(() => {
     if (typeof window !== "undefined") {
       const savedUser = localStorage.getItem('chatcit_user');
@@ -56,9 +59,12 @@ export default function App() {
   const [adminCategory, setAdminCategory] = useState("All");
   const [adminDept, setAdminDept] = useState("All");
   const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [customSubCats, setCustomSubCats] = useState<string[]>([]);
   const [dbCategories, setDbCategories] = useState<string[]>([]);
+  const [dbSubCategories, setDbSubCategories] = useState<string[]>([]);
 
   const allDynamicCategories = Array.from(new Set([...DEFAULT_CATEGORIES.filter(c => c !== "All"), ...customCategories, ...dbCategories]));
+  const allDynamicSubCategories = Array.from(new Set(["All", ...MAJORS, ...customSubCats, ...dbSubCategories]));
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -258,6 +264,11 @@ export default function App() {
       
       setScreenState("kiosk_result");
       
+      if (item === "Faculty & Teachers" || item === "Industry Partners") {
+         setKioskResult({ title: item, isDirectory: true, loading: false });
+         return;
+      }
+
       if (category === "Documents" || item === "Handbook" || item === "Magna Carta" || item === "Completion Form" || item.includes("Form")) {
          let safeFile = item.replace(/\s+/g, '-').toLowerCase();
          if (item === "Magna Carta") safeFile = "magna-carta"; 
@@ -333,49 +344,13 @@ export default function App() {
   return (
     <>
       <style>{`
-        /* GLOBAL SCROLLBAR ANNIHILATOR - ENFORCED EVERYWHERE */
         ::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; background: transparent !important; }
         *::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; background: transparent !important; }
         * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
-
-        /* TAB BAR FIX (Forces tabs to wrap nicely instead of scrolling) */
-        [role="tablist"], .tabs-list {
-            overflow-x: visible !important;
-            flex-wrap: wrap !important;
-            height: auto !important;
-        }
-
-        /* KIOSK MODAL SCALING AND LAYOUT FIXES */
-        
-        /* Profile and Bug Modals - Massive and touch-friendly */
-        .kiosk-bug-wrapper [role="dialog"],
-        .kiosk-bug-wrapper [class*="bg-"][class*="rounded-"] {
-           transform: scale(1.4) !important;
-        }
-
-        /* Academic Calendar Fix - Forces side-by-side layout into a stacked touch-column */
-        .kiosk-calendar-wrapper [role="dialog"],
-        .kiosk-calendar-wrapper [class*="bg-"][class*="rounded-"] {
-           display: flex !important;
-           flex-direction: column !important;
-           width: 90vw !important;
-           max-width: 420px !important;
-           height: auto !important;
-           max-height: 85vh !important;
-           overflow-y: auto !important;
-           overflow-x: hidden !important;
-           transform: scale(1.15) !important;
-        }
-        
-        /* Make internal calendar partitions full width */
-        .kiosk-calendar-wrapper [role="dialog"] > *,
-        .kiosk-calendar-wrapper [class*="bg-"][class*="rounded-"] > * {
-           width: 100% !important;
-           min-width: 100% !important;
-           border-left: none !important;
-           border-right: none !important;
-        }
-
+        [role="tablist"], .tabs-list { overflow-x: visible !important; flex-wrap: wrap !important; height: auto !important; }
+        .kiosk-bug-wrapper [role="dialog"], .kiosk-bug-wrapper [class*="bg-"][class*="rounded-"] { transform: scale(1.4) !important; }
+        .kiosk-calendar-wrapper [role="dialog"], .kiosk-calendar-wrapper [class*="bg-"][class*="rounded-"] { display: flex !important; flex-direction: column !important; width: 90vw !important; max-width: 420px !important; height: auto !important; max-height: 85vh !important; overflow-y: auto !important; overflow-x: hidden !important; transform: scale(1.15) !important; }
+        .kiosk-calendar-wrapper [role="dialog"] > *, .kiosk-calendar-wrapper [class*="bg-"][class*="rounded-"] > * { width: 100% !important; min-width: 100% !important; border-left: none !important; border-right: none !important; }
         .theme-toggle-wrapper input[type="checkbox"] { display: none !important; opacity: 0 !important; width: 0px !important; height: 0px !important; position: absolute; z-index: -100; }
         .sidebar-btn { width: 100%; padding: 10px 14px; border-radius: 12px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); display: flex; align-items: center; gap: 10px; border: 1px solid transparent; text-align: left; }
         .dark-mode .sidebar-btn { background: rgba(255,255,255,0.03); color: #9aa0a6; border-color: rgba(255,255,255,0.05); }
@@ -409,6 +384,31 @@ export default function App() {
             setFullScreenIframe={setFullScreenIframe}
             setFullScreenMedia={setFullScreenMedia} 
           />
+        )}
+
+        {/* --- CUSTOM UI PROMPT MODAL (Replaces window.prompt) --- */}
+        {uiPrompt && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div style={{ background: bg, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, borderRadius: 12, padding: 24, width: '100%', maxWidth: 400, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)' }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 600, color: textPrimary }}>{uiPrompt.title}</h3>
+              <input 
+                type="text" 
+                autoFocus 
+                id="ui-prompt-input" 
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', color: textPrimary, outline: 'none', marginBottom: 20 }} 
+                onKeyDown={(e) => { 
+                   if (e.key === 'Enter') { 
+                      const val = (e.target as HTMLInputElement).value; 
+                      if(val.trim()){ uiPrompt.onSubmit(val.trim()); setUiPrompt(null); } 
+                   } 
+                }} 
+              />
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button onClick={() => setUiPrompt(null)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'transparent', color: textMuted, cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
+                <button onClick={() => { const val = (document.getElementById('ui-prompt-input') as HTMLInputElement).value; if(val.trim()){ uiPrompt.onSubmit(val.trim()); setUiPrompt(null); } }} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#4285f4', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>Save</button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* --- MODALS --- */}
@@ -521,15 +521,25 @@ export default function App() {
                   {viewMode === "admin" ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
                       <button onClick={() => { setViewMode("chat"); if(isMobile) setSidebarOpen(false); }} className="sidebar-btn primary"><ArrowLeft size={16} /> Back to Chat</button>
+                      
                       {adminTab === 'knowledge' && (
                         <div style={{ marginTop: 8 }}>
                           <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Database Categories</span></div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                            {["All", ...allDynamicCategories].map(cat => (<button key={cat} onClick={() => { setAdminCategory(cat); if(isMobile) setSidebarOpen(false); }} className={`sidebar-btn ${adminCategory === cat ? 'primary' : ''}`}>{cat}</button>))}
-                            <button onClick={() => requireAuth(() => { const newCat = window.prompt("Enter new category name:"); if (newCat && newCat.trim() !== "") { setCustomCategories(prev => Array.from(new Set([...prev, newCat.trim()]))); setAdminCategory(newCat.trim()); showToast(`Added new tab: ${newCat.trim()}`, "success"); } })} className="sidebar-btn" style={{ border: `1px dashed ${sb.faint}` }}><Plus size={14}/> Add Custom Tab</button>
+                            {["All", ...allDynamicCategories].map(cat => (<button key={cat} onClick={() => { setAdminCategory(cat); setAdminDept("All"); if(isMobile) setSidebarOpen(false); }} className={`sidebar-btn ${adminCategory === cat ? 'primary' : ''}`}>{cat}</button>))}
+                            <button 
+                               onClick={() => setUiPrompt({ 
+                                  isOpen: true, title: "Enter new category name:", 
+                                  onSubmit: (val) => { setCustomCategories(p => Array.from(new Set([...p, val]))); setAdminCategory(val); setAdminDept("All"); showToast(`Added new tab: ${val}`, "success"); } 
+                               })} 
+                               className="sidebar-btn" style={{ border: `1px dashed ${sb.faint}` }}
+                            >
+                               <Plus size={14}/> Add Custom Tab
+                            </button>
                           </div>
                         </div>
                       )}
+                      
                       {adminTab === 'users' && (
                         <div style={{ marginTop: 8 }}>
                           <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Departments Filter</span></div>
@@ -631,9 +641,21 @@ export default function App() {
             {(!gearMode) && (<div style={{ display: "flex", alignItems: "center", gap: 12 }}>{isMobile && <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer", zIndex: 60 }}><MoreVertical size={20} /></button>}</div>)}
           </header>
 
-          <div id="chat-scroll-container" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative" }}>
+          <div id="chat-scroll-container" className="no-scrollbar" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative" }}>
             {viewMode === "admin" && currentUser ? (
-              <AdminPanel dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allDynamicCategories} setDbCategories={setDbCategories} />
+              <AdminPanel 
+                 dark={dark} 
+                 showToast={showToast} 
+                 currentUser={currentUser} 
+                 activeTab={adminTab} 
+                 setActiveTab={setAdminTab} 
+                 activeCategoryTab={adminCategory} 
+                 activeDeptTab={adminDept} 
+                 allCategories={allDynamicCategories} 
+                 allSubCategories={allDynamicSubCategories}
+                 setDbCategories={setDbCategories}
+                 setDbSubCategories={setDbSubCategories} 
+              />
             ) : !activeChat || activeChat.messages.length === 0 ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100%", padding: "48px 16px" }}>
                 <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}><div style={{ position: "absolute", transform: isMobile ? "scale(0.65)" : "scale(0.85)" }}><GearboxLoader /></div></div>
@@ -669,29 +691,66 @@ export default function App() {
           )}
         </main>
         
-        {/* RIGHT RAIL (Includes dynamic topRightButtons slot) */}
-        <aside style={{ width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0, right: isMobile ? (rightRailOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && rightRailOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
-          <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, right: 0 }}>
-            <GearAbs id="g-right-top" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setOrgIdx(i => (i + 1) % ORGANIZATIONS.length); }} />
-            <GearAbs id="g-right-mid" side="right" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-rightAngle * RATIO + (180 / N_LG)} onClick={() => { setRightAngle(a => a + STEP_DEG); setMajIdx(i => (i + 1) % MAJORS.length); }} />
-            <GearAbs id="g-right-bot" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setDocIdx(i => (i + 1) % DOCUMENTS.length); }} />
-          </div>
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "14px 16px 0", zIndex: 20 }}>
-            {topRightButtons}
-          </div>
-          {[
-            { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: "Organizations", value: ORGANIZATIONS[orgIdx], onPick: () => requireAuth(() => { sendMessage(`Tell me about ${ORGANIZATIONS[orgIdx]}`); if(isMobile) setRightRailOpen(false); }) },
-            { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: "Majors", value: MAJORS[majIdx], onPick: () => { sendMessage(`Tell me about the ${MAJORS[majIdx]} program`); if(isMobile) setRightRailOpen(false); } },
-            { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: "Documents", value: DOCUMENTS[docIdx], onPick: () => requireAuth(() => { sendMessage(`Show me the ${DOCUMENTS[docIdx]}`); if(isMobile) setRightRailOpen(false); }) },
-          ].map((p: any, i: number) => (
-            <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "right", right: GEAR_VIS, top: p.y, zIndex: 10 }}>
-              {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "right" }}>{p.label}</div>}
-              <button onClick={p.onPick} className="gear-panel-btn" style={{ flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: "0", textAlign: "right" }}>
-                <span style={{ display: "block", width: "100%", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>{p.value}</span>
-              </button>
-              <div style={{ fontSize: 10, color: textFaint, marginTop: 8, opacity: 0.8, fontWeight: 500, textAlign: "right" }}>click gear to cycle</div>
-            </div>
-          ))}
+        {/* --- RIGHT RAIL (Dynamic Sidebar for Admin or Gears for User) --- */}
+        <aside style={{ width: RAIL_W, flexShrink: 0, background: viewMode === 'admin' ? sbBg : bg, position: "absolute", top: 0, bottom: 0, right: isMobile ? (rightRailOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && rightRailOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
+          
+          {viewMode === 'admin' ? (
+             <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: sbBg, borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
+                   <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
+                     <Folder size={18} /> Sub-Categories
+                   </div>
+                   {isMobile && <button onClick={() => setRightRailOpen(false)} style={{ background: "none", border: "none", color: sb.muted, display: 'flex', alignItems: 'center', cursor: 'pointer' }}><X size={18}/></button>}
+                </div>
+                
+                {['Faculty & Teachers', 'Industry Partners'].includes(adminCategory) && adminTab === 'knowledge' ? (
+                    <div style={{ padding: "12px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
+                       {allDynamicSubCategories.map(sub => (
+                          <button key={sub} onClick={() => { setAdminDept(sub); if(isMobile) setRightRailOpen(false); }} className={`sidebar-btn ${adminDept === sub ? 'primary' : 'is-sub'}`} style={{ paddingLeft: 16 }}>
+                            {sub}
+                          </button>
+                       ))}
+                       <button 
+                          onClick={() => setUiPrompt({ 
+                             isOpen: true, title: "Enter new sub-category (folder):", 
+                             onSubmit: (val) => { setCustomSubCats(prev => Array.from(new Set([...prev, val]))); setAdminDept(val); showToast(`Added sub-category: ${val}`, "success"); } 
+                          })} 
+                          className="sidebar-btn is-sub" style={{ border: `1px dashed ${sb.faint}`, marginTop: 8 }}
+                       >
+                          <Plus size={14}/> Add Sub-category
+                       </button>
+                    </div>
+                ) : (
+                    <div style={{ padding: 24, textAlign: "center", color: sb.faint, fontSize: 13, lineHeight: 1.5 }}>
+                       Select 'Faculty & Teachers' or 'Industry Partners' on the left to manage their folders here.
+                    </div>
+                )}
+             </div>
+          ) : (
+             <>
+                <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, right: 0 }}>
+                  <GearAbs id="g-right-top" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setOrgIdx(i => (i + 1) % ORGANIZATIONS.length); }} />
+                  <GearAbs id="g-right-mid" side="right" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-rightAngle * RATIO + (180 / N_LG)} onClick={() => { setRightAngle(a => a + STEP_DEG); setMajIdx(i => (i + 1) % MAJORS.length); }} />
+                  <GearAbs id="g-right-bot" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setDocIdx(i => (i + 1) % DOCUMENTS.length); }} />
+                </div>
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "14px 16px 0", zIndex: 20 }}>
+                  {topRightButtons}
+                </div>
+                {[
+                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: "Organizations", value: ORGANIZATIONS[orgIdx], onPick: () => requireAuth(() => { sendMessage(`Tell me about ${ORGANIZATIONS[orgIdx]}`); if(isMobile) setRightRailOpen(false); }) },
+                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: "Majors", value: MAJORS[majIdx], onPick: () => { sendMessage(`Tell me about the ${MAJORS[majIdx]} program`); if(isMobile) setRightRailOpen(false); } },
+                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: "Documents", value: DOCUMENTS[docIdx], onPick: () => requireAuth(() => { sendMessage(`Show me the ${DOCUMENTS[docIdx]}`); if(isMobile) setRightRailOpen(false); }) },
+                ].map((p: any, i: number) => (
+                  <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "right", right: GEAR_VIS, top: p.y, zIndex: 10 }}>
+                    {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "right" }}>{p.label}</div>}
+                    <button onClick={p.onPick} className="gear-panel-btn" style={{ flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: "0", textAlign: "right" }}>
+                      <span style={{ display: "block", width: "100%", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>{p.value}</span>
+                    </button>
+                    <div style={{ fontSize: 10, color: textFaint, marginTop: 8, opacity: 0.8, fontWeight: 500, textAlign: "right" }}>click gear to cycle</div>
+                  </div>
+                ))}
+             </>
+          )}
         </aside>
 
         {/* --- HIGH-PRIORITY KIOSK MODAL TRAP --- */}

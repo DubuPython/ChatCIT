@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import { Settings, Zap, Users, GraduationCap, FileText, ChevronLeft, ChevronRight, MessageSquare, Bot, Maximize } from "lucide-react";
+import { Settings, Zap, Users, GraduationCap, FileText, ChevronLeft, ChevronRight, MessageSquare, Bot, Maximize, Search, UserSquare, Building, FilterX } from "lucide-react";
 import { QUICK_PROMPTS, ORGANIZATIONS, MAJORS, DOCUMENTS } from "../config";
 import { GearboxLoader } from "./ui/helpers";
 
@@ -29,7 +29,6 @@ const GlobalKioskStyles = ({ dark }: { dark: boolean }) => (
       display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px;
       width: 100%; max-width: 640px; margin-top: 48px;
     }
-    .carousel-track::-webkit-scrollbar { display: none; }
     
     /* TOUCH-OPTIMIZED KIOSK BUTTONS */
     .nav-arrow {
@@ -71,6 +70,23 @@ const GlobalKioskStyles = ({ dark }: { dark: boolean }) => (
     .pdf-nav-btn:active:not(:disabled) { transform: scale(0.92); background: rgba(66, 133, 244, 0.8); color: white; }
     .pdf-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
+    /* Directory Interactive Buttons */
+    .dir-major-btn {
+      background: ${dark ? 'rgba(30, 35, 50, 0.8)' : '#f8fafc'};
+      border: 1px solid ${dark ? 'rgba(66, 133, 244, 0.3)' : 'rgba(66, 133, 244, 0.2)'};
+      padding: 24px; border-radius: 20px; font-size: 20px; font-weight: 700; color: ${dark ? '#fff' : '#0f172a'};
+      cursor: pointer; transition: all 0.1s; display: flex; align-items: center; justify-content: center; gap: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+    .dir-major-btn:active { transform: scale(0.96); background: rgba(66, 133, 244, 0.2); }
+
+    .dir-profile-card {
+      background: ${dark ? 'rgba(255,255,255,0.03)' : '#ffffff'};
+      border: 1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
+      padding: 20px 24px; border-radius: 16px; display: flex; align-items: center; gap: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
     @keyframes pulseGlow { 0% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.6); } 70% { box-shadow: 0 0 0 20px rgba(66, 133, 244, 0); } 100% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0); } }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   `}</style>
@@ -79,12 +95,30 @@ const GlobalKioskStyles = ({ dark }: { dark: boolean }) => (
 export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, setKioskCategory, kioskResult, setKioskResult, handleKioskSelection, topRightButtons, setFullScreenIframe, setFullScreenMedia }: any) => {
   const carouselRef = useRef<HTMLDivElement>(null);
 
+  // --- CANVAS PDF VIEWER LOGIC ---
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdfPage, setPdfPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [pdfRef, setPdfRef] = useState<any>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
 
+  // --- INTERACTIVE DIRECTORY STATE ---
+  const [dirMajor, setDirMajor] = useState<string | null>(null);
+  const [dirSearch, setDirSearch] = useState("");
+  const [dirPage, setDirPage] = useState(1);
+  const ITEMS_PER_PAGE = 5;
+
+  // Reset states when changing views
+  useEffect(() => {
+     if (kioskResult?.isPdf) setPdfPage(1);
+     if (kioskResult?.isDirectory) {
+         setDirMajor(null);
+         setDirSearch("");
+         setDirPage(1);
+     }
+  }, [kioskResult?.title]);
+
+  // Load PDF
   useEffect(() => {
     if (!kioskResult?.isPdf || !kioskResult?.pdfUrl) return;
     
@@ -123,6 +157,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     return () => { isMounted = false; };
   }, [kioskResult?.pdfUrl]);
 
+  // Render PDF to Canvas
   useEffect(() => {
      const renderPage = async () => {
         if (!pdfRef || !canvasRef.current) return;
@@ -132,7 +167,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
           const ctx = canvas.getContext('2d');
           const page = await pdfRef.getPage(pdfPage);
           
-          const viewport = page.getViewport({ scale: 2.5 });
+          const viewport = page.getViewport({ scale: 2.0 });
           canvas.height = viewport.height;
           canvas.width = viewport.width;
 
@@ -179,6 +214,47 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     });
   };
 
+  // --- MOCK DIRECTORY DATA GENERATOR ---
+  // In production, this data would be fetched via your API and seeded via your backend Python script!
+  const directoryData = React.useMemo(() => {
+      if (!kioskResult?.isDirectory) return [];
+      
+      const isFaculty = kioskResult.title === "Faculty & Teachers";
+      const names = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson", "White", "Harris"];
+      const partners = ["Tech", "Systems", "Solutions", "Dynamics", "Innovations", "Global", "Networks", "Enterprises", "Soft", "Data"];
+      
+      let data = [];
+      for (let i = 0; i < 50; i++) {
+          const major = MAJORS[i % MAJORS.length];
+          if (isFaculty) {
+             data.push({
+                 id: i, name: `Dr. ${names[i % names.length]}`, major: major, 
+                 desc: `Professor of ${major.split(' ')[0]}`, email: `f${i}@bulsu.edu.ph`
+             });
+          } else {
+             data.push({
+                 id: i, name: `${names[i % names.length]} ${partners[i % partners.length]}`, major: major, 
+                 desc: `Corporate Partner for ${major.split(' ')[0]}`, email: `contact@${names[i % names.length].toLowerCase()}.com`
+             });
+          }
+      }
+      return data;
+  }, [kioskResult?.title]);
+
+  const filteredDirectory = React.useMemo(() => {
+      return directoryData
+        .filter(item => {
+            const matchesSearch = item.name.toLowerCase().includes(dirSearch.toLowerCase()) || item.major.toLowerCase().includes(dirSearch.toLowerCase());
+            const matchesMajor = dirMajor ? item.major === dirMajor : true;
+            return matchesSearch && matchesMajor;
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+  }, [directoryData, dirSearch, dirMajor]);
+
+  const totalDirPages = Math.ceil(filteredDirectory.length / ITEMS_PER_PAGE) || 1;
+  const currentDirData = filteredDirectory.slice((dirPage - 1) * ITEMS_PER_PAGE, dirPage * ITEMS_PER_PAGE);
+
+
   const textMuted = dark ? "#9aa0a6" : "#6b7280";
   const resultCardBg = dark ? '#13141c' : '#ffffff';
   const headerBg = dark ? '#13141c' : '#ffffff';
@@ -224,7 +300,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                   <div style={{ width: 80, height: 80, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(66, 133, 244, 0.1)", borderRadius: "50%", border: "2px solid rgba(66, 133, 244, 0.3)", boxShadow: "0 0 40px rgba(66,133,244,0.3)" }}>
                     <Settings color={dark ? "#60a5fa" : "#38bdf8"} className="animate-spin" style={{ animationDuration: '4s' }} size={44} />
                   </div>
-                  {/* FIXED: Dynamic color for "Chat" handles light/dark mode visibility, removed "Kiosk" text */}
                   <h1 style={{ fontSize: 56, fontWeight: 800, color: dark ? '#ffffff' : '#0f172a', letterSpacing: "-1px", margin: 0 }}>
                     Chat<span style={{ color: dark ? '#60a5fa' : '#38bdf8' }}>CIT</span>
                   </h1>
@@ -288,14 +363,13 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
               </div>
             )}
 
-            {/* STATE 3: RESULT CARD (CANVAS PDF OR TEXT) */}
+            {/* STATE 3: RESULT CARD (PDF, DIRECTORY, OR TEXT) */}
             {screenState === "kiosk_result" && (
               <div style={{ width: '100%', height: '100%', background: resultCardBg, borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)'}`, display: 'flex', flexDirection: 'column', boxShadow: '0 24px 60px rgba(0,0,0,0.4)', overflow: 'hidden' }}>
                 
+                {/* --- 3A: PDF CANVAS VIEWER --- */}
                 {kioskResult?.isPdf ? (
                   <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    
-                    {/* Compact Header */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: headerBg, borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, zIndex: 20, flexShrink: 0 }}>
                       <h2 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: dark ? '#fff' : '#000', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginRight: 16 }}>
                         {kioskResult.title}
@@ -311,9 +385,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                       </div>
                     </div>
                     
-                    {/* PERFECT BORDER-FITTING CANVAS */}
-                    <div style={{ flex: 1, width: '100%', position: 'relative', background: '#323639', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px', overflow: 'hidden' }}>
-                       
+                    <div className="no-scrollbar" style={{ flex: 1, width: '100%', position: 'relative', background: '#323639', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '12px', overflow: 'hidden' }}>
                        {pdfLoading && (
                          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}>
                            <div style={{ position: "relative", width: 60, height: 60, display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -321,30 +393,17 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                            </div>
                          </div>
                        )}
-
                        <canvas 
                          ref={canvasRef} 
                          style={{ 
-                            height: '100%', 
-                            width: 'auto',
-                            maxWidth: '100%',
-                            objectFit: 'contain', 
-                            display: 'block', 
-                            opacity: pdfLoading ? 0.3 : 1, 
-                            transition: 'opacity 0.3s',
-                            background: '#fff',
-                            borderRadius: '8px',
-                            boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+                            maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', 
+                            display: 'block', opacity: pdfLoading ? 0.3 : 1, transition: 'opacity 0.3s',
+                            background: '#fff', borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
                          }} 
                        />
-
                        {pdfRef && (
                          <button 
-                           onClick={() => {
-                              if (setFullScreenMedia && canvasRef.current) {
-                                  setFullScreenMedia(canvasRef.current.toDataURL('image/png'));
-                              }
-                           }}
+                           onClick={() => { if (setFullScreenMedia && canvasRef.current) { setFullScreenMedia(canvasRef.current.toDataURL('image/png')); } }}
                            style={{ position: 'absolute', bottom: 24, right: 24, zIndex: 20, background: '#4285f4', color: '#fff', border: 'none', borderRadius: '50%', width: 64, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform 0.1s', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}
                            onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.92)'}
                            onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
@@ -355,6 +414,100 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                        )}
                     </div>
                   </div>
+
+                /* --- 3B: INTERACTIVE DIRECTORY VIEWER --- */
+                ) : kioskResult?.isDirectory ? (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ padding: '24px 32px', background: headerBg, borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                         <h2 style={{ fontSize: 32, fontWeight: 800, margin: 0, color: dark ? '#fff' : '#000', textTransform: 'uppercase' }}>
+                            {kioskResult?.title}
+                         </h2>
+                         {dirMajor && (
+                            <button onClick={() => { setDirMajor(null); setDirPage(1); }} className="pdf-nav-btn" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>
+                               <FilterX size={18} style={{ marginRight: 8 }} /> Clear Filter
+                            </button>
+                         )}
+                      </div>
+
+                      {/* KIOSK SEARCH BAR */}
+                      <div style={{ position: 'relative', width: '100%' }}>
+                         <Search size={24} color={textMuted} style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)' }} />
+                         <input 
+                           type="text" 
+                           placeholder={`Search ${kioskResult.title} by name or department...`} 
+                           value={dirSearch}
+                           onChange={e => { setDirSearch(e.target.value); setDirPage(1); }}
+                           style={{ 
+                              width: '100%', padding: '24px 24px 24px 64px', borderRadius: '16px', fontSize: '20px', 
+                              border: `2px solid ${dark ? 'rgba(66,133,244,0.3)' : 'rgba(66,133,244,0.4)'}`,
+                              background: dark ? 'rgba(0,0,0,0.2)' : '#f8fafc', color: dark ? '#fff' : '#000', outline: 'none'
+                           }}
+                         />
+                      </div>
+                    </div>
+
+                    <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '32px', display: 'flex', flexDirection: 'column' }}>
+                       
+                       {/* GRID VIEW (Only shows if no Major is selected and no active search) */}
+                       {!dirMajor && dirSearch === "" ? (
+                          <>
+                            <div style={{ fontSize: 20, fontWeight: 600, color: textMuted, marginBottom: 24, textAlign: 'center' }}>
+                               Select a Department to view {kioskResult.title}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 16 }}>
+                               {MAJORS.map((m, idx) => (
+                                  <button key={idx} className="dir-major-btn" onClick={() => { setDirMajor(m); setDirPage(1); }}>
+                                     {kioskResult.title === "Faculty & Teachers" ? <UserSquare size={28}/> : <Building size={28}/>}
+                                     {m}
+                                  </button>
+                               ))}
+                            </div>
+                          </>
+                       ) : (
+                          /* LIST VIEW (Shows 5 Results per page) */
+                          <>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>
+                               {currentDirData.length > 0 ? currentDirData.map((profile) => (
+                                  <div key={profile.id} className="dir-profile-card">
+                                     <div style={{ width: 80, height: 80, borderRadius: '50%', background: dark ? '#1e293b' : '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                        {kioskResult.title === "Faculty & Teachers" ? <UserSquare size={40} color="#4285f4"/> : <Building size={40} color="#10b981"/>}
+                                     </div>
+                                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                        <span style={{ fontSize: 24, fontWeight: 800, color: dark ? '#fff' : '#0f172a' }}>{profile.name}</span>
+                                        <span style={{ fontSize: 18, fontWeight: 600, color: '#4285f4' }}>{profile.major}</span>
+                                        <span style={{ fontSize: 16, color: textMuted }}>{profile.desc} • {profile.email}</span>
+                                     </div>
+                                  </div>
+                               )) : (
+                                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: textMuted, fontWeight: 600 }}>
+                                      No profiles found.
+                                  </div>
+                               )}
+                            </div>
+
+                            {/* STRICT PAGINATION CONTROLS */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 32, padding: '24px', background: dark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderRadius: 16 }}>
+                               <button 
+                                 onClick={() => setDirPage(p => Math.max(1, p - 1))} disabled={dirPage <= 1}
+                                 style={{ padding: '16px 32px', fontSize: 20, fontWeight: 700, borderRadius: 12, border: 'none', background: dirPage <= 1 ? 'transparent' : '#4285f4', color: dirPage <= 1 ? textMuted : '#fff', cursor: dirPage <= 1 ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
+                               >
+                                  <ChevronLeft size={24}/> Previous
+                               </button>
+                               <span style={{ fontSize: 20, fontWeight: 700, color: dark ? '#fff' : '#000' }}>Page {dirPage} of {totalDirPages}</span>
+                               <button 
+                                 onClick={() => setDirPage(p => Math.min(totalDirPages, p + 1))} disabled={dirPage >= totalDirPages}
+                                 style={{ padding: '16px 32px', fontSize: 20, fontWeight: 700, borderRadius: 12, border: 'none', background: dirPage >= totalDirPages ? 'transparent' : '#4285f4', color: dirPage >= totalDirPages ? textMuted : '#fff', cursor: dirPage >= totalDirPages ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
+                               >
+                                  Next <ChevronRight size={24}/>
+                               </button>
+                            </div>
+                          </>
+                       )}
+                    </div>
+                  </div>
+
+                /* --- 3C: STANDARD TEXT VIEWER --- */
                 ) : (
                   <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
                     
@@ -364,7 +517,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                       </h2>
                     </div>
 
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       
                       {kioskResult?.loading ? (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 16, marginTop: 60 }}>
