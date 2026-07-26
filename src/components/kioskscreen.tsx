@@ -29,6 +29,7 @@ const GlobalKioskStyles = ({ dark }: { dark: boolean }) => (
       display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px;
       width: 100%; max-width: 640px; margin-top: 48px;
     }
+    .carousel-track::-webkit-scrollbar { display: none; }
     
     /* TOUCH-OPTIMIZED KIOSK BUTTONS */
     .nav-arrow {
@@ -131,7 +132,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
           const ctx = canvas.getContext('2d');
           const page = await pdfRef.getPage(pdfPage);
           
-          const viewport = page.getViewport({ scale: 2.0 });
+          const viewport = page.getViewport({ scale: 2.5 });
           canvas.height = viewport.height;
           canvas.width = viewport.width;
 
@@ -223,8 +224,9 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                   <div style={{ width: 80, height: 80, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(66, 133, 244, 0.1)", borderRadius: "50%", border: "2px solid rgba(66, 133, 244, 0.3)", boxShadow: "0 0 40px rgba(66,133,244,0.3)" }}>
                     <Settings color={dark ? "#60a5fa" : "#38bdf8"} className="animate-spin" style={{ animationDuration: '4s' }} size={44} />
                   </div>
-                  <h1 style={{ fontSize: 56, fontWeight: 800, color: '#ffffff', letterSpacing: "-1px", margin: 0 }}>
-                    Chat<span style={{ color: dark ? '#60a5fa' : '#38bdf8' }}>CIT</span> Kiosk
+                  {/* FIXED: Dynamic color for "Chat" handles light/dark mode visibility, removed "Kiosk" text */}
+                  <h1 style={{ fontSize: 56, fontWeight: 800, color: dark ? '#ffffff' : '#0f172a', letterSpacing: "-1px", margin: 0 }}>
+                    Chat<span style={{ color: dark ? '#60a5fa' : '#38bdf8' }}>CIT</span>
                   </h1>
                   <p style={{ color: dark ? '#94a3b8' : '#475569', fontSize: 20, textAlign: "center", maxWidth: 500, lineHeight: 1.5, margin: 0 }}>
                     Your interactive digital assistant for Bulacan State University Computer Technology.
@@ -309,7 +311,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                       </div>
                     </div>
                     
-                    {/* PERFECT BORDER-FITTING CANVAS: Mathematically impossible to cut off */}
+                    {/* PERFECT BORDER-FITTING CANVAS */}
                     <div style={{ flex: 1, width: '100%', position: 'relative', background: '#323639', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px', overflow: 'hidden' }}>
                        
                        {pdfLoading && (
