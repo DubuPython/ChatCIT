@@ -84,8 +84,9 @@ export function ChatDirectory({ dark, category, onClose, onCardClick }: { dark: 
         />
       </div>
 
+      {/* FIX: Changed overflowX to flexWrap: wrap so pills cleanly stack instead of cropping! */}
       {!loading && subcategories.length > 1 && (
-        <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 20, paddingBottom: 8 }} className="no-scrollbar">
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
           {subcategories.map(sub => (
             <button 
                key={sub as string} 
