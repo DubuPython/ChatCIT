@@ -388,6 +388,48 @@ export function AdminPanel({
         </div>
       )}
 
+      {/* RENDER MISSING USERS TAB HERE */}
+      {activeTab === 'users' && (
+        <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", maxHeight: "60vh", overflowY: "auto" }} className="no-scrollbar">
+          {filteredUsers.length === 0 ? (
+            <div style={{ padding: 40, textAlign: "center", color: textMuted }}>No users found.</div>
+          ) : (
+            <table style={{ width: "100%", minWidth: 600, borderCollapse: "collapse", textAlign: "left", fontSize: 14 }}>
+              <thead style={{ position: "sticky", top: 0, zIndex: 10, background: dark ? "#25242c" : "#fff" }}>
+                <tr style={{ borderBottom: `1px solid ${border}` }}>
+                  <th style={{ padding: "14px 16px", fontWeight: 600 }}>Username / Email</th>
+                  <th style={{ padding: "14px 16px", fontWeight: 600 }}>Department</th>
+                  <th style={{ padding: "14px 16px", fontWeight: 600 }}>Role</th>
+                  <th style={{ padding: "14px 16px", fontWeight: 600, width: 140, textAlign: "right" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.map((user: any) => (
+                  <tr key={user.id} style={{ borderBottom: `1px solid ${border}` }}>
+                    <td style={{ padding: "14px 16px", verticalAlign: "middle", fontWeight: 500 }}>
+                      {user.username || "—"} <br />
+                      <span style={{ fontSize: 12, color: textMuted, fontWeight: 400 }}>{user.email}</span>
+                    </td>
+                    <td style={{ padding: "14px 16px", verticalAlign: "middle", color: dark ? "#fff" : "#000" }}>{user.department || "Others"}</td>
+                    <td style={{ padding: "14px 16px", verticalAlign: "middle" }}>
+                      <select value={user.role} disabled={currentUser?.role !== 'superadmin' && user.role === 'superadmin'} onChange={(e) => handleRoleChange(user.id, e.target.value)} style={{ padding: "6px 8px", borderRadius: 6, background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', color: user.role === 'admin' || user.role === 'superadmin' ? '#4285f4' : textMuted, border: `1px solid ${border}`, outline: "none", cursor: (currentUser?.role !== 'superadmin' && user.role === 'superadmin') ? "not-allowed" : "pointer", fontWeight: 600 }}>
+                        <option value="student" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Student</option>
+                        <option value="admin" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Admin</option>
+                        {(currentUser?.role === 'superadmin' || user.role === 'superadmin') && (<option value="superadmin" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Superadmin</option>)}
+                      </select>
+                    </td>
+                    <td style={{ padding: "14px 16px", verticalAlign: "middle", textAlign: "right", whiteSpace: "nowrap" }}>
+                      <button onClick={() => handleResetPassword(user.id, user.email)} style={{ background: "none", border: "none", color: "#f59e0b", cursor: "pointer", padding: 6 }} title="Generate New Password"><Key size={16} /></button>
+                      <button onClick={() => handleDelete('users', user.id)} disabled={user.role === 'admin' || user.role === 'superadmin'} style={{ background: "none", border: "none", color: (user.role === 'admin' || user.role === 'superadmin') ? textMuted : "#ef4444", cursor: (user.role === 'admin' || user.role === 'superadmin') ? "not-allowed" : "pointer", padding: 6, marginLeft: 4 }} title={(user.role === 'admin' || user.role === 'superadmin') ? "Cannot delete admins" : "Delete User Account"}><Trash2 size={16} /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
       {modal.isOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: 12, padding: 24, width: '100%', maxWidth: 400, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
