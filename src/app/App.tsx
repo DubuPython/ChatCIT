@@ -400,7 +400,7 @@ export default function App() {
 
   const containerStyle: React.CSSProperties = simKiosk ? {
     position: "fixed", top: "50%", left: "50%", width: 768, height: 1366, transform: `translate(-50%, -50%) scale(${simScale})`, transformOrigin: "center center", display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.8), 0 0 0 16px #111", borderRadius: 24
-  } : { position: "fixed", top: 0, bottom: 0, left: 0, right: 0, display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary };
+  } : { position: "absolute", top: 0, bottom: 0, left: 0, right: 0, display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary };
 
   const virtualKeyRows = [
     ['1','2','3','4','5','6','7','8','9','0'],
@@ -644,7 +644,7 @@ export default function App() {
             </div>
           </aside>
         ) : (
-          /* LEFT GEAR UI */
+          /* LEFT GEAR UI: Activated when Gear Mode is True */
           <aside style={{ width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
             <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, left: 0 }}>
               <GearAbs id="g-left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => (i + 1) % QUICK_PROMPTS.length); }} />
@@ -726,7 +726,7 @@ export default function App() {
           flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "absolute",
           top: 0, bottom: 0, 
           left: isMobile ? 0 : (gearMode ? RAIL_W : (sidebarOpen ? SIDEBAR_W : 0)), 
-          right: isMobile ? 0 : (gearMode ? RAIL_W : (viewMode === 'admin' ? RAIL_W : 0)), 
+          right: isMobile ? 0 : RAIL_W, 
           paddingBottom: kbOpen ? 360 : 0, transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
         }}>
           <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: isMobile ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
@@ -735,7 +735,7 @@ export default function App() {
               {(!sidebarOpen || isMobile) && (!gearMode || isMobile) && (
                 <button onClick={() => { setSidebarOpen(true); }} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", zIndex: 60 }}><Menu size={22} /></button>
               )}
-              {(!gearMode && (!sidebarOpen || isMobile)) && (
+              {(isMobile || (!gearMode && !sidebarOpen)) && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', color: dark ? '#ffffff' : '#0f172a' }}>
                     Chat<span style={{ color: dark ? '#60a5fa' : '#2563eb' }}>CIT</span>
@@ -770,13 +770,15 @@ export default function App() {
             )}
           </header>
 
-          <div id="chat-scroll-container" className="no-scrollbar" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative" }}>
+          <div id="chat-scroll-container" className="no-scrollbar" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", WebkitOverflowScrolling: "touch" }}>
             {viewMode === "admin" && currentUser ? (
-              <AdminPanel 
-                 dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allDynamicCategories} 
-                 mergedSubCategoriesMap={mergedSubCategoriesMap} 
-                 setDbCategories={setDbCategories} setDbSubCategories={setDbSubCategories} 
-              />
+              <div style={{ paddingBottom: isMobile ? 120 : 0 }}>
+                <AdminPanel 
+                   dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allDynamicCategories} 
+                   mergedSubCategoriesMap={mergedSubCategoriesMap} 
+                   setDbCategories={setDbCategories} setDbSubCategories={setDbSubCategories} 
+                />
+              </div>
             ) : directoryMode ? (
               <ChatDirectory 
                  dark={dark} 
@@ -813,7 +815,17 @@ export default function App() {
               </div>
             ) : (
               <div style={{ maxWidth: 960, width: "100%", margin: "0 auto", padding: isMobile ? "16px 12px" : "24px 16px", display: "flex", flexDirection: "column", gap: 24 }}>
-                {activeChat.messages.map((msg: Message) => (<ChatMessageBubble key={msg.id} msg={msg} dark={dark} currentUser={currentUser} isMobile={isMobile} onEnlarge={setFullScreenMedia} onOpenIframe={setFullScreenIframe} onLoad={scrollToBottom} />))}
+                {(() => {
+                  const seenPics = new Set<string>();
+                  return activeChat.messages.map((msg: Message) => {
+                    let displayPics = msg.pictures;
+                    if (msg.role === 'model' && msg.pictures) {
+                       displayPics = msg.pictures.filter(p => !seenPics.has(p));
+                       msg.pictures.forEach(p => seenPics.add(p));
+                    }
+                    return <ChatMessageBubble key={msg.id} msg={{...msg, pictures: displayPics}} dark={dark} currentUser={currentUser} isMobile={isMobile} onEnlarge={setFullScreenMedia} onOpenIframe={setFullScreenIframe} onLoad={scrollToBottom} />;
+                  });
+                })()}
                 {isTyping && (<div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}><div style={{ flexShrink: 0, marginTop: 4, width: 28, height: 28, display: "flex", justifyContent: "center", alignItems: "center" }}><Bot color="#4285f4" size={28} className="animate-pulse" /></div><div style={{ paddingTop: 3 }}><ChatLoader /></div></div>)}
                 <div ref={messagesEndRef} />
               </div>
@@ -830,6 +842,7 @@ export default function App() {
           )}
         </main>
         
+        {/* RIGHT SIDEBAR (RESTORED) */}
         <aside style={{ width: RAIL_W, flexShrink: 0, background: viewMode === 'admin' ? sbBg : bg, position: "absolute", top: 0, bottom: 0, right: isMobile ? (rightRailOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && rightRailOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
           {viewMode === 'admin' ? (
              <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: sbBg, borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
