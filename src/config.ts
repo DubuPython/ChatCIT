@@ -8,8 +8,8 @@ export const MID_CHOICES = ["+ New chat", "Change taskbar mode"];
 export const DEFAULT_CATEGORIES = ["All", "Organizations", "Majors", "Documents", "Handbook", "Industry Partners", "Facilities", "Faculty & Teachers", "Magna Carta"];
 export const ALL_DEPTS = ["All", "Computer Technology", "Food Processing Technology", "Drafting and Digital Arts Technology", "Welding Technology", "Automotive Technology", "Electrical Technology", "Electronics Technology", "Mechanical Technology", "H/VAC Technology", "Mechatronics Technology", "Electronics and Communication Technology", "Faculty", "Others"];
 
-// Change this:
-// export const API_URL = "http://localhost:5000/api";
+// Change this:S
+//export const API_URL = "http://localhost:5000/api";
 
 // To this:
 export const API_URL = "https://chatcit-backend.onrender.com/api";
