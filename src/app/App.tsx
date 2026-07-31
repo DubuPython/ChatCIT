@@ -770,14 +770,18 @@ export default function App() {
             )}
           </header>
 
-          <div id="chat-scroll-container" className="no-scrollbar" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", WebkitOverflowScrolling: "touch" }}>
+          {/* FIX: Set display:flex & flex:1 down the entire DOM tree, including minHeight:0. This forces the browser to calculate true boundaries, fixing broken CSS scrolling in the Admin Dashboard across mobile and desktop. */}
+          <div id="chat-scroll-container" className="no-scrollbar" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", WebkitOverflowScrolling: "touch", display: "flex", flexDirection: "column" }}>
             {viewMode === "admin" && currentUser ? (
-              <div style={{ paddingBottom: isMobile ? 120 : 0 }}>
-                <AdminPanel 
-                   dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allDynamicCategories} 
-                   mergedSubCategoriesMap={mergedSubCategoriesMap} 
-                   setDbCategories={setDbCategories} setDbSubCategories={setDbSubCategories} 
-                />
+              // FIX: Force absolute positioning on the Admin wrapper to guarantee it respects the parent's height boundaries, enabling internal scrolling.
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, paddingBottom: isMobile ? 120 : 24, display: "flex", flexDirection: "column" }}>
+                <div style={{ flex: 1, overflowY: "auto", padding: "16px", WebkitOverflowScrolling: "touch" }}>
+                  <AdminPanel 
+                     dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allDynamicCategories} 
+                     mergedSubCategoriesMap={mergedSubCategoriesMap} 
+                     setDbCategories={setDbCategories} setDbSubCategories={setDbSubCategories} 
+                  />
+                </div>
               </div>
             ) : directoryMode ? (
               <ChatDirectory 
@@ -787,7 +791,7 @@ export default function App() {
                  onCardClick={(name) => sendMessage(`Tell me about ${name}`)} 
               />
             ) : !activeChat || activeChat.messages.length === 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100%", padding: "48px 16px" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, padding: "48px 16px" }}>
                 <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}><div style={{ position: "absolute", transform: isMobile ? "scale(0.65)" : "scale(0.85)" }}><GearboxLoader /></div></div>
                 <h1 style={{ fontSize: isMobile ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{currentUser && Number(currentUser.id) === -1 ? "Guest" : currentUser?.username || currentUser?.email?.split('@')[0] || "Bulsuan"}!</strong></h1>
                 <p style={{ color: textMuted, fontSize: 15, marginBottom: 32, textAlign: "center" }}>How can I help you today?</p>
@@ -814,7 +818,7 @@ export default function App() {
                 )}
               </div>
             ) : (
-              <div style={{ maxWidth: 960, width: "100%", margin: "0 auto", padding: isMobile ? "16px 12px" : "24px 16px", display: "flex", flexDirection: "column", gap: 24 }}>
+              <div style={{ maxWidth: 960, width: "100%", margin: "0 auto", padding: isMobile ? "16px 12px" : "24px 16px", display: "flex", flexDirection: "column", gap: 24, flexShrink: 0 }}>
                 {(() => {
                   const seenPics = new Set<string>();
                   return activeChat.messages.map((msg: Message) => {
