@@ -259,7 +259,7 @@ export default function App() {
       const mMsg: Message = { id: `msg-${Date.now()}`, role: "model", content: data.reply || "Sorry, I encountered an error communicating with my database.", timestamp: new Date(), pictures: data.pictures };
       setChats((p) => p.map((c) => c.id === chatId ? { ...c, messages: [...c.messages, mMsg] } : c));
     } catch (error: any) {
-      const errorMessage = error.message === "Unexpected end of JSON input" || error.message.includes("failed") ? "⚠️ Connection failed. Is the Node.js backend server running?" : `⚠️ ${error.message}`;
+      const errorMessage = error.message === "Unexpected end of JSON input" || error.message.toLowerCase().includes("failed") || error.message.toLowerCase().includes("network") ? "⚠️ Connection failed. Is the Node.js backend server running or are you offline?" : `⚠️ ${error.message}`;
       const errorMsg: Message = { id: `msg-${Date.now()}`, role: "model", content: errorMessage, timestamp: new Date() };
       setChats((p) => p.map((c) => c.id === chatId ? { ...c, messages: [...c.messages, errorMsg] } : c));
     } finally { setIsTyping(false); }
@@ -307,39 +307,49 @@ export default function App() {
     if (category === "Majors" || item.toLowerCase().includes("facilities") || kioskResult?.isDirectory) { action(); } else { requireAuth(action); }
   };
 
-  // HANDLERS FOR SUBCATEGORY RENAME & DELETE
   const handleRenameSubCategory = (category: string, oldSub: string) => {
     setUiPrompt({
       isOpen: true,
       title: `Rename subcategory "${oldSub}":`,
-      onSubmit: (newSubName) => {
+      onSubmit: async (newSubName) => {
         if (!newSubName || newSubName.trim() === "" || newSubName === oldSub) return;
         const trimmed = newSubName.trim();
-        
-        // Update Custom Subcategories
-        setCustomSubCats(prev => prev.map(item => (item.cat === category && item.sub === oldSub) ? { cat: category, sub: trimmed } : item));
-        
-        // Update DB Subcategories state
-        setDbSubCategories(prev => {
-          const list = prev[category] || [];
-          return { ...prev, [category]: list.map(s => s === oldSub ? trimmed : s) };
-        });
+        try {
+          const res = await fetch(`${API_URL}/knowledge/subcategory`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category, oldSubcategory: oldSub, newSubcategory: trimmed })
+          });
+          if (!res.ok) throw new Error("Server failed to rename subcategory");
 
-        if (adminDept === oldSub) setAdminDept(trimmed);
-        showToast(`Subcategory renamed to "${trimmed}"`, "success");
+          setCustomSubCats(prev => prev.map(item => (item.cat === category && item.sub === oldSub) ? { cat: category, sub: trimmed } : item));
+          setDbSubCategories(prev => {
+            const list = prev[category] || [];
+            return { ...prev, [category]: list.map(s => s === oldSub ? trimmed : s) };
+          });
+          if (adminDept === oldSub) setAdminDept(trimmed);
+          showToast(`Subcategory renamed to "${trimmed}"`, "success");
+        } catch (e: any) { showToast("Error renaming subcategory in database.", "error"); }
       }
     });
   };
 
-  const handleDeleteSubCategory = (category: string, subToDelete: string) => {
-    if (window.confirm(`Are you sure you want to delete the subcategory "${subToDelete}"?`)) {
-      setCustomSubCats(prev => prev.filter(item => !(item.cat === category && item.sub === subToDelete)));
-      setDbSubCategories(prev => {
-        const list = prev[category] || [];
-        return { ...prev, [category]: list.filter(s => s !== subToDelete) };
-      });
-      if (adminDept === subToDelete) setAdminDept("All");
-      showToast(`Subcategory "${subToDelete}" deleted.`, "info");
+  const handleDeleteSubCategory = async (category: string, subToDelete: string) => {
+    if (window.confirm(`Are you sure you want to delete the subcategory "${subToDelete}"?\n\nRecords inside this folder will not be deleted, but will be moved to the main "All" folder.`)) {
+      try {
+        const res = await fetch(`${API_URL}/knowledge/subcategory`, {
+          method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category, subcategory: subToDelete })
+        });
+        if (!res.ok) throw new Error("Server failed to delete subcategory");
+
+        setCustomSubCats(prev => prev.filter(item => !(item.cat === category && item.sub === subToDelete)));
+        setDbSubCategories(prev => {
+          const list = prev[category] || [];
+          return { ...prev, [category]: list.filter(s => s !== subToDelete) };
+        });
+        if (adminDept === subToDelete) setAdminDept("All");
+        showToast(`Subcategory "${subToDelete}" deleted.`, "info");
+      } catch (e: any) { showToast("Error deleting subcategory in database.", "error"); }
     }
   };
 
@@ -504,7 +514,7 @@ export default function App() {
         {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
         {isMobile && rightRailOpen && <div onClick={() => setRightRailOpen(false)} style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
 
-        {/* LEFT SIDEBAR */}
+        {/* LEFT SIDEBAR: Handles both Standard Mode and Gear Mode */}
         {!gearMode ? (
           <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: sbBg, position: "absolute", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -SIDEBAR_W) : (sidebarOpen ? 0 : -SIDEBAR_W), zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
             <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, background: sbBg }}>
@@ -714,9 +724,9 @@ export default function App() {
 
         <main style={{ 
           flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "absolute",
-          top: 0, bottom: 0, left: isMobile ? 0 : (gearMode ? RAIL_W : (sidebarOpen ? SIDEBAR_W : 0)), 
-          // FIX: Fixed main element right property so admin mode does not squeeze horizontally on mobile
-          right: isMobile ? 0 : RAIL_W, 
+          top: 0, bottom: 0, 
+          left: isMobile ? 0 : (gearMode ? RAIL_W : (sidebarOpen ? SIDEBAR_W : 0)), 
+          right: isMobile ? 0 : (gearMode ? RAIL_W : (viewMode === 'admin' ? RAIL_W : 0)), 
           paddingBottom: kbOpen ? 360 : 0, transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
         }}>
           <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: isMobile ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
@@ -725,7 +735,7 @@ export default function App() {
               {(!sidebarOpen || isMobile) && (!gearMode || isMobile) && (
                 <button onClick={() => { setSidebarOpen(true); }} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", zIndex: 60 }}><Menu size={22} /></button>
               )}
-              {(isMobile || (!gearMode && !sidebarOpen)) && (
+              {(!gearMode && (!sidebarOpen || isMobile)) && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', color: dark ? '#ffffff' : '#0f172a' }}>
                     Chat<span style={{ color: dark ? '#60a5fa' : '#2563eb' }}>CIT</span>
@@ -789,7 +799,7 @@ export default function App() {
                           <button 
                             key={idx} 
                             onClick={() => sendMessage(primaryTag)} 
-                            style={{ flexShrink: 0, padding: "10px 18px", borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? "rgba(255,255,255,0.03)" : "#fff", color: textPrimary, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s ease" }} 
+                            style={{ flexShrink: 0, padding: "10px 18px", borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? "rgba(255,255,255,0.03)" : "#fff", color: textPrimary, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "nowrap" }} 
                             onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.08)" : "#ffffff"} 
                             onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.03)" : "#fff"}
                           >
@@ -830,7 +840,6 @@ export default function App() {
                    {isMobile && <button onClick={() => setRightRailOpen(false)} style={{ background: "none", border: "none", color: sb.muted, display: 'flex', alignItems: 'center', cursor: 'pointer' }}><X size={18}/></button>}
                 </div>
                 
-                {/* UPDATED: Included 'Facilities' in the list of categories with folder/subcategory management */}
                 {['Faculty & Teachers', 'Faculty & Professors', 'Industry Partners', 'Facilities'].includes(adminCategory) && adminTab === 'knowledge' ? (
                     <div style={{ padding: "12px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
                        {['All', ...(mergedSubCategoriesMap[adminCategory] || [])].map(sub => (
@@ -838,7 +847,6 @@ export default function App() {
                             <button onClick={() => { setAdminDept(sub); if(isMobile) setRightRailOpen(false); }} className={`sidebar-btn ${adminDept === sub ? 'primary' : 'is-sub'}`} style={{ flex: 1, paddingLeft: 12 }}>
                               {sub}
                             </button>
-                            {/* UPDATED: Rename & Delete Buttons for subcategories */}
                             {sub !== 'All' && (
                               <div style={{ display: "flex", gap: 2 }}>
                                 <button onClick={() => handleRenameSubCategory(adminCategory, sub)} style={{ background: "none", border: "none", color: sb.muted, cursor: "pointer", padding: 6, display: "flex", alignItems: "center" }} title="Rename Subcategory">
