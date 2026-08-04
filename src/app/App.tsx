@@ -214,7 +214,15 @@ export default function App() {
   };
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
+  
   useEffect(() => { fetch(`${API_URL}/faqs/top`).then(res => res.json()).then(data => setTopFaqs(data)).catch(() => {}); }, []);
+
+  // AUTO-SCROLL EFFECT
+  useEffect(() => {
+    if (activeChat?.messages) {
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [activeChat?.messages, isTyping]);
 
   const handlePasswordReset = async () => {
     if (!newPassword || newPassword.length < 6) { showToast("Password must be at least 6 characters.", "error"); return; }
@@ -770,10 +778,8 @@ export default function App() {
             )}
           </header>
 
-          {/* FIX: Set display:flex & flex:1 down the entire DOM tree, including minHeight:0. This forces the browser to calculate true boundaries, fixing broken CSS scrolling in the Admin Dashboard across mobile and desktop. */}
           <div id="chat-scroll-container" className="no-scrollbar" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", WebkitOverflowScrolling: "touch", display: "flex", flexDirection: "column" }}>
             {viewMode === "admin" && currentUser ? (
-              // FIX: Force absolute positioning on the Admin wrapper to guarantee it respects the parent's height boundaries, enabling internal scrolling.
               <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, paddingBottom: isMobile ? 120 : 24, display: "flex", flexDirection: "column" }}>
                 <div style={{ flex: 1, overflowY: "auto", padding: "16px", WebkitOverflowScrolling: "touch" }}>
                   <AdminPanel 
@@ -839,7 +845,9 @@ export default function App() {
           {viewMode === "chat" && !directoryMode && (!simKiosk || screenState === "chat") && (
             <div style={{ flexShrink: 0, padding: isMobile ? "8px 12px 12px" : "8px 16px 16px" }}>
               <div style={{ maxWidth: 960, width: "100%", margin: "0 auto" }}>
-                <CosmicInput input={input} setInput={setInput} onSend={() => sendMessage()} isTyping={isTyping} dark={dark} />
+                <div onClick={scrollToBottom} onFocus={scrollToBottom}>
+                  <CosmicInput input={input} setInput={setInput} onSend={() => sendMessage()} isTyping={isTyping} dark={dark} />
+                </div>
                 <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, color: textFaint, letterSpacing: "0.2px" }}>ChatCIT is AI. By using it, you agree to our <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Terms</span> & <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Privacy Policy</span>.</div>
               </div>
             </div>
