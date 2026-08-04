@@ -213,38 +213,29 @@ export default function App() {
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
   };
 
-  // --- ROBUST AUTO-SCROLL LOGIC ---
   const scrollToBottom = () => { 
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
-    }
-    const container = document.getElementById("chat-scroll-container");
-    if (container) {
-      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); 
   };
   
   useEffect(() => { fetch(`${API_URL}/faqs/top`).then(res => res.json()).then(data => setTopFaqs(data)).catch(() => {}); }, []);
 
-  // Multi-stage scroll trigger whenever messages change or bot finishes typing
   useEffect(() => {
     scrollToBottom();
-    const t1 = setTimeout(scrollToBottom, 100);
-    const t2 = setTimeout(scrollToBottom, 350);
-    const t3 = setTimeout(scrollToBottom, 700);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    const timeouts = [100, 500, 1000].map(ms => setTimeout(scrollToBottom, ms));
+    return () => timeouts.forEach(clearTimeout);
   }, [activeChat?.messages.length, isTyping]);
 
-  // DOM MutationObserver: Auto-scrolls when PDF iframes or pictures finish rendering inside the chat
   useEffect(() => {
     const container = document.getElementById("chat-scroll-container");
     if (!container) return;
+    
     const observer = new MutationObserver(() => {
       scrollToBottom();
     });
-    observer.observe(container, { childList: true, subtree: true, attributes: true });
+    
+    observer.observe(container, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, []);
+  }, [activeChatId]);
 
   const handlePasswordReset = async () => {
     if (!newPassword || newPassword.length < 6) { showToast("Password must be at least 6 characters.", "error"); return; }
@@ -612,11 +603,9 @@ export default function App() {
                       <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 24 }}>
                         {QUICK_PROMPTS.map((lbl: string) => (
                           <button key={lbl} onClick={() => { 
-                            if (lbl.includes('Faculty') || lbl.includes('Industry')) {
+                            // UPDATED: Now includes Facilities to open the ChatDirectory with subcategories!
+                            if (lbl.includes('Faculty') || lbl.includes('Industry') || lbl.toLowerCase().includes('facilities')) {
                                setDirectoryMode(lbl); 
-                               if(isMobile) setSidebarOpen(false); 
-                            } else if (lbl.toLowerCase().includes('facilities')) { 
-                               sendMessage(lbl); 
                                if(isMobile) setSidebarOpen(false); 
                             } else { 
                                requireAuth(() => { sendMessage(lbl); if(isMobile) setSidebarOpen(false); }); 
@@ -703,11 +692,8 @@ export default function App() {
             {[
               { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: "Quick Prompts", value: QUICK_PROMPTS[quickIdx], onPick: () => { 
                 const lbl = QUICK_PROMPTS[quickIdx];
-                if (lbl.includes('Faculty') || lbl.includes('Industry')) {
+                if (lbl.includes('Faculty') || lbl.includes('Industry') || lbl.toLowerCase().includes('facilities')) {
                    setDirectoryMode(lbl); 
-                   if(isMobile) setSidebarOpen(false); 
-                } else if (lbl.toLowerCase().includes('facilities')) { 
-                   sendMessage(lbl); 
                    if(isMobile) setSidebarOpen(false); 
                 } else { 
                    requireAuth(() => { sendMessage(lbl); if(isMobile) setSidebarOpen(false); }); 
