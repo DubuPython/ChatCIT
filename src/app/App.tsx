@@ -213,16 +213,38 @@ export default function App() {
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
   };
 
-  const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
+  // --- ROBUST AUTO-SCROLL LOGIC ---
+  const scrollToBottom = () => { 
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+    const container = document.getElementById("chat-scroll-container");
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    }
+  };
   
   useEffect(() => { fetch(`${API_URL}/faqs/top`).then(res => res.json()).then(data => setTopFaqs(data)).catch(() => {}); }, []);
 
-  // AUTO-SCROLL EFFECT
+  // Multi-stage scroll trigger whenever messages change or bot finishes typing
   useEffect(() => {
-    if (activeChat?.messages) {
-      setTimeout(scrollToBottom, 100);
-    }
-  }, [activeChat?.messages, isTyping]);
+    scrollToBottom();
+    const t1 = setTimeout(scrollToBottom, 100);
+    const t2 = setTimeout(scrollToBottom, 350);
+    const t3 = setTimeout(scrollToBottom, 700);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, [activeChat?.messages.length, isTyping]);
+
+  // DOM MutationObserver: Auto-scrolls when PDF iframes or pictures finish rendering inside the chat
+  useEffect(() => {
+    const container = document.getElementById("chat-scroll-container");
+    if (!container) return;
+    const observer = new MutationObserver(() => {
+      scrollToBottom();
+    });
+    observer.observe(container, { childList: true, subtree: true, attributes: true });
+    return () => observer.disconnect();
+  }, []);
 
   const handlePasswordReset = async () => {
     if (!newPassword || newPassword.length < 6) { showToast("Password must be at least 6 characters.", "error"); return; }
@@ -522,7 +544,7 @@ export default function App() {
         {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
         {isMobile && rightRailOpen && <div onClick={() => setRightRailOpen(false)} style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
 
-        {/* LEFT SIDEBAR: Handles both Standard Mode and Gear Mode */}
+        {/* LEFT SIDEBAR */}
         {!gearMode ? (
           <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: sbBg, position: "absolute", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -SIDEBAR_W) : (sidebarOpen ? 0 : -SIDEBAR_W), zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
             <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, background: sbBg }}>
@@ -652,7 +674,7 @@ export default function App() {
             </div>
           </aside>
         ) : (
-          /* LEFT GEAR UI: Activated when Gear Mode is True */
+          /* LEFT GEAR UI */
           <aside style={{ width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
             <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, left: 0 }}>
               <GearAbs id="g-left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => (i + 1) % QUICK_PROMPTS.length); }} />
@@ -854,7 +876,7 @@ export default function App() {
           )}
         </main>
         
-        {/* RIGHT SIDEBAR (RESTORED) */}
+        {/* RIGHT SIDEBAR */}
         <aside style={{ width: RAIL_W, flexShrink: 0, background: viewMode === 'admin' ? sbBg : bg, position: "absolute", top: 0, bottom: 0, right: isMobile ? (rightRailOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && rightRailOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
           {viewMode === 'admin' ? (
              <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: sbBg, borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
