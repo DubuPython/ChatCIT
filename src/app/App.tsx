@@ -228,11 +228,7 @@ export default function App() {
   useEffect(() => {
     const container = document.getElementById("chat-scroll-container");
     if (!container) return;
-    
-    const observer = new MutationObserver(() => {
-      scrollToBottom();
-    });
-    
+    const observer = new MutationObserver(() => { scrollToBottom(); });
     observer.observe(container, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, [activeChatId]);
@@ -460,6 +456,14 @@ export default function App() {
         .gear-panel-btn.is-sub { background: transparent !important; border: 1px dashed rgba(150, 150, 150, 0.3) !important; box-shadow: none !important; padding: 8px 12px; }
         .dark-mode .gear-panel-btn.is-sub:hover { border-color: rgba(66, 133, 244, 0.6) !important; background: rgba(66, 133, 244, 0.1) !important; }
         .light-mode .gear-panel-btn.is-sub:hover { border-color: rgba(66, 133, 244, 0.6) !important; background: rgba(66, 133, 244, 0.05) !important; }
+
+        /* --- NEW CSS PATCH: ADMIN DASHBOARD MOBILE CLEANUP --- */
+        @media (max-width: 768px) {
+          .admin-panel-wrapper { overflow-x: hidden; width: 100%; }
+          .admin-panel-wrapper table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; border-collapse: collapse; }
+          .admin-panel-wrapper [class*="grid-cols-"] { grid-template-columns: 1fr !important; gap: 12px !important; }
+          .admin-panel-wrapper input, .admin-panel-wrapper textarea { max-width: 100%; }
+        }
       `}</style>
       
       {simKiosk && <div style={{ position: "fixed", inset: 0, background: "#0a0a0a", zIndex: -1 }} />}
@@ -603,7 +607,6 @@ export default function App() {
                       <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 24 }}>
                         {QUICK_PROMPTS.map((lbl: string) => (
                           <button key={lbl} onClick={() => { 
-                            // UPDATED: Now includes Facilities to open the ChatDirectory with subcategories!
                             if (lbl.includes('Faculty') || lbl.includes('Industry') || lbl.toLowerCase().includes('facilities')) {
                                setDirectoryMode(lbl); 
                                if(isMobile) setSidebarOpen(false); 
@@ -779,16 +782,21 @@ export default function App() {
               </div>
             )}
 
-            {(!gearMode && viewMode !== 'admin') && (
+            {/* UPDATED: We removed the strict admin hide logic. Now it shows a Folder icon in admin mode so mobile users can open subcategories */}
+            {(!gearMode) && (
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                {isMobile && <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer", zIndex: 60 }}><MoreVertical size={20} /></button>}
+                {isMobile && (
+                  <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer", zIndex: 60 }}>
+                    {viewMode === 'admin' ? <Folder size={20} color={dark ? "#60a5fa" : "#2563eb"} /> : <MoreVertical size={20} />}
+                  </button>
+                )}
               </div>
             )}
           </header>
 
           <div id="chat-scroll-container" className="no-scrollbar" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", WebkitOverflowScrolling: "touch", display: "flex", flexDirection: "column" }}>
             {viewMode === "admin" && currentUser ? (
-              <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, paddingBottom: isMobile ? 120 : 24, display: "flex", flexDirection: "column" }}>
+              <div className="admin-panel-wrapper" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, paddingBottom: isMobile ? 120 : 24, display: "flex", flexDirection: "column" }}>
                 <div style={{ flex: 1, overflowY: "auto", padding: "16px", WebkitOverflowScrolling: "touch" }}>
                   <AdminPanel 
                      dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allDynamicCategories} 
@@ -816,10 +824,11 @@ export default function App() {
                       {topFaqs.slice(0, isMobile ? 5 : topFaqs.length).map((faq, idx) => {
                         const primaryTag = faq.display_name || (faq.keyword ? faq.keyword.split(',')[0].trim() : "Question");
                         return (
+                          // UPDATED: FAQ Pills now have whiteSpace: "normal" so text naturally wraps on mobile!
                           <button 
                             key={idx} 
                             onClick={() => sendMessage(primaryTag)} 
-                            style={{ flexShrink: 0, padding: "10px 18px", borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? "rgba(255,255,255,0.03)" : "#fff", color: textPrimary, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "nowrap" }} 
+                            style={{ flexShrink: 0, padding: "10px 18px", borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? "rgba(255,255,255,0.03)" : "#fff", color: textPrimary, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "normal", wordBreak: "break-word", maxWidth: "100%", lineHeight: 1.4, textAlign: "center" }} 
                             onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.08)" : "#ffffff"} 
                             onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.03)" : "#fff"}
                           >
