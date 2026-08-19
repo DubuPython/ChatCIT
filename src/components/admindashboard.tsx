@@ -221,7 +221,7 @@ export function AdminPanel({
       </div>
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
         <button onClick={() => { setEditingId(null); setKeywordInput(""); }} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "transparent", color: textMuted, cursor: "pointer", fontWeight: 500, fontSize: 13 }}>Cancel</button>
-        <button onClick={() => handleSaveKnowledge(editingId === 0 ? undefined : editingId)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 14px", borderRadius: 8, border: "none", background: "#4285f4", color: "#fff", cursor: "pointer", fontWeight: 500, fontSize: 13 }}><Save size={14} /> Save</button>
+      <button onClick={() => handleSaveKnowledge(editingId === 0 || editingId === null ? undefined : editingId)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 14px", borderRadius: 8, border: "none", background: "#4285f4", color: "#fff", cursor: "pointer", fontWeight: 500, fontSize: 13 }}><Save size={14} /> Save</button>
       </div>
     </div>
   );
