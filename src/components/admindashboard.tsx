@@ -126,7 +126,18 @@ export function AdminPanel({
 
   const convertToKnowledge = (question: string, id: number) => {
     fetch(`${API_URL}/unanswered/${id}`, { method: "DELETE" }).then(fetchData);
-    setActiveTab('knowledge'); setEditingId(0); setForm({ keyword: question, response: "", picture_url: "", category: "Handbook", subcategory: "All", display_name: "" }); setKeywordInput(""); showToast("Moved to Knowledge Base draft.", "info");
+    setActiveTab('knowledge'); 
+    setEditingId(0); 
+    setForm({ 
+      keyword: question, 
+      response: "", 
+      picture_url: "", 
+      category: activeCategoryTab !== "All" ? activeCategoryTab : "Handbook", 
+      subcategory: activeDeptTab !== "All" ? activeDeptTab : "All", 
+      display_name: "" 
+    }); 
+    setKeywordInput(""); 
+    showToast("Moved to Knowledge Base draft.", "info");
   };
 
   const handleRoleChange = async (userId: number, newRole: string) => {
@@ -145,7 +156,6 @@ export function AdminPanel({
     const dbSub = ((d as any).subcategory || "All").toLowerCase();
     const matchSub = activeDeptTab === "All" || dbSub === activeDeptTab.toLowerCase();
     
-    // UPDATED: Included Facilities in the category folder filtering check
     if (activeCategoryTab.includes('Faculty') || activeCategoryTab.includes('Industry') || activeCategoryTab === 'Facilities') { 
       return matchCat && matchSub && matchSearch; 
     }
@@ -162,6 +172,59 @@ export function AdminPanel({
 
   const departmentCounts = users.reduce((acc, u) => { const dept = (u as any).department || "Others"; acc[dept] = (acc[dept] || 0) + 1; acc["Total Users"] = (acc["Total Users"] || 0) + 1; return acc; }, {} as Record<string, number>);
   const bg = dark ? "#25242c" : "#fff"; const border = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"; const textMuted = dark ? "#9aa0a6" : "#6b7280";
+
+  // Reusable Form Renderer for both Add (Top) and Edit (Inline)
+  const renderEditForm = (title: string) => (
+    <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+      <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{title}</h3>
+      
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 11, color: textMuted }}>Category</span>
+          <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value, subcategory: "All" })} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
+            {allCategories.filter(c => c !== "All").map(c => (<option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c.replace('Teachers', 'Professors')}</option>))}
+          </select>
+        </div>
+
+        <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 11, color: textMuted }}>Sub-category (Folder)</span>
+          <select value={form.subcategory || "All"} onChange={e => setForm({ ...form, subcategory: e.target.value })} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
+            <option value="All" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>None (Main Folder)</option>
+            {(mergedSubCategoriesMap[form.category] || []).map(c => (
+              <option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <span style={{ fontSize: 11, color: textMuted }}>Official Display Name (Optional)</span>
+        <input value={form.display_name || ""} onChange={e => setForm({...form, display_name: e.target.value})} placeholder="e.g. Ms. Vinna Nina O. Ramos" style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <span style={{ fontSize: 11, color: textMuted }}>Trigger Keywords (Press Enter or Comma to add)</span>
+        <div style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+          {keywordsList.map(kw => (<span key={kw} style={{ background: "#4285f4", color: "#fff", padding: "2px 8px", borderRadius: 12, fontSize: 11, fontWeight: 500, display: "flex", alignItems: "center", gap: 4 }}>{kw} <X size={10} cursor="pointer" onClick={() => removeKeyword(kw)} style={{ opacity: 0.8 }} /></span>))}
+          <input value={keywordInput} onChange={e => setKeywordInput(e.target.value)} onKeyDown={handleAddKeyword} placeholder={keywordsList.length === 0 ? "e.g. grading system, passing score" : "Add another..."} style={{ flex: 1, minWidth: 120, border: "none", background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
+        </div>
+      </div>
+
+      <textarea value={form.response} onChange={(e) => setForm({ ...form, response: e.target.value })} placeholder="Bot Response / Factual Rules..." rows={4} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", resize: "vertical", fontSize: 13 }} />
+      
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <input value={form.picture_url} onChange={(e) => setForm({ ...form, picture_url: e.target.value })} placeholder="Picture URL" style={{ flex: 1, minWidth: 160, padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
+        <label style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 12px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.1)" : "#f3f4f6", border: `1px solid ${border}`, cursor: uploadingImage ? "wait" : "pointer", fontWeight: 500, fontSize: 12, whiteSpace: "nowrap" }}>
+          <UploadCloud size={14} /> {uploadingImage ? "Uploading..." : "Upload Image"}
+          <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} style={{ display: "none" }} />
+        </label>
+      </div>
+      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
+        <button onClick={() => { setEditingId(null); setKeywordInput(""); }} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "transparent", color: textMuted, cursor: "pointer", fontWeight: 500, fontSize: 13 }}>Cancel</button>
+        <button onClick={() => handleSaveKnowledge(editingId === 0 ? undefined : editingId)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 14px", borderRadius: 8, border: "none", background: "#4285f4", color: "#fff", cursor: "pointer", fontWeight: 500, fontSize: 13 }}><Save size={14} /> Save</button>
+      </div>
+    </div>
+  );
 
   if (loading) return (<div style={{ display: "flex", height: "80vh", width: "100%", alignItems: "center", justifyContent: "center" }}><div style={{ transform: "scale(0.8)" }}><GearboxLoader /></div></div>);
 
@@ -199,7 +262,19 @@ export function AdminPanel({
             <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} /> Sync Data
           </button>
           {activeTab === 'knowledge' && editingId !== 0 && (
-            <button onClick={() => { setEditingId(0); setForm({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All", display_name: "" }); setKeywordInput(""); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontWeight: 500, fontSize: 13, flex: 1, whiteSpace: "nowrap" }}>
+            <button onClick={() => { 
+              setEditingId(0); 
+              setForm({ 
+                keyword: "", 
+                response: "", 
+                picture_url: "", 
+                // Auto-fill category and subcategory based on current view!
+                category: activeCategoryTab !== "All" ? activeCategoryTab : "Handbook", 
+                subcategory: activeDeptTab !== "All" ? activeDeptTab : "All", 
+                display_name: "" 
+              }); 
+              setKeywordInput(""); 
+            }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontWeight: 500, fontSize: 13, flex: 1, whiteSpace: "nowrap" }}>
               <Plus size={14} /> Add Entry
             </button>
           )}
@@ -208,53 +283,9 @@ export function AdminPanel({
 
       {activeTab === 'knowledge' && (
         <>
-          {editingId !== null && (
-            <div style={{ background: bg, padding: 16, borderRadius: 12, border: `1px solid ${border}`, marginBottom: 20, display: "flex", flexDirection: "column", gap: 12 }}>
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{editingId === 0 ? "Add New Knowledge" : "Edit Entry"}</h3>
-              
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 11, color: textMuted }}>Category</span>
-                <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value, subcategory: "All" })} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
-                  {allCategories.filter(c => c !== "All").map(c => (<option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c.replace('Teachers', 'Professors')}</option>))}
-                </select>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 11, color: textMuted }}>Sub-category (Folder)</span>
-                <select value={form.subcategory || "All"} onChange={e => setForm({ ...form, subcategory: e.target.value })} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
-                  <option value="All" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>None (Main Folder)</option>
-                  {(mergedSubCategoriesMap[form.category] || []).map(c => (
-                    <option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 11, color: textMuted }}>Official Display Name (Optional)</span>
-                <input value={form.display_name || ""} onChange={e => setForm({...form, display_name: e.target.value})} placeholder="e.g. Ms. Vinna Nina O. Ramos" style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 11, color: textMuted }}>Trigger Keywords (Press Enter or Comma to add)</span>
-                <div style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
-                  {keywordsList.map(kw => (<span key={kw} style={{ background: "#4285f4", color: "#fff", padding: "2px 8px", borderRadius: 12, fontSize: 11, fontWeight: 500, display: "flex", alignItems: "center", gap: 4 }}>{kw} <X size={10} cursor="pointer" onClick={() => removeKeyword(kw)} style={{ opacity: 0.8 }} /></span>))}
-                  <input value={keywordInput} onChange={e => setKeywordInput(e.target.value)} onKeyDown={handleAddKeyword} placeholder={keywordsList.length === 0 ? "e.g. grading system, passing score" : "Add another..."} style={{ flex: 1, minWidth: 120, border: "none", background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
-                </div>
-              </div>
-
-              <textarea value={form.response} onChange={(e) => setForm({ ...form, response: e.target.value })} placeholder="Bot Response / Factual Rules..." rows={3} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", resize: "vertical", fontSize: 13 }} />
-              
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <input value={form.picture_url} onChange={(e) => setForm({ ...form, picture_url: e.target.value })} placeholder="Picture URL" style={{ flex: 1, minWidth: 160, padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
-                <label style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 12px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.1)" : "#f3f4f6", border: `1px solid ${border}`, cursor: uploadingImage ? "wait" : "pointer", fontWeight: 500, fontSize: 12, whiteSpace: "nowrap" }}>
-                  <UploadCloud size={14} /> {uploadingImage ? "Uploading..." : "Upload Image"}
-                  <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} style={{ display: "none" }} />
-                </label>
-              </div>
-              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
-                <button onClick={() => { setEditingId(null); setKeywordInput(""); }} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "transparent", color: textMuted, cursor: "pointer", fontWeight: 500, fontSize: 13 }}>Cancel</button>
-                <button onClick={() => handleSaveKnowledge(editingId === 0 ? undefined : editingId)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 14px", borderRadius: 8, border: "none", background: "#4285f4", color: "#fff", cursor: "pointer", fontWeight: 500, fontSize: 13 }}><Save size={14} /> Save</button>
-              </div>
+          {editingId === 0 && (
+            <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, marginBottom: 20, overflow: 'hidden' }}>
+              {renderEditForm("Add New Knowledge")}
             </div>
           )}
 
@@ -265,33 +296,51 @@ export function AdminPanel({
               <table style={{ width: "100%", minWidth: 600, borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" }}>
-                    <th style={{ padding: "10px 12px", fontWeight: 600, width: "40%" }}>Details & Keywords</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 600, width: "35%" }}>Details & Keywords</th>
                     <th style={{ padding: "10px 12px", fontWeight: 600 }}>Factual Response</th>
                     <th style={{ padding: "10px 12px", fontWeight: 600, width: 80, textAlign: "right" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredData.map((row: any) => (
-                    <tr key={row.id} style={{ borderBottom: `1px solid ${border}` }}>
-                      <td style={{ padding: "10px 12px", verticalAlign: "top" }}>
-                        <div style={{ fontSize: 10, color: getColorForCategory(row.category || "Handbook"), fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>
-                          {(row.category || "Handbook").replace('Teachers', 'Professors')}
-                          {row.subcategory && row.subcategory !== 'All' && (<span style={{ color: textMuted }}> &rsaquo; {row.subcategory}</span>)}
-                        </div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: dark ? '#fff' : '#000', marginBottom: 6 }}>{row.display_name || row.keyword.split(',')[0]}</div>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                          {row.keyword.split(',').map((kw: string, idx: number) => kw.trim() ? (<span key={idx} style={{ background: dark ? "rgba(255,255,255,0.08)" : "#f1f5f9", color: dark ? "#e2e8f0" : "#334155", padding: "2px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, border: `1px solid ${border}`, whiteSpace: "nowrap" }}>{kw.trim()}</span>) : null)}
-                        </div>
-                      </td>
-                      <td style={{ padding: "10px 12px", verticalAlign: "top", opacity: 0.9, lineHeight: 1.4 }}>
-                        <div style={{ marginBottom: row.picture_url ? 6 : 0 }}>{row.response}</div>
-                        {row.picture_url && (row.picture_url.toLowerCase().includes('.pdf') ? (<a href={row.picture_url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#4285f4", textDecoration: "none", display: "inline-flex", alignItems: "center", padding: "2px 6px", background: dark ? "rgba(255,255,255,0.08)" : "#f3f4f6", borderRadius: 4, fontWeight: 500 }}>📄 Attached PDF</a>) : (<button onClick={() => setFullScreenMedia(row.picture_url!)} style={{ display: "inline-block", background: "none", border: "none", padding: 0, cursor: "zoom-in", marginTop: 2 }} title="Click to enlarge"><img src={row.picture_url} alt="Attached" style={{ height: 36, borderRadius: 4, border: `1px solid ${border}`, objectFit: 'cover' }} /></button>))}
-                      </td>
-                      <td style={{ padding: "10px 12px", verticalAlign: "top", textAlign: "right", whiteSpace: "nowrap" }}>
-                        <button onClick={() => { setForm({ keyword: row.keyword, response: row.response, picture_url: row.picture_url || "", category: row.category || "Handbook", subcategory: row.subcategory || "All", display_name: row.display_name || "" }); setKeywordInput(""); setEditingId(row.id); }} style={{ background: "none", border: "none", color: "#4285f4", cursor: "pointer", padding: 4 }} title="Edit"><Edit2 size={14} /></button>
-                        <button onClick={() => handleDelete('knowledge', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4 }} title="Delete"><Trash2 size={14} /></button>
-                      </td>
-                    </tr>
+                    <React.Fragment key={row.id}>
+                      <tr style={{ borderBottom: editingId === row.id ? 'none' : `1px solid ${border}`, background: editingId === row.id ? (dark ? "rgba(255,255,255,0.02)" : "#f9fafb") : "transparent", transition: "background 0.2s" }}>
+                        <td style={{ padding: "10px 12px", verticalAlign: "top" }}>
+                          <div style={{ fontSize: 10, color: getColorForCategory(row.category || "Handbook"), fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>
+                            {(row.category || "Handbook").replace('Teachers', 'Professors')}
+                            {row.subcategory && row.subcategory !== 'All' && (<span style={{ color: textMuted }}> &rsaquo; {row.subcategory}</span>)}
+                          </div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: dark ? '#fff' : '#000', marginBottom: 6 }}>{row.display_name || row.keyword.split(',')[0]}</div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                            {row.keyword.split(',').map((kw: string, idx: number) => kw.trim() ? (<span key={idx} style={{ background: dark ? "rgba(255,255,255,0.08)" : "#f1f5f9", color: dark ? "#e2e8f0" : "#334155", padding: "2px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, border: `1px solid ${border}`, whiteSpace: "nowrap" }}>{kw.trim()}</span>) : null)}
+                          </div>
+                        </td>
+                        <td style={{ padding: "10px 12px", verticalAlign: "top", opacity: 0.9, lineHeight: 1.4 }}>
+                          <div style={{ marginBottom: row.picture_url ? 6 : 0 }}>{row.response}</div>
+                          {row.picture_url && (row.picture_url.toLowerCase().includes('.pdf') ? (<a href={row.picture_url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#4285f4", textDecoration: "none", display: "inline-flex", alignItems: "center", padding: "2px 6px", background: dark ? "rgba(255,255,255,0.08)" : "#f3f4f6", borderRadius: 4, fontWeight: 500 }}>📄 Attached PDF</a>) : (<button onClick={() => setFullScreenMedia(row.picture_url!)} style={{ display: "inline-block", background: "none", border: "none", padding: 0, cursor: "zoom-in", marginTop: 2 }} title="Click to enlarge"><img src={row.picture_url} alt="Attached" style={{ height: 36, borderRadius: 4, border: `1px solid ${border}`, objectFit: 'cover' }} /></button>))}
+                        </td>
+                        <td style={{ padding: "10px 12px", verticalAlign: "top", textAlign: "right", whiteSpace: "nowrap" }}>
+                          <button onClick={() => { 
+                            if (editingId === row.id) {
+                                setEditingId(null);
+                            } else {
+                                setForm({ keyword: row.keyword, response: row.response, picture_url: row.picture_url || "", category: row.category || "Handbook", subcategory: row.subcategory || "All", display_name: row.display_name || "" }); 
+                                setKeywordInput(""); 
+                                setEditingId(row.id); 
+                            }
+                          }} style={{ background: "none", border: "none", color: editingId === row.id ? textMuted : "#4285f4", cursor: "pointer", padding: 4 }} title={editingId === row.id ? "Cancel Edit" : "Edit"}><Edit2 size={14} /></button>
+                          <button onClick={() => handleDelete('knowledge', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4 }} title="Delete"><Trash2 size={14} /></button>
+                        </td>
+                      </tr>
+                      {/* INLINE EDIT FORM */}
+                      {editingId === row.id && (
+                        <tr style={{ background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", borderBottom: `1px solid ${border}` }}>
+                          <td colSpan={3} style={{ padding: 0 }}>
+                             {renderEditForm("Edit Entry")}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>
