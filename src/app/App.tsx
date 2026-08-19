@@ -468,12 +468,6 @@ export default function App() {
       
       {simKiosk && <div style={{ position: "fixed", inset: 0, background: "#0a0a0a", zIndex: -1 }} />}
       
-      {simKiosk && (
-        <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", background: "#ef4444", color: "#fff", padding: "8px 16px", borderRadius: 24, fontSize: 13, fontWeight: 700, zIndex: 999999, display: "flex", alignItems: "center", gap: 6, boxShadow: "0 4px 12px rgba(239, 68, 68, 0.4)" }}>
-          <Smartphone size={16} /> PORTRAIT KIOSK SIMULATOR (1366x768) - Press Ctrl+K to exit
-        </div>
-      )}
-
       <div className={dark ? "dark-mode" : "light-mode"} style={containerStyle}>
 
         {simKiosk && (screenState === "screensaver" || screenState === "kiosk_result") && (
