@@ -1,7 +1,8 @@
 import React, { useRef, useState, useEffect } from "react";
-import { Settings, Zap, Users, GraduationCap, FileText, ChevronLeft, ChevronRight, MessageSquare, Bot, Maximize, Search, UserSquare, Building, FilterX } from "lucide-react";
-import { QUICK_PROMPTS, ORGANIZATIONS, MAJORS, DOCUMENTS, API_URL } from "../config";
+import { Settings, Zap, Users, GraduationCap, FileText, ChevronLeft, ChevronRight, MessageSquare, Bot, Maximize, Search, UserSquare, Building, FilterX, Folder, Briefcase } from "lucide-react";
+import { API_URL } from "../config";
 import { GearboxLoader } from "./ui/helpers";
+import { ChatMessageBubble } from "./chatmessagebubble";
 
 const GlobalKioskStyles = ({ dark }: { dark: boolean }) => (
   <style>{`
@@ -30,7 +31,6 @@ const GlobalKioskStyles = ({ dark }: { dark: boolean }) => (
       width: 100%; max-width: 640px; margin-top: 48px;
     }
     
-    /* TOUCH-OPTIMIZED KIOSK BUTTONS */
     .nav-arrow {
       display: flex; align-items: center; justify-content: center;
       width: 64px; height: 64px; border-radius: 50%; border: none; cursor: pointer;
@@ -70,7 +70,6 @@ const GlobalKioskStyles = ({ dark }: { dark: boolean }) => (
     .pdf-nav-btn:active:not(:disabled) { transform: scale(0.92); background: rgba(66, 133, 244, 0.8); color: white; }
     .pdf-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-    /* Directory Interactive Buttons */
     .dir-major-btn {
       background: ${dark ? 'rgba(30, 35, 50, 0.8)' : '#f8fafc'};
       border: 1px solid ${dark ? 'rgba(66, 133, 244, 0.3)' : 'rgba(66, 133, 244, 0.2)'};
@@ -93,7 +92,19 @@ const GlobalKioskStyles = ({ dark }: { dark: boolean }) => (
   `}</style>
 );
 
-export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, setKioskCategory, kioskResult, setKioskResult, handleKioskSelection, topRightButtons, setFullScreenIframe, setFullScreenMedia }: any) => {
+const getIconForCategory = (cat: string) => {
+  if (!cat) return <Folder size={48} color="#64748b" />;
+  const lower = cat.toLowerCase();
+  if (lower.includes("org")) return <Users size={48} color="#4285f4" />;
+  if (lower.includes("major")) return <GraduationCap size={48} color="#10b981" />;
+  if (lower.includes("doc") || lower.includes("carta") || lower.includes("handbook")) return <FileText size={48} color="#8b5cf6" />;
+  if (lower.includes("indust") || lower.includes("partner")) return <Briefcase size={48} color="#f59e0b" />;
+  if (lower.includes("facil")) return <Building size={48} color="#06b6d4" />;
+  if (lower.includes("teach") || lower.includes("prof") || lower.includes("facul")) return <UserSquare size={48} color="#ec4899" />;
+  return <Folder size={48} color="#64748b" />;
+};
+
+export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, setKioskCategory, kioskResult, setKioskResult, handleKioskSelection, topRightButtons, setFullScreenIframe, setFullScreenMedia, gear1, gear2, gear3, quickPrompts }: any) => {
   const carouselRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdfPage, setPdfPage] = useState(1);
@@ -193,6 +204,16 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const textMuted = dark ? "#9aa0a6" : "#6b7280"; const resultCardBg = dark ? '#13141c' : '#ffffff'; const headerBg = dark ? '#13141c' : '#ffffff';
   const showBackButton = screenState !== "screensaver" || kioskCategory !== null;
 
+  // DYNAMIC CATEGORY RESOLVER FOR CAROUSEL
+  let itemsToRender: string[] = [];
+  if (kioskCategory === "Quick Prompts") itemsToRender = quickPrompts;
+  else if (kioskCategory === gear1?.label) itemsToRender = gear1.items;
+  else if (kioskCategory === gear2?.label) itemsToRender = gear2.items;
+  else if (kioskCategory === gear3?.label) itemsToRender = gear3.items;
+
+  // DIRECTORY SUB-FOLDERS
+  const subCategories = Array.from(new Set(dbDirectoryData.map((d: any) => d.subcategory))).filter(s => s && s !== 'All');
+
   return (
     <>
       <GlobalKioskStyles dark={dark} />
@@ -218,9 +239,9 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                 </div>
                 <div className="bento-grid">
                   <div className="bento-card" onClick={() => setKioskCategory("Quick Prompts")}><Zap size={48} color="#f59e0b" /><span>Quick Prompts</span></div>
-                  <div className="bento-card" onClick={() => setKioskCategory("Organizations")}><Users size={48} color="#4285f4" /><span>Organizations</span></div>
-                  <div className="bento-card" onClick={() => setKioskCategory("Majors")}><GraduationCap size={48} color="#10b981" /><span>Majors</span></div>
-                  <div className="bento-card" onClick={() => setKioskCategory("Documents")}><FileText size={48} color="#8b5cf6" /><span>Documents</span></div>
+                  <div className="bento-card" onClick={() => setKioskCategory(gear1?.label)}>{getIconForCategory(gear1?.label)}<span>{gear1?.label || "No Data"}</span></div>
+                  <div className="bento-card" onClick={() => setKioskCategory(gear2?.label)}>{getIconForCategory(gear2?.label)}<span>{gear2?.label || "No Data"}</span></div>
+                  <div className="bento-card" onClick={() => setKioskCategory(gear3?.label)}>{getIconForCategory(gear3?.label)}<span>{gear3?.label || "No Data"}</span></div>
                 </div>
               </div>
             )}
@@ -232,7 +253,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                 <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: 24 }}>
                   <button onClick={() => scrollCarousel('left')} className="nav-arrow"><ChevronLeft size={36}/></button>
                   <div ref={carouselRef} className="carousel-track" style={{ display: 'flex', gap: 24, overflowX: 'auto', scrollBehavior: 'smooth', scrollSnapType: 'x mandatory', width: '100%', padding: '16px 0' }}>
-                    {(kioskCategory === "Quick Prompts" ? QUICK_PROMPTS : kioskCategory === "Organizations" ? ORGANIZATIONS : kioskCategory === "Majors" ? MAJORS : DOCUMENTS).map((item, idx) => (
+                    {itemsToRender.map((item, idx) => (
                       <div key={idx} className="bento-card visual-card" style={{ scrollSnapAlign: 'center', flexShrink: 0, width: 300, height: 420, backgroundImage: `url(${getCardImage(item)})`, backgroundSize: 'cover', backgroundPosition: 'center', position: 'relative', overflow: 'hidden', padding: 0 }} onClick={() => handleKioskSelection(kioskCategory, item)}>
                         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0) 20%, rgba(15,23,42,0.98) 100%)', borderRadius: 'inherit' }} />
                         <span style={{ position: 'absolute', bottom: 32, left: 24, right: 24, color: '#fff', fontSize: 26, fontWeight: 800, textAlign: 'left', textShadow: '0 4px 12px rgba(0,0,0,0.6)' }}>{item.replace('Teachers', 'Professors')}</span>
@@ -280,11 +301,11 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                     </div>
 
                     <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '32px', display: 'flex', flexDirection: 'column' }}>
-                       {!dirMajor && dirSearch === "" ? (
+                       {!dirMajor && dirSearch === "" && subCategories.length > 0 ? (
                           <>
-                            <div style={{ fontSize: 20, fontWeight: 600, color: textMuted, marginBottom: 24, textAlign: 'center' }}>Select a Department to view {kioskResult.title.replace('Teachers', 'Professors')}</div>
+                            <div style={{ fontSize: 20, fontWeight: 600, color: textMuted, marginBottom: 24, textAlign: 'center' }}>Select a Folder to view {kioskResult.title.replace('Teachers', 'Professors')}</div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 16 }}>
-                               {MAJORS.map((m, idx) => (<button key={idx} className="dir-major-btn" onClick={() => { setDirMajor(m); setDirPage(1); }}>{kioskResult.title === "Faculty & Teachers" ? <UserSquare size={28}/> : <Building size={28}/>}{m}</button>))}
+                               {subCategories.map((m, idx) => (<button key={idx} className="dir-major-btn" onClick={() => { setDirMajor(m as string); setDirPage(1); }}>{getIconForCategory(kioskResult.title)}{m as string}</button>))}
                             </div>
                           </>
                        ) : (
@@ -296,7 +317,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                                   {currentDirData.length > 0 ? currentDirData.map((item) => (
                                      <div key={item.id} className="dir-profile-card" onClick={() => handleKioskSelection(kioskResult.title, item.display_name || item.keyword.split(',')[0])}>
                                         <div style={{ width: 80, height: 80, borderRadius: '50%', background: dark ? '#1e293b' : '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
-                                           {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={item.picture_url} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : (kioskResult.title === "Faculty & Teachers" ? <UserSquare size={40} color="#4285f4"/> : <Building size={40} color="#10b981"/>)}
+                                           {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={item.picture_url} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : getIconForCategory(kioskResult.title)}
                                         </div>
                                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
                                            <span style={{ fontSize: 24, fontWeight: 800, color: dark ? '#fff' : '#0f172a' }}>{item.display_name || item.keyword.split(',')[0]}</span>

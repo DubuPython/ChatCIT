@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Database, HelpCircle, Bug, Plus, Save, Edit2, Trash2, CheckCircle, UploadCloud, Users, Key, Search, X, TrendingUp, RotateCcw, RefreshCw } from "lucide-react";
+import { Database, HelpCircle, Bug, Plus, Save, Edit2, Trash2, CheckCircle, UploadCloud, Users, Key, Search, X, TrendingUp, RotateCcw, RefreshCw, Monitor } from "lucide-react";
 import { GearboxLoader } from "./ui/helpers";
 import { Knowledge, Unanswered, BugReport, User } from "../types";
 import { API_URL } from "../config";
@@ -18,12 +18,16 @@ const getColorForCategory = (cat: string) => {
 
 export function AdminPanel({
   dark, showToast, currentUser, activeTab, setActiveTab, activeCategoryTab, activeDeptTab,
-  allCategories, mergedSubCategoriesMap, setDbCategories, setDbSubCategories
+  allCategories, mergedSubCategoriesMap, setDbCategories, setDbSubCategories, fetchData: globalFetchData,
+  layoutConfig, saveLayoutConfig
 }: {
   dark: boolean; showToast: (msg: string, type: 'success' | 'error' | 'info') => void; currentUser: User;
-  activeTab: 'knowledge'|'faq'|'unanswered'|'bugs'|'users'; setActiveTab: (t: 'knowledge'|'faq'|'unanswered'|'bugs'|'users') => void;
+  activeTab: 'knowledge'|'faq'|'unanswered'|'bugs'|'users'|'display'; setActiveTab: (t: 'knowledge'|'faq'|'unanswered'|'bugs'|'users'|'display') => void;
   activeCategoryTab: string; activeDeptTab: string; allCategories: string[]; mergedSubCategoriesMap: Record<string, string[]>;
   setDbCategories: (cats: string[]) => void; setDbSubCategories: (cats: Record<string, string[]>) => void;
+  fetchData: () => void;
+  layoutConfig: { gear1: string, gear2: string, gear3: string, quickPrompts: string[] };
+  saveLayoutConfig: (config: any) => void;
 }) {
   
   const [data, setData] = useState<Knowledge[]>([]);
@@ -45,9 +49,10 @@ export function AdminPanel({
 
   const CLOUD_NAME = "xjzuq0fq"; const UPLOAD_PRESET = "chatcit_preset"; 
 
-  const fetchData = async () => {
+  const fetchDashboardData = async () => {
     setIsSyncing(true);
     try {
+      globalFetchData();
       const [kRes, uRes, bRes, userRes] = await Promise.all([ fetch(`${API_URL}/knowledge`), fetch(`${API_URL}/unanswered`), fetch(`${API_URL}/bugs`), fetch(`${API_URL}/users`) ]);
       const kData = await kRes.json(); setData(kData); setUnanswered(await uRes.json()); setBugs(await bRes.json()); setUsers(await userRes.json());
       
@@ -58,8 +63,10 @@ export function AdminPanel({
     } catch (e) { showToast("Failed to fetch dashboard data.", "error"); } finally { setLoading(false); setIsSyncing(false); }
   };
   
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchDashboardData(); }, []);
   useEffect(() => { setSearchQuery(""); }, [activeTab]);
+
+  const allUserDepts = ["All", ...Array.from(new Set(users.map((u: any) => u.department || 'Others')))];
 
   const keywordsList = form.keyword ? form.keyword.split(',').map(k => k.trim()).filter(Boolean) : [];
   const handleAddKeyword = (e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); const val = keywordInput.trim().replace(/,/g, ''); if (val && !keywordsList.includes(val)) setForm({ ...form, keyword: [...keywordsList, val].join(', ') }); setKeywordInput(""); } };
@@ -81,7 +88,7 @@ export function AdminPanel({
     try {
       const res = await fetch(id ? `${API_URL}/knowledge/${id}` : `${API_URL}/knowledge`, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
       if (!res.ok) throw new Error((await res.json()).error || "Server failed to save record.");
-      setEditingId(null); setForm({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All", display_name: "" }); setKeywordInput(""); fetchData(); showToast(id ? "Record updated!" : "New record added!", "success");
+      setEditingId(null); setForm({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All", display_name: "" }); setKeywordInput(""); fetchDashboardData(); showToast(id ? "Record updated!" : "New record added!", "success");
     } catch (e: any) { showToast(e.message || "Error saving record.", "error"); }
   };
 
@@ -92,8 +99,35 @@ export function AdminPanel({
         try { 
           const res = await fetch(`${API_URL}/${type}/${id}`, { method: "DELETE" }); 
           if (!res.ok) throw new Error("Server rejected deletion");
-          fetchData(); showToast("Deleted successfully.", "info"); 
+          fetchDashboardData(); showToast("Deleted successfully.", "info"); 
         } catch (e) { showToast("Error deleting item.", "error"); } 
+      }
+    });
+  };
+
+  const handleDeleteCategory = (catName: string) => {
+    setModal({
+      isOpen: true, type: 'confirm', title: 'Delete Category', message: `Are you sure you want to delete the category "${catName}"? All entries inside it will be safely moved to 'General'.`, inputValue: '',
+      onConfirm: async () => { 
+        try { 
+          const res = await fetch(`${API_URL}/knowledge/manage/category`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ category: catName }) }); 
+          if (!res.ok) throw new Error("Server rejected deletion");
+          fetchDashboardData(); showToast(`Category "${catName}" deleted.`, "success"); 
+        } catch (e) { showToast("Error deleting category.", "error"); } 
+      }
+    });
+  };
+
+  const handleRenameCategory = (catName: string) => {
+    setModal({
+      isOpen: true, type: 'prompt', title: `Rename Category "${catName}"`, message: 'Enter the new name for this category.', inputValue: '',
+      onConfirm: async (newCategoryName) => { 
+        if(!newCategoryName || newCategoryName.trim() === '') return;
+        try { 
+          const res = await fetch(`${API_URL}/knowledge/manage/category`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ oldCategory: catName, newCategory: newCategoryName.trim() }) }); 
+          if (!res.ok) throw new Error("Server rejected rename");
+          fetchDashboardData(); showToast(`Category renamed to "${newCategoryName.trim()}".`, "success"); 
+        } catch (e) { showToast("Error renaming category.", "error"); } 
       }
     });
   };
@@ -118,14 +152,14 @@ export function AdminPanel({
         try { 
            const res = await fetch(`${API_URL}/faqs/reset`, { method: "PUT", headers: { "Content-Type": "application/json" } }); 
            if (!res.ok) throw new Error("Server rejected reset");
-           showToast("FAQ counters have been reset to zero.", "success"); fetchData(); 
+           showToast("FAQ counters have been reset to zero.", "success"); fetchDashboardData(); 
         } catch (e) { showToast("Error resetting counters.", "error"); }
       }
     });
   };
 
   const convertToKnowledge = (question: string, id: number) => {
-    fetch(`${API_URL}/unanswered/${id}`, { method: "DELETE" }).then(fetchData);
+    fetch(`${API_URL}/unanswered/${id}`, { method: "DELETE" }).then(fetchDashboardData);
     setActiveTab('knowledge'); 
     setEditingId(0); 
     setForm({ 
@@ -144,7 +178,7 @@ export function AdminPanel({
     try {
       const res = await fetch(`${API_URL}/users/${userId}/role`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: newRole, requesterRole: currentUser?.role }) });
       if (!res.ok) throw new Error((await res.json()).error || "Failed to update role");
-      showToast("Role updated!", "success"); fetchData();
+      showToast("Role updated!", "success"); fetchDashboardData();
     } catch (e: any) { showToast(e.message, "error"); }
   };
 
@@ -156,7 +190,7 @@ export function AdminPanel({
     const dbSub = ((d as any).subcategory || "All").toLowerCase();
     const matchSub = activeDeptTab === "All" || dbSub === activeDeptTab.toLowerCase();
     
-    if (activeCategoryTab.includes('Faculty') || activeCategoryTab.includes('Industry') || activeCategoryTab === 'Facilities') { 
+    if (activeCategoryTab !== 'All' && activeCategoryTab !== 'General' && activeCategoryTab !== 'Handbook') { 
       return matchCat && matchSub && matchSearch; 
     }
     return matchCat && matchSearch;
@@ -171,9 +205,8 @@ export function AdminPanel({
   });
 
   const departmentCounts = users.reduce((acc, u) => { const dept = (u as any).department || "Others"; acc[dept] = (acc[dept] || 0) + 1; acc["Total Users"] = (acc["Total Users"] || 0) + 1; return acc; }, {} as Record<string, number>);
-  const bg = dark ? "#25242c" : "#fff"; const border = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"; const textMuted = dark ? "#9aa0a6" : "#6b7280";
+ const bg = dark ? "#25242c" : "#fff"; const border = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"; const textMuted = dark ? "#9aa0a6" : "#6b7280"; const textPrimary = dark ? "#e8eaed" : "#1a1a2e";
 
-  // Reusable Form Renderer for both Add (Top) and Edit (Inline)
   const renderEditForm = (title: string) => (
     <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
       <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{title}</h3>
@@ -182,7 +215,7 @@ export function AdminPanel({
         <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 11, color: textMuted }}>Category</span>
           <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value, subcategory: "All" })} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
-            {allCategories.filter(c => c !== "All").map(c => (<option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c.replace('Teachers', 'Professors')}</option>))}
+            {allCategories.map(c => (<option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c}</option>))}
           </select>
         </div>
 
@@ -221,7 +254,7 @@ export function AdminPanel({
       </div>
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
         <button onClick={() => { setEditingId(null); setKeywordInput(""); }} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "transparent", color: textMuted, cursor: "pointer", fontWeight: 500, fontSize: 13 }}>Cancel</button>
-      <button onClick={() => handleSaveKnowledge(editingId === 0 || editingId === null ? undefined : editingId)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 14px", borderRadius: 8, border: "none", background: "#4285f4", color: "#fff", cursor: "pointer", fontWeight: 500, fontSize: 13 }}><Save size={14} /> Save</button>
+        <button onClick={() => handleSaveKnowledge(editingId === 0 || editingId === null ? undefined : editingId)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 14px", borderRadius: 8, border: "none", background: "#4285f4", color: "#fff", cursor: "pointer", fontWeight: 500, fontSize: 13 }}><Save size={14} /> Save</button>
       </div>
     </div>
   );
@@ -238,8 +271,66 @@ export function AdminPanel({
           <button onClick={() => setActiveTab('unanswered')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'unanswered' ? "#4285f4" : "transparent", color: activeTab === 'unanswered' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><HelpCircle size={14} /> Unanswered <span style={{ background: activeTab === 'unanswered' ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.1)", padding: "2px 6px", borderRadius: 12, fontSize: 10 }}>{unanswered.length}</span></button>
           <button onClick={() => setActiveTab('bugs')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'bugs' ? "#4285f4" : "transparent", color: activeTab === 'bugs' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Bug size={14} /> Bugs <span style={{ background: activeTab === 'bugs' ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.1)", padding: "2px 6px", borderRadius: 12, fontSize: 10 }}>{bugs.length}</span></button>
           <button onClick={() => setActiveTab('users')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'users' ? "#4285f4" : "transparent", color: activeTab === 'users' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Users size={14} /> Users</button>
+          <button onClick={() => setActiveTab('display')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'display' ? "#4285f4" : "transparent", color: activeTab === 'display' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Monitor size={14} /> Display</button>
         </div>
       </div>
+
+      {activeTab === 'display' && (
+        <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, padding: 24, display: "flex", flexDirection: "column", gap: 24 }}>
+           <div>
+              <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Device Layout Settings</h3>
+              <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Customize what appears on the kiosk gears and sidebar quick prompts for this specific device. This is saved to local storage.</p>
+           </div>
+
+           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: textMuted }}>Top Gear (Gear 1)</label>
+                <select value={layoutConfig.gear1 || allCategories[0] || ""} onChange={(e) => {saveLayoutConfig({...layoutConfig, gear1: e.target.value}); showToast("Gear 1 Updated", "success");}} style={{ padding: "10px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: "inherit", outline: "none" }}>
+                  {allCategories.map(c => <option key={c} value={c} style={{background: bg}}>{c}</option>)}
+                </select>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: textMuted }}>Middle Gear (Gear 2)</label>
+                <select value={layoutConfig.gear2 || allCategories[1] || ""} onChange={(e) => {saveLayoutConfig({...layoutConfig, gear2: e.target.value}); showToast("Gear 2 Updated", "success");}} style={{ padding: "10px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: "inherit", outline: "none" }}>
+                  {allCategories.map(c => <option key={c} value={c} style={{background: bg}}>{c}</option>)}
+                </select>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: textMuted }}>Bottom Gear (Gear 3)</label>
+                <select value={layoutConfig.gear3 || allCategories[2] || ""} onChange={(e) => {saveLayoutConfig({...layoutConfig, gear3: e.target.value}); showToast("Gear 3 Updated", "success");}} style={{ padding: "10px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: "inherit", outline: "none" }}>
+                  {allCategories.map(c => <option key={c} value={c} style={{background: bg}}>{c}</option>)}
+                </select>
+              </div>
+           </div>
+
+           <hr style={{ border: "none", borderTop: `1px solid ${border}`, margin: "8px 0" }} />
+
+           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <label style={{ fontSize: 14, fontWeight: 600, color: textPrimary }}>Sidebar Quick Prompts</label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {allCategories.map(c => {
+                  const isSelected = layoutConfig.quickPrompts.includes(c);
+                  return (
+                    <button 
+                      key={c}
+                      onClick={() => {
+                        let newPrompts = [...layoutConfig.quickPrompts];
+                        if (isSelected) newPrompts = newPrompts.filter(p => p !== c);
+                        else if (newPrompts.length < 7) newPrompts.push(c);
+                        else { showToast("You can only select up to 7 Quick Prompts.", "error"); return; }
+                        saveLayoutConfig({...layoutConfig, quickPrompts: newPrompts});
+                      }}
+                      style={{ padding: "8px 14px", borderRadius: 20, border: `1px solid ${isSelected ? '#4285f4' : border}`, background: isSelected ? 'rgba(66, 133, 244, 0.1)' : 'transparent', color: isSelected ? '#4285f4' : textMuted, cursor: "pointer", fontWeight: 500, fontSize: 13 }}
+                    >
+                      {c}
+                    </button>
+                  )
+                })}
+              </div>
+              <span style={{ fontSize: 11, color: textMuted }}>Click to toggle. Maximum of 7 items allowed.</span>
+           </div>
+        </div>
+      )}
 
       {activeTab === 'users' && (
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
@@ -252,34 +343,35 @@ export function AdminPanel({
         </div>
       )}
 
-      <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, background: bg, border: `1px solid ${border}`, padding: "8px 12px", borderRadius: 8, flex: 1, minWidth: 200 }}>
-          <Search size={16} color={textMuted} />
-          <input type="text" placeholder={`Search ${activeTab}...`} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ border: "none", background: "transparent", outline: "none", width: "100%", color: "inherit", fontSize: 13 }} />
-        </div>
-        <div style={{ display: "flex", gap: 8, width: "100%", justifyContent: "flex-end" }}>
-          <button onClick={() => { fetchData(); showToast("Dashboard Synced!", "success"); }} style={{ display: 'flex', alignItems: 'center', justifyContent: "center", gap: 6, padding: '8px 14px', background: 'transparent', border: `1px solid ${border}`, color: dark ? '#fff' : '#000', borderRadius: 8, cursor: 'pointer', fontWeight: 500, fontSize: 13, flex: 1 }}>
-            <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} /> Sync Data
-          </button>
-          {activeTab === 'knowledge' && editingId !== 0 && (
-            <button onClick={() => { 
-              setEditingId(0); 
-              setForm({ 
-                keyword: "", 
-                response: "", 
-                picture_url: "", 
-                // Auto-fill category and subcategory based on current view!
-                category: activeCategoryTab !== "All" ? activeCategoryTab : "Handbook", 
-                subcategory: activeDeptTab !== "All" ? activeDeptTab : "All", 
-                display_name: "" 
-              }); 
-              setKeywordInput(""); 
-            }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontWeight: 500, fontSize: 13, flex: 1, whiteSpace: "nowrap" }}>
-              <Plus size={14} /> Add Entry
+      {activeTab !== 'display' && (
+        <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: bg, border: `1px solid ${border}`, padding: "8px 12px", borderRadius: 8, flex: 1, minWidth: 200 }}>
+            <Search size={16} color={textMuted} />
+            <input type="text" placeholder={`Search ${activeTab}...`} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ border: "none", background: "transparent", outline: "none", width: "100%", color: "inherit", fontSize: 13 }} />
+          </div>
+          <div style={{ display: "flex", gap: 8, width: "100%", justifyContent: "flex-end" }}>
+            <button onClick={() => { fetchDashboardData(); showToast("Dashboard Synced!", "success"); }} style={{ display: 'flex', alignItems: 'center', justifyContent: "center", gap: 6, padding: '8px 14px', background: 'transparent', border: `1px solid ${border}`, color: dark ? '#fff' : '#000', borderRadius: 8, cursor: 'pointer', fontWeight: 500, fontSize: 13, flex: 1 }}>
+              <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} /> Sync Data
             </button>
-          )}
+            {activeTab === 'knowledge' && editingId !== 0 && (
+              <button onClick={() => { 
+                setEditingId(0); 
+                setForm({ 
+                  keyword: "", 
+                  response: "", 
+                  picture_url: "", 
+                  category: activeCategoryTab !== "All" ? activeCategoryTab : "Handbook", 
+                  subcategory: activeDeptTab !== "All" ? activeDeptTab : "All", 
+                  display_name: "" 
+                }); 
+                setKeywordInput(""); 
+              }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontWeight: 500, fontSize: 13, flex: 1, whiteSpace: "nowrap" }}>
+                <Plus size={14} /> Add Entry
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {activeTab === 'knowledge' && (
         <>
@@ -332,7 +424,6 @@ export function AdminPanel({
                           <button onClick={() => handleDelete('knowledge', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4 }} title="Delete"><Trash2 size={14} /></button>
                         </td>
                       </tr>
-                      {/* INLINE EDIT FORM */}
                       {editingId === row.id && (
                         <tr style={{ background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", borderBottom: `1px solid ${border}` }}>
                           <td colSpan={3} style={{ padding: 0 }}>
@@ -488,10 +579,10 @@ export function AdminPanel({
           <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: 12, padding: 20, width: '100%', maxWidth: 360, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
             <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 600, color: dark ? '#fff' : '#000' }}>{modal.title}</h3>
             <p style={{ margin: '0 0 16px', fontSize: 13, color: textMuted, lineHeight: 1.4 }}>{modal.message}</p>
-            {modal.type === 'prompt' && (<input type="text" autoFocus placeholder="Type new password..." onChange={e => setModal({...modal, inputValue: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${border}`, background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', color: 'inherit', outline: 'none', marginBottom: 16, fontSize: 13 }} />)}
+            {modal.type === 'prompt' && (<input type="text" autoFocus placeholder="Type here..." onChange={e => setModal({...modal, inputValue: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${border}`, background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', color: 'inherit', outline: 'none', marginBottom: 16, fontSize: 13 }} />)}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setModal({ ...modal, isOpen: false })} style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: 'transparent', color: textMuted, cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>Cancel</button>
-              <button onClick={() => { modal.onConfirm(modal.inputValue); setModal({ ...modal, isOpen: false }); }} style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: "#4285f4", color: "#fff", cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>{modal.type === 'prompt' ? 'Save Password' : 'Yes, Confirm'}</button>
+              <button onClick={() => { modal.onConfirm(modal.inputValue); setModal({ ...modal, isOpen: false }); }} style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: "#4285f4", color: "#fff", cursor: 'pointer', fontWeight: 500, fontSize: 13 }}>{modal.type === 'prompt' ? 'Save' : 'Yes, Confirm'}</button>
             </div>
           </div>
         </div>
@@ -503,7 +594,6 @@ export function AdminPanel({
           <button onClick={() => setFullScreenMedia(null)} style={{ position: 'absolute', top: 24, right: 24, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.2s' }}><X size={24} /></button>
         </div>
       )}
-
     </div>
   );
 }
