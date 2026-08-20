@@ -648,7 +648,7 @@ export default function App() {
         {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
         {isMobile && rightRailOpen && <div onClick={() => setRightRailOpen(false)} style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
 
-        {/* LEFT SIDEBAR (WEB UI) - FULLY CORRECTED FIX */}
+        {/* LEFT SIDEBAR (WEB UI) */}
         {!gearMode ? (
           <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: sbBg, position: "absolute", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -SIDEBAR_W) : (sidebarOpen ? 0 : -SIDEBAR_W), zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
             <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, background: sbBg }}>
@@ -801,7 +801,7 @@ export default function App() {
             </div>
           </aside>
         ) : (
-          /* LEFT GEAR UI (FOR WEB TASKBAR MODE) - FULLY CORRECTED FIX */
+          /* LEFT GEAR UI (FOR WEB TASKBAR MODE) - FIXED ALIGNMENT */
           <aside style={{ width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
             <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, left: 0 }}>
               <GearAbs id="g-left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => i + 1); }} />
@@ -877,7 +877,7 @@ export default function App() {
           </aside>
         )}
 
-        {/* MAIN DISPLAY */}
+        {/* MAIN DISPLAY (CHAT / ADMIN) */}
         <main style={{ 
           flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "absolute",
           top: 0, bottom: 0, 
@@ -935,7 +935,7 @@ export default function App() {
               <div className="admin-panel-wrapper" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, paddingBottom: isMobile ? 120 : 24, display: "flex", flexDirection: "column" }}>
                 <div style={{ flex: 1, overflowY: "auto", padding: "16px", WebkitOverflowScrolling: "touch" }}>
                   <AdminPanel 
-                     dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allSidebarCategories} 
+                     dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={dynamicCategories} 
                      mergedSubCategoriesMap={mergedSubCategoriesMap} 
                      setDbCategories={setDbCategories} setDbSubCategories={setDbSubCategories} 
                      fetchData={fetchGlobalKnowledge}
@@ -1010,7 +1010,7 @@ export default function App() {
           )}
         </main>
         
-        {/* RIGHT SIDEBAR (GEAR MODE) - FULLY CORRECTED FIX */}
+        {/* RIGHT SIDEBAR (ALWAYS VISIBLE, CONTAINS GEARS FOR WEB UI) */}
         <aside style={{ width: RAIL_W, flexShrink: 0, background: viewMode === 'admin' ? sbBg : bg, position: "absolute", top: 0, bottom: 0, right: isMobile ? (rightRailOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && rightRailOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
           {viewMode === 'admin' ? (
              <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: sbBg, borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
@@ -1069,18 +1069,21 @@ export default function App() {
                 {[
                   { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: gear1Cat, value: gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : "No Data", onPick: () => { 
                       const item = gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : null;
-                      if(item && item !== "No Data") handleKioskSelection(gear1Cat, item);
-                      if(isMobile) setRightRailOpen(false); 
+                      if(item && item !== "No Data") {
+                          requireAuth(() => { sendMessage(item); });
+                      }
                   }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); } },
                   { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: gear2Cat, value: gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : "No Data", onPick: () => { 
                       const item = gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : null;
-                      if(item && item !== "No Data") handleKioskSelection(gear2Cat, item);
-                      if(isMobile) setRightRailOpen(false); 
+                      if(item && item !== "No Data") {
+                          requireAuth(() => { sendMessage(item); });
+                      }
                   }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); } },
                   { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: gear3Cat, value: gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : "No Data", onPick: () => { 
                       const item = gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : null;
-                      if(item && item !== "No Data") handleKioskSelection(gear3Cat, item);
-                      if(isMobile) setRightRailOpen(false); 
+                      if(item && item !== "No Data") {
+                          requireAuth(() => { sendMessage(item); });
+                      }
                   }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); } },
                 ].map((p: any, i: number) => (
                   <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "right", right: GEAR_VIS, top: p.y, zIndex: 10 }}>
