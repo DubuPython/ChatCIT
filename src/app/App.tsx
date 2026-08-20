@@ -17,7 +17,7 @@ import { CosmicInput } from "../components/ui/inputbar";
 import { ChatMessageBubble } from "../components/chatmessagebubble";
 
 import { Message, Chat, User as ChatUser, ToastMsg } from "../types";
-import { API_URL, MID_CHOICES } from "../config";
+import { API_URL, MID_CHOICES, DEFAULT_CATEGORIES } from "../config";
 
 const SIDEBAR_W = 280;
 
@@ -80,14 +80,21 @@ export default function App() {
   const fetchGlobalKnowledge = async () => {
     try {
       const res = await fetch(`${API_URL}/knowledge`);
-      if (res.ok) setGlobalKnowledge(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setGlobalKnowledge(Array.isArray(data) ? data : []);
+      }
     } catch (e) { console.error("Global fetch failed", e); }
   };
 
   useEffect(() => { fetchGlobalKnowledge(); }, []);
 
-  const dynamicCategories = Array.from(new Set(globalKnowledge.map(d => d.category || 'General'))).filter(c => c !== 'General');
-  const allSidebarCategories = Array.from(new Set([...dynamicCategories, ...customCategories]));
+  // HYBRID CATEGORIES: Keep default categories always visible + add dynamic DB categories + add custom tabs
+  const dynamicDbCategories = Array.from(new Set(globalKnowledge.map(d => d.category).filter(Boolean)));
+  const fallbackDefaults = DEFAULT_CATEGORIES ? DEFAULT_CATEGORIES.filter(c => c !== "All") : [
+    "Organizations", "Facilities", "Industry Partners", "Faculty & Professors", "Magna Carta", "Handbook", "General Guidelines"
+  ];
+  const allSidebarCategories = Array.from(new Set([...fallbackDefaults, ...dynamicDbCategories, ...customCategories]));
 
   const [layoutConfig, setLayoutConfig] = useState<{gear1: string, gear2: string, gear3: string, quickPrompts: string[]}>({
     gear1: "", gear2: "", gear3: "", quickPrompts: []
@@ -105,14 +112,13 @@ export default function App() {
     localStorage.setItem('chatcit_layout', JSON.stringify(newConfig));
   };
 
-  const defaultPrompts = ["Facilities", "Industry Partners", "Organizations", "Faculty & Professors", "Magna Carta", "Handbook"];
   const QUICK_PROMPTS = layoutConfig.quickPrompts && layoutConfig.quickPrompts.length > 0 
       ? layoutConfig.quickPrompts 
-      : defaultPrompts;
+      : allSidebarCategories.slice(0, 7);
 
-  const gear1Cat = layoutConfig.gear1 || dynamicCategories[0] || 'Organizations';
-  const gear2Cat = layoutConfig.gear2 || dynamicCategories[1] || 'Majors';
-  const gear3Cat = layoutConfig.gear3 || dynamicCategories[2] || 'Documents';
+  const gear1Cat = layoutConfig.gear1 || allSidebarCategories[0] || 'Organizations';
+  const gear2Cat = layoutConfig.gear2 || allSidebarCategories[1] || 'Facilities';
+  const gear3Cat = layoutConfig.gear3 || allSidebarCategories[2] || 'Industry Partners';
 
   const getGearItems = (cat: string) => {
       if (!cat) return ["No Data"];
@@ -120,11 +126,11 @@ export default function App() {
       if (lowerCat === 'handbook') return ['Handbook'];
       if (lowerCat === 'magna carta') return ['Magna Carta'];
 
-      const items = globalKnowledge.filter(d => d.category === cat);
+      const items = globalKnowledge.filter(d => (d.category || '').toLowerCase() === cat.toLowerCase());
       if (items.length === 0) return ["No Data"];
       const subs = Array.from(new Set(items.map(d => d.subcategory))).filter(s => s && s !== 'All');
       if (subs.length > 0) return subs as string[]; 
-      return items.map(d => d.display_name || d.keyword.split(',')[0] || "Unnamed"); 
+      return items.map(d => d.display_name || (d.keyword ? d.keyword.split(',')[0] : "Unnamed")); 
   };
 
   const gear1Items = getGearItems(gear1Cat);
@@ -275,7 +281,7 @@ export default function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); 
   };
   
-  useEffect(() => { fetch(`${API_URL}/faqs/top`).then(res => res.json()).then(data => setTopFaqs(data)).catch(() => {}); }, []);
+  useEffect(() => { fetch(`${API_URL}/faqs/top`).then(res => res.json()).then(data => setTopFaqs(Array.isArray(data) ? data : [])).catch(() => {}); }, []);
 
   useEffect(() => {
     scrollToBottom();
@@ -362,7 +368,7 @@ export default function App() {
           prompt = `Tell me about ${item} in ${category}`;
       }
       
-      const isFolder = globalKnowledge.some(k => k.category === category && k.subcategory === item);
+      const isFolder = globalKnowledge.some(k => (k.category || '').toLowerCase() === category.toLowerCase() && k.subcategory === item);
       if (isFolder || category.includes('Faculty') || category.includes('Industry') || lowerCat.includes('facilities')) {
          setKioskResult({ title: item, isDirectory: true, loading: false });
          return;
@@ -629,6 +635,7 @@ export default function App() {
           </div>
         )}
 
+        {/* TOASTS */}
         <div style={{ position: "absolute", bottom: 24, right: 24, zIndex: 1000001, display: "flex", flexDirection: "column", gap: 10 }}>
           {toasts.map((t: ToastMsg) => (
             <div key={t.id} style={{ background: dark ? '#25242c' : '#fff', border: `1px solid ${t.type === 'error' ? '#ef4444' : t.type === 'success' ? '#10b981' : '#4285f4'}`, color: textPrimary, padding: "12px 16px", borderRadius: 8, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.2)", fontSize: 14, fontWeight: 500, minWidth: 280, animation: "badgePop 0.3s cubic-bezier(0.2, 1.5, 0.5, 1)" }}>
@@ -640,10 +647,11 @@ export default function App() {
           ))}
         </div>
 
+        {/* MOBILE OVERLAYS */}
         {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
         {isMobile && rightRailOpen && <div onClick={() => setRightRailOpen(false)} style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
 
-        {/* LEFT SIDEBAR */}
+        {/* LEFT SIDEBAR (WEB UI) */}
         {!gearMode ? (
           <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: sbBg, position: "absolute", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -SIDEBAR_W) : (sidebarOpen ? 0 : -SIDEBAR_W), zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
             <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, background: sbBg }}>
@@ -737,7 +745,7 @@ export default function App() {
                              const isDoc = lbl.toLowerCase() === 'handbook' || lbl.toLowerCase() === 'magna carta';
                              if (isDoc) {
                                 requireAuth(() => { sendMessage(lbl); });
-                             } else if (dynamicCategories.includes(lbl)) {
+                             } else if (allSidebarCategories.includes(lbl)) {
                                 setDirectoryMode(lbl); 
                              } else {
                                 requireAuth(() => { sendMessage(lbl); }); 
@@ -798,10 +806,10 @@ export default function App() {
         ) : (
           /* LEFT GEAR UI */
           <aside style={{ width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, right: 0 }}>
-              <GearAbs id="g-left-top" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => i + 1); }} />
-              <GearAbs id="g-left-mid" side="right" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-leftAngle * RATIO + (180 / N_LG)} onClick={() => { setLeftAngle(a => a + STEP_DEG); setMidIdx(i => (i + 1) % MID_CHOICES.length); }} />
-              <GearAbs id="g-left-bot" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => i + 1); }} />
+            <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, left: 0 }}>
+              <GearAbs id="g-left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => i + 1); }} />
+              <GearAbs id="g-left-mid" side="left" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-leftAngle * RATIO + (180 / N_LG)} onClick={() => { setLeftAngle(a => a + STEP_DEG); setMidIdx(i => (i + 1) % MID_CHOICES.length); }} />
+              <GearAbs id="g-left-bot" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => i + 1); }} />
             </div>
             
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-start", padding: "14px 16px 0", zIndex: 20 }}>
@@ -826,7 +834,7 @@ export default function App() {
               { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: "Quick Prompts", value: QUICK_PROMPTS.length > 0 ? QUICK_PROMPTS[quickIdx % QUICK_PROMPTS.length] : "No Data", onPick: () => { 
                 const lbl = QUICK_PROMPTS.length > 0 ? QUICK_PROMPTS[quickIdx % QUICK_PROMPTS.length] : null;
                 if (!lbl || lbl === "No Data") return;
-                if (dynamicCategories.includes(lbl) || lbl.toLowerCase() === 'handbook' || lbl.toLowerCase() === 'magna carta') {
+                if (allSidebarCategories.includes(lbl) || lbl.toLowerCase() === 'handbook' || lbl.toLowerCase() === 'magna carta') {
                    setDirectoryMode(lbl); 
                 } else {
                    requireAuth(() => { sendMessage(lbl); }); 
@@ -872,6 +880,7 @@ export default function App() {
           </aside>
         )}
 
+        {/* MAIN CHAT & ADMIN AREA */}
         <main style={{ 
           flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "absolute",
           top: 0, bottom: 0, 
@@ -1004,7 +1013,7 @@ export default function App() {
           )}
         </main>
         
-        {/* RIGHT SIDEBAR (GEAR MODE) */}
+        {/* RIGHT SIDEBAR */}
         <aside style={{ width: RAIL_W, flexShrink: 0, background: viewMode === 'admin' ? sbBg : bg, position: "absolute", top: 0, bottom: 0, right: isMobile ? (rightRailOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && rightRailOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
           {viewMode === 'admin' ? (
              <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: sbBg, borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
@@ -1052,10 +1061,10 @@ export default function App() {
              </div>
           ) : (
              <>
-                <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, left: 0 }}>
-                  <GearAbs id="g-right-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); }} />
-                  <GearAbs id="g-right-mid" side="left" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-leftAngle * RATIO + (180 / N_LG)} onClick={() => { setLeftAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); }} />
-                  <GearAbs id="g-right-bot" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); }} />
+                <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, right: 0 }}>
+                  <GearAbs id="g-right-top" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); }} />
+                  <GearAbs id="g-right-mid" side="right" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-rightAngle * RATIO + (180 / N_LG)} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); }} />
+                  <GearAbs id="g-right-bot" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); }} />
                 </div>
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "14px 16px 0", zIndex: 20 }}>
                   {topRightButtons}
@@ -1065,24 +1074,24 @@ export default function App() {
                       const item = gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : null;
                       if(item && item !== "No Data") handleKioskSelection(gear1Cat, item);
                       if(isMobile) setRightRailOpen(false); 
-                  }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); } },
+                  }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); } },
                   { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: gear2Cat, value: gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : "No Data", onPick: () => { 
                       const item = gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : null;
                       if(item && item !== "No Data") handleKioskSelection(gear2Cat, item);
                       if(isMobile) setRightRailOpen(false); 
-                  }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); } },
+                  }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); } },
                   { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: gear3Cat, value: gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : "No Data", onPick: () => { 
                       const item = gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : null;
                       if(item && item !== "No Data") handleKioskSelection(gear3Cat, item);
                       if(isMobile) setRightRailOpen(false); 
-                  }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); } },
+                  }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); } },
                 ].map((p: any, i: number) => (
-                  <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "left", left: GEAR_VIS, top: p.y, zIndex: 10 }}>
-                    {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "left" }}>{p.label}</div>}
-                    <button onClick={p.onPick} className="gear-panel-btn" style={{ flexDirection: "column", alignItems: "flex-start", justifyContent: "center", gap: "0", textAlign: "left" }}>
+                  <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "right", right: GEAR_VIS, top: p.y, zIndex: 10 }}>
+                    {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "right" }}>{p.label}</div>}
+                    <button onClick={p.onPick} className="gear-panel-btn" style={{ flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: "0", textAlign: "right" }}>
                       <span style={{ display: "block", width: "100%", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>{p.value}</span>
                     </button>
-                    <div style={{ fontSize: 10, color: textFaint, marginTop: 8, opacity: 0.8, fontWeight: 500, textAlign: "left" }}>click gear to cycle</div>
+                    <div style={{ fontSize: 10, color: textFaint, marginTop: 8, opacity: 0.8, fontWeight: 500, textAlign: "right" }}>click gear to cycle</div>
                   </div>
                 ))}
              </>
