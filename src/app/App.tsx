@@ -17,7 +17,7 @@ import { CosmicInput } from "../components/ui/inputbar";
 import { ChatMessageBubble } from "../components/chatmessagebubble";
 
 import { Message, Chat, User as ChatUser, ToastMsg } from "../types";
-import { API_URL, MID_CHOICES, DEFAULT_CATEGORIES } from "../config";
+import { API_URL, MID_CHOICES } from "../config";
 
 const SIDEBAR_W = 280;
 
@@ -89,12 +89,8 @@ export default function App() {
 
   useEffect(() => { fetchGlobalKnowledge(); }, []);
 
-  // HYBRID CATEGORIES: Keep default categories always visible + add dynamic DB categories + add custom tabs
-  const dynamicDbCategories = Array.from(new Set(globalKnowledge.map(d => d.category).filter(Boolean)));
-  const fallbackDefaults = DEFAULT_CATEGORIES ? DEFAULT_CATEGORIES.filter(c => c !== "All") : [
-    "Organizations", "Facilities", "Industry Partners", "Faculty & Professors", "Magna Carta", "Handbook", "General Guidelines"
-  ];
-  const allSidebarCategories = Array.from(new Set([...fallbackDefaults, ...dynamicDbCategories, ...customCategories]));
+  const dynamicCategories = Array.from(new Set(globalKnowledge.map(d => d.category || 'General'))).filter(c => c !== 'General');
+  const allSidebarCategories = Array.from(new Set([...dynamicCategories, ...customCategories]));
 
   const [layoutConfig, setLayoutConfig] = useState<{gear1: string, gear2: string, gear3: string, quickPrompts: string[]}>({
     gear1: "", gear2: "", gear3: "", quickPrompts: []
@@ -112,13 +108,14 @@ export default function App() {
     localStorage.setItem('chatcit_layout', JSON.stringify(newConfig));
   };
 
+  const defaultPrompts = ["Facilities", "Industry Partners", "Organizations", "Faculty & Professors", "Magna Carta", "Handbook"];
   const QUICK_PROMPTS = layoutConfig.quickPrompts && layoutConfig.quickPrompts.length > 0 
       ? layoutConfig.quickPrompts 
-      : allSidebarCategories.slice(0, 7);
+      : defaultPrompts;
 
-  const gear1Cat = layoutConfig.gear1 || allSidebarCategories[0] || 'Organizations';
-  const gear2Cat = layoutConfig.gear2 || allSidebarCategories[1] || 'Facilities';
-  const gear3Cat = layoutConfig.gear3 || allSidebarCategories[2] || 'Industry Partners';
+  const gear1Cat = layoutConfig.gear1 || dynamicCategories[0] || 'Organizations';
+  const gear2Cat = layoutConfig.gear2 || dynamicCategories[1] || 'Majors';
+  const gear3Cat = layoutConfig.gear3 || dynamicCategories[2] || 'Documents';
 
   const getGearItems = (cat: string) => {
       if (!cat) return ["No Data"];
@@ -651,7 +648,7 @@ export default function App() {
         {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
         {isMobile && rightRailOpen && <div onClick={() => setRightRailOpen(false)} style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
 
-        {/* LEFT SIDEBAR (WEB UI) */}
+        {/* LEFT SIDEBAR (WEB UI) - FULLY CORRECTED FIX */}
         {!gearMode ? (
           <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: sbBg, position: "absolute", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -SIDEBAR_W) : (sidebarOpen ? 0 : -SIDEBAR_W), zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
             <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, background: sbBg }}>
@@ -804,7 +801,7 @@ export default function App() {
             </div>
           </aside>
         ) : (
-          /* LEFT GEAR UI */
+          /* LEFT GEAR UI (FOR WEB TASKBAR MODE) - FULLY CORRECTED FIX */
           <aside style={{ width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
             <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, left: 0 }}>
               <GearAbs id="g-left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => i + 1); }} />
@@ -880,7 +877,7 @@ export default function App() {
           </aside>
         )}
 
-        {/* MAIN CHAT & ADMIN AREA */}
+        {/* MAIN DISPLAY */}
         <main style={{ 
           flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "absolute",
           top: 0, bottom: 0, 
@@ -1013,7 +1010,7 @@ export default function App() {
           )}
         </main>
         
-        {/* RIGHT SIDEBAR */}
+        {/* RIGHT SIDEBAR (GEAR MODE) - FULLY CORRECTED FIX */}
         <aside style={{ width: RAIL_W, flexShrink: 0, background: viewMode === 'admin' ? sbBg : bg, position: "absolute", top: 0, bottom: 0, right: isMobile ? (rightRailOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && rightRailOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
           {viewMode === 'admin' ? (
              <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: sbBg, borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
