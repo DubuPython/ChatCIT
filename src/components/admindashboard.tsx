@@ -19,7 +19,7 @@ const getColorForCategory = (cat: string) => {
 export function AdminPanel({
   dark, showToast, currentUser, activeTab, setActiveTab, activeCategoryTab, activeDeptTab,
   allCategories, mergedSubCategoriesMap, setDbCategories, setDbSubCategories, fetchData: globalFetchData,
-  layoutConfig, saveLayoutConfig
+  layoutConfig, saveLayoutConfig, syncTrigger
 }: {
   dark: boolean; showToast: (msg: string, type: 'success' | 'error' | 'info') => void; currentUser: User;
   activeTab: 'knowledge'|'faq'|'unanswered'|'bugs'|'users'|'display'; setActiveTab: (t: 'knowledge'|'faq'|'unanswered'|'bugs'|'users'|'display') => void;
@@ -28,6 +28,7 @@ export function AdminPanel({
   fetchData: () => void;
   layoutConfig: { gear1: string, gear2: string, gear3: string, quickPrompts: string[] };
   saveLayoutConfig: (config: any) => void;
+  syncTrigger: number;
 }) {
   
   const [data, setData] = useState<Knowledge[]>([]);
@@ -49,45 +50,36 @@ export function AdminPanel({
 
   const CLOUD_NAME = "xjzuq0fq"; const UPLOAD_PRESET = "chatcit_preset"; 
 
-  // ==========================================
-  // BULLETPROOF FETCH LOGIC (PREVENTS CRASHES)
-  // ==========================================
   const fetchDashboardData = async () => {
     setIsSyncing(true);
     try {
-      globalFetchData(); // Sync parent state too
-      
-      // Helper function to safely fetch JSON. If a route fails, it returns an empty array instead of crashing!
-      const safeFetchJson = async (url: string) => {
+      globalFetchData(); // Sync parent App.tsx state
+
+      const safeFetch = async (endpoint: string) => {
         try {
-          const res = await fetch(url);
+          const res = await fetch(`${API_URL}${endpoint}`);
           if (!res.ok) return [];
-          const jsonData = await res.json();
-          return Array.isArray(jsonData) ? jsonData : [];
-        } catch (e) {
-          return [];
-        }
+          const text = await res.text();
+          if (!text) return [];
+          const json = JSON.parse(text);
+          return Array.isArray(json) ? json : (json.rows ? json.rows : []);
+        } catch (e) { return []; } 
       };
 
-      // Fetch everything simultaneously but safely
       const [kData, uData, bData, userRes] = await Promise.all([ 
-        safeFetchJson(`${API_URL}/knowledge`), 
-        safeFetchJson(`${API_URL}/unanswered`), 
-        safeFetchJson(`${API_URL}/bugs`), 
-        safeFetchJson(`${API_URL}/users`) 
+        safeFetch('/knowledge'), 
+        safeFetch('/unanswered'), 
+        safeFetch('/bugs'), 
+        safeFetch('/users') 
       ]);
 
-      setData(kData); 
-      setUnanswered(uData); 
-      setBugs(bData); 
-      setUsers(userRes);
+      setData(kData); setUnanswered(uData); setBugs(bData); setUsers(userRes);
       
       if (kData.length > 0) {
         setDbCategories(Array.from(new Set(kData.map((d: any) => d.category || "Handbook"))));
         const groupedSubs: Record<string, string[]> = {};
         kData.forEach((d: any) => { 
-           const cat = d.category || "Handbook"; 
-           const sub = d.subcategory; 
+           const cat = d.category || "Handbook"; const sub = d.subcategory; 
            if (sub && sub !== 'All') { 
               if (!groupedSubs[cat]) groupedSubs[cat] = []; 
               if (!groupedSubs[cat].includes(sub)) groupedSubs[cat].push(sub); 
@@ -95,15 +87,11 @@ export function AdminPanel({
         });
         setDbSubCategories(groupedSubs);
       }
-    } catch (e) { 
-      console.error("Dashboard Safe Fetch Error:", e);
-      showToast("Minor issue syncing some data.", "error"); 
-    } finally { 
-      setLoading(false); setIsSyncing(false); 
-    }
+    } catch (e) { console.error(e); showToast("Network hiccup while syncing.", "info"); } 
+    finally { setLoading(false); setIsSyncing(false); }
   };
   
-  useEffect(() => { fetchDashboardData(); }, []);
+  useEffect(() => { fetchDashboardData(); }, [syncTrigger]);
   useEffect(() => { setSearchQuery(""); }, [activeTab]);
 
   const allUserDepts = ["All", ...Array.from(new Set(users.map((u: any) => u.department || 'Others')))];
@@ -128,7 +116,9 @@ export function AdminPanel({
     try {
       const res = await fetch(id ? `${API_URL}/knowledge/${id}` : `${API_URL}/knowledge`, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
       if (!res.ok) throw new Error((await res.json()).error || "Server failed to save record.");
-      setEditingId(null); setForm({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All", display_name: "" }); setKeywordInput(""); fetchDashboardData(); showToast(id ? "Record updated!" : "New record added!", "success");
+      setEditingId(null); setForm({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All", display_name: "" }); setKeywordInput(""); 
+      fetchDashboardData(); 
+      showToast(id ? "Record updated!" : "New record added!", "success");
     } catch (e: any) { showToast(e.message || "Error saving record.", "error"); }
   };
 
@@ -176,15 +166,11 @@ export function AdminPanel({
     setActiveTab('knowledge'); 
     setEditingId(0); 
     setForm({ 
-      keyword: question, 
-      response: "", 
-      picture_url: "", 
+      keyword: question, response: "", picture_url: "", 
       category: activeCategoryTab !== "All" ? activeCategoryTab : "Handbook", 
-      subcategory: activeDeptTab !== "All" ? activeDeptTab : "All", 
-      display_name: "" 
+      subcategory: activeDeptTab !== "All" ? activeDeptTab : "All", display_name: "" 
     }); 
-    setKeywordInput(""); 
-    showToast("Moved to Knowledge Base draft.", "info");
+    setKeywordInput(""); showToast("Moved to Knowledge Base draft.", "info");
   };
 
   const handleRoleChange = async (userId: number, newRole: string) => {
@@ -203,10 +189,7 @@ export function AdminPanel({
     const dbSub = ((d as any).subcategory || "All").toLowerCase();
     const matchSub = activeDeptTab === "All" || dbSub === activeDeptTab.toLowerCase();
     
-    // Dynamic matching filter check
-    if (activeCategoryTab !== 'All' && activeCategoryTab !== 'General' && activeCategoryTab !== 'Handbook') { 
-      return matchCat && matchSub && matchSearch; 
-    }
+    if (activeCategoryTab !== 'All' && activeCategoryTab !== 'General' && activeCategoryTab !== 'Handbook') { return matchCat && matchSub && matchSearch; }
     return matchCat && matchSearch;
   });
 
