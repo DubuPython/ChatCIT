@@ -49,18 +49,58 @@ export function AdminPanel({
 
   const CLOUD_NAME = "xjzuq0fq"; const UPLOAD_PRESET = "chatcit_preset"; 
 
+  // ==========================================
+  // BULLETPROOF FETCH LOGIC (PREVENTS CRASHES)
+  // ==========================================
   const fetchDashboardData = async () => {
     setIsSyncing(true);
     try {
-      globalFetchData();
-      const [kRes, uRes, bRes, userRes] = await Promise.all([ fetch(`${API_URL}/knowledge`), fetch(`${API_URL}/unanswered`), fetch(`${API_URL}/bugs`), fetch(`${API_URL}/users`) ]);
-      const kData = await kRes.json(); setData(kData); setUnanswered(await uRes.json()); setBugs(await bRes.json()); setUsers(await userRes.json());
+      globalFetchData(); // Sync parent state too
       
-      setDbCategories(Array.from(new Set(kData.map((d: any) => d.category || "Handbook"))));
-      const groupedSubs: Record<string, string[]> = {};
-      kData.forEach((d: any) => { const cat = d.category || "Handbook"; const sub = d.subcategory; if (sub && sub !== 'All') { if (!groupedSubs[cat]) groupedSubs[cat] = []; if (!groupedSubs[cat].includes(sub)) groupedSubs[cat].push(sub); } });
-      setDbSubCategories(groupedSubs);
-    } catch (e) { showToast("Failed to fetch dashboard data.", "error"); } finally { setLoading(false); setIsSyncing(false); }
+      // Helper function to safely fetch JSON. If a route fails, it returns an empty array instead of crashing!
+      const safeFetchJson = async (url: string) => {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) return [];
+          const jsonData = await res.json();
+          return Array.isArray(jsonData) ? jsonData : [];
+        } catch (e) {
+          return [];
+        }
+      };
+
+      // Fetch everything simultaneously but safely
+      const [kData, uData, bData, userRes] = await Promise.all([ 
+        safeFetchJson(`${API_URL}/knowledge`), 
+        safeFetchJson(`${API_URL}/unanswered`), 
+        safeFetchJson(`${API_URL}/bugs`), 
+        safeFetchJson(`${API_URL}/users`) 
+      ]);
+
+      setData(kData); 
+      setUnanswered(uData); 
+      setBugs(bData); 
+      setUsers(userRes);
+      
+      if (kData.length > 0) {
+        setDbCategories(Array.from(new Set(kData.map((d: any) => d.category || "Handbook"))));
+        const groupedSubs: Record<string, string[]> = {};
+        kData.forEach((d: any) => { 
+           const cat = d.category || "Handbook"; 
+           const sub = d.subcategory; 
+           if (sub && sub !== 'All') { 
+              if (!groupedSubs[cat]) groupedSubs[cat] = []; 
+              if (!groupedSubs[cat].includes(sub)) groupedSubs[cat].push(sub); 
+           } 
+        });
+        setDbSubCategories(groupedSubs);
+      }
+    } catch (e) { 
+      console.error("Dashboard Safe Fetch Error:", e);
+      showToast("Minor issue syncing some data.", "error"); 
+    } finally { 
+      setLoading(false); setIsSyncing(false); 
+    }
   };
   
   useEffect(() => { fetchDashboardData(); }, []);
@@ -101,33 +141,6 @@ export function AdminPanel({
           if (!res.ok) throw new Error("Server rejected deletion");
           fetchDashboardData(); showToast("Deleted successfully.", "info"); 
         } catch (e) { showToast("Error deleting item.", "error"); } 
-      }
-    });
-  };
-
-  const handleDeleteCategory = (catName: string) => {
-    setModal({
-      isOpen: true, type: 'confirm', title: 'Delete Category', message: `Are you sure you want to delete the category "${catName}"? All entries inside it will be safely moved to 'General'.`, inputValue: '',
-      onConfirm: async () => { 
-        try { 
-          const res = await fetch(`${API_URL}/knowledge/manage/category`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ category: catName }) }); 
-          if (!res.ok) throw new Error("Server rejected deletion");
-          fetchDashboardData(); showToast(`Category "${catName}" deleted.`, "success"); 
-        } catch (e) { showToast("Error deleting category.", "error"); } 
-      }
-    });
-  };
-
-  const handleRenameCategory = (catName: string) => {
-    setModal({
-      isOpen: true, type: 'prompt', title: `Rename Category "${catName}"`, message: 'Enter the new name for this category.', inputValue: '',
-      onConfirm: async (newCategoryName) => { 
-        if(!newCategoryName || newCategoryName.trim() === '') return;
-        try { 
-          const res = await fetch(`${API_URL}/knowledge/manage/category`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ oldCategory: catName, newCategory: newCategoryName.trim() }) }); 
-          if (!res.ok) throw new Error("Server rejected rename");
-          fetchDashboardData(); showToast(`Category renamed to "${newCategoryName.trim()}".`, "success"); 
-        } catch (e) { showToast("Error renaming category.", "error"); } 
       }
     });
   };
@@ -190,6 +203,7 @@ export function AdminPanel({
     const dbSub = ((d as any).subcategory || "All").toLowerCase();
     const matchSub = activeDeptTab === "All" || dbSub === activeDeptTab.toLowerCase();
     
+    // Dynamic matching filter check
     if (activeCategoryTab !== 'All' && activeCategoryTab !== 'General' && activeCategoryTab !== 'Handbook') { 
       return matchCat && matchSub && matchSearch; 
     }
@@ -205,7 +219,7 @@ export function AdminPanel({
   });
 
   const departmentCounts = users.reduce((acc, u) => { const dept = (u as any).department || "Others"; acc[dept] = (acc[dept] || 0) + 1; acc["Total Users"] = (acc["Total Users"] || 0) + 1; return acc; }, {} as Record<string, number>);
- const bg = dark ? "#25242c" : "#fff"; const border = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"; const textMuted = dark ? "#9aa0a6" : "#6b7280"; const textPrimary = dark ? "#e8eaed" : "#1a1a2e";
+  const bg = dark ? "#25242c" : "#fff"; const border = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"; const textMuted = dark ? "#9aa0a6" : "#6b7280"; const textPrimary = dark ? "#e8eaed" : "#1a1a2e";
 
   const renderEditForm = (title: string) => (
     <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
