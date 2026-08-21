@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, Menu, UserCog, X, MoreVertical, Bot, Calendar, Folder, User, Briefcase, Smartphone, Edit2 } from "lucide-react";
+import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, ArrowRight, Menu, UserCog, X, MoreVertical, Bot, Calendar, Folder, User, Briefcase, Smartphone, Edit2, FileText, Maximize } from "lucide-react";
 
 import { AuthScreen } from "../components/authmodal";
 import { AdminPanel } from "../components/admindashboard";
@@ -210,6 +210,7 @@ export default function App() {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [fullScreenMedia, setFullScreenMedia] = useState<string | null>(null);
+  const [fullScreenPdf, setFullScreenPdf] = useState<string | null>(null); 
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [rightRailOpen, setRightRailOpen] = useState(false); 
   const [gearMode, setGearMode] = useState(false);
@@ -230,6 +231,13 @@ export default function App() {
 
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const [topFaqs, setTopFaqs] = useState<{keyword: string, display_name?: string}[]>([]);
+
+  // CUSTOM PDF VIEWER STATE
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [pdfPage, setPdfPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pdfRef, setPdfRef] = useState<any>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activeChat = chats.find((c) => c.id === activeChatId) ?? null;
@@ -256,6 +264,44 @@ export default function App() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [simKiosk]); 
+
+  // PDF.js Logic
+  useEffect(() => {
+    if (!fullScreenPdf) return;
+    let isMounted = true;
+    const loadPDF = async () => {
+      setPdfLoading(true);
+      if (!(window as any).pdfjsLib) {
+         await new Promise((resolve) => {
+           const script = document.createElement('script'); script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+           script.onload = () => { (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js'; resolve(true); };
+           document.body.appendChild(script);
+         });
+      }
+      try {
+         const cleanUrl = fullScreenPdf.split('#')[0];
+         const pdf = await (window as any).pdfjsLib.getDocument(cleanUrl).promise;
+         if(isMounted) { setPdfRef(pdf); setTotalPages(pdf.numPages); setPdfPage(1); }
+      } catch(e) { console.error("Failed to load PDF", e); } 
+      finally { if(isMounted) setPdfLoading(false); }
+    };
+    loadPDF();
+    return () => { isMounted = false; };
+  }, [fullScreenPdf]);
+
+  useEffect(() => {
+     const renderPage = async () => {
+        if (!pdfRef || !canvasRef.current) return;
+        setPdfLoading(true);
+        try {
+          const canvas = canvasRef.current; const ctx = canvas.getContext('2d'); const page = await pdfRef.getPage(pdfPage);
+          const viewport = page.getViewport({ scale: 2.0 }); canvas.height = viewport.height; canvas.width = viewport.width;
+          await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+        } catch(e) { console.error("Failed to render canvas page", e); }
+        setPdfLoading(false);
+     };
+     renderPage();
+  }, [pdfRef, pdfPage]);
 
   useEffect(() => {
     if (!simKiosk) { setKbOpen(false); return; }
@@ -379,7 +425,7 @@ export default function App() {
             setKioskResult({ title: item, loading: false, content: "I am having trouble connecting to the database right now. Please try again later." });
          }
       } else {
-         // WEB UI: Send PDFs directly to chat (ChatMessageBubble natively handles .pdf)
+         // WEB UI: Just send the text query. ChatMessageBubble will perfectly render the inline PDF viewer.
          const isFolder = globalKnowledge.some(k => (k.category || '').toLowerCase() === category.toLowerCase() && k.subcategory === item);
          if (isFolder || category.includes('Faculty') || category.includes('Industry') || lowerCat.includes('facilities')) {
             setDirectoryMode(item);
@@ -655,7 +701,7 @@ export default function App() {
         {isMobile && rightRailOpen && <div onClick={() => setRightRailOpen(false)} style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
 
         {/* LEFT SIDEBAR (WEB UI) */}
-        {!gearMode ? (
+        {!gearMode && (
           <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: sbBg, position: "absolute", top: 0, bottom: 0, left: isMobile ? (sidebarOpen ? 0 : -SIDEBAR_W) : (sidebarOpen ? 0 : -SIDEBAR_W), zIndex: 60, transition: "all 0.3s ease", boxShadow: isMobile && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
             <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, background: sbBg }}>
               
@@ -688,7 +734,7 @@ export default function App() {
                                     {cat.replace('Teachers', 'Professors')}
                                   </span>
                                 </button>
-                                {/* FIX: Ensure everything except General is editable */}
+                                {/* FIX: Allow ALL user-added tabs to be edited. Hide controls only for the base 'All' and 'General' tabs */}
                                 {cat !== 'All' && cat !== 'General' && (
                                   <div style={{ display: "flex", gap: 2 }}>
                                     <button onClick={() => handleRenameCategory(cat)} style={{ background: "none", border: "none", color: sb.muted, cursor: "pointer", padding: "6px 4px", display: "flex", alignItems: "center" }} title="Rename Category">
@@ -809,8 +855,10 @@ export default function App() {
               </div>
             </div>
           </aside>
-        ) : (
-          /* LEFT GEAR UI (FOR WEB TASKBAR MODE) - FIXED ALIGNMENT TO LEFT EDGE */
+        )}
+
+        {/* LEFT SIDEBAR (GEAR TASKBAR MODE ONLY) */}
+        {gearMode && !isMobile && (
           <aside style={{ width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0, left: 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: "none", overflow: "hidden" }}>
             <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, left: 0 }}>
               <GearAbs id="g-left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => i + 1); }} />
@@ -843,7 +891,9 @@ export default function App() {
                 
                 if(isMobile) setSidebarOpen(false);
                 const lower = lbl.toLowerCase();
-                if (lower === 'handbook' || lower === 'magna carta' || lower.includes('form')) {
+                const isDoc = lower === 'handbook' || lower === 'magna carta' || lower.includes('form');
+                
+                if (isDoc) {
                    requireAuth(() => { sendMessage(lbl); });
                 } else if (allSidebarCategories.includes(lbl)) {
                    setDirectoryMode(lbl); 
@@ -1026,44 +1076,91 @@ export default function App() {
         {/* RIGHT SIDEBAR (ALWAYS VISIBLE FOR WEB UI) - FIXED ALIGNMENT TO RIGHT EDGE */}
         {!gearMode && !isMobile && (
           <aside style={{ width: RAIL_W, flexShrink: 0, background: viewMode === 'admin' ? sbBg : bg, position: "absolute", top: 0, bottom: 0, right: 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: "none", overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, right: 0 }}>
-              <GearAbs id="g-right-top" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); }} />
-              <GearAbs id="g-right-mid" side="right" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-rightAngle * RATIO + (180 / N_LG)} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); }} />
-              <GearAbs id="g-right-bot" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); }} />
-            </div>
-            
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "14px 16px 0", zIndex: 20 }}>
-              {topRightButtons}
-            </div>
-            
-            {[
-              { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: gear1Cat, value: gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : "No Data", onPick: () => { 
-                  const item = gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : null;
-                  if(item && item !== "No Data") {
-                      requireAuth(() => { handleKioskSelection(gear1Cat, item); });
-                  }
-              }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); } },
-              { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: gear2Cat, value: gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : "No Data", onPick: () => { 
-                  const item = gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : null;
-                  if(item && item !== "No Data") {
-                      requireAuth(() => { handleKioskSelection(gear2Cat, item); });
-                  }
-              }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); } },
-              { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: gear3Cat, value: gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : "No Data", onPick: () => { 
-                  const item = gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : null;
-                  if(item && item !== "No Data") {
-                      requireAuth(() => { handleKioskSelection(gear3Cat, item); });
-                  }
-              }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); } },
-            ].map((p: any, i: number) => (
-              <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "right", right: GEAR_VIS, top: p.y, zIndex: 10 }}>
-                {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "right" }}>{p.label}</div>}
-                <button onClick={p.onPick} className="gear-panel-btn" style={{ flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: "0", textAlign: "right" }}>
-                  <span style={{ display: "block", width: "100%", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>{p.value}</span>
-                </button>
-                <div style={{ fontSize: 10, color: textFaint, marginTop: 8, opacity: 0.8, fontWeight: 500, textAlign: "right" }}>click gear to cycle</div>
-              </div>
-            ))}
+            {viewMode === 'admin' ? (
+               <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: sbBg, borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
+                     <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
+                       <Folder size={18} /> Sub-Categories
+                     </div>
+                  </div>
+                  
+                  {adminTab === 'knowledge' ? (
+                      <div style={{ padding: "12px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                         {['All', ...(mergedSubCategoriesMap[adminCategory] || [])].map(sub => (
+                            <div key={sub} style={{ display: "flex", alignItems: "center", gap: 4, width: "100%" }}>
+                              <button onClick={() => { setAdminDept(sub); }} className={`sidebar-btn ${adminDept === sub ? 'primary' : 'is-sub'}`} style={{ flex: 1, paddingLeft: 12 }}>
+                                {sub}
+                              </button>
+                              {sub !== 'All' && (
+                                <div style={{ display: "flex", gap: 2 }}>
+                                  <button onClick={() => handleRenameSubCategory(adminCategory, sub)} style={{ background: "none", border: "none", color: sb.muted, cursor: "pointer", padding: 6, display: "flex", alignItems: "center" }} title="Rename Subcategory">
+                                    <Edit2 size={13} />
+                                  </button>
+                                  <button onClick={() => handleDeleteSubCategory(adminCategory, sub)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 6, display: "flex", alignItems: "center" }} title="Delete Subcategory">
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                         ))}
+                         <button 
+                            onClick={() => setUiPrompt({ 
+                               isOpen: true, title: "Enter new sub-category (folder):", 
+                               onSubmit: (val) => { setCustomSubCats((prev: {cat: string, sub: string}[]) => [...prev, {cat: adminCategory, sub: val}]); setAdminDept(val); showToast(`Added sub-category: ${val}`, "success"); } 
+                            })} 
+                            className="sidebar-btn is-sub" style={{ border: `1px dashed ${sb.faint}`, marginTop: 8 }}
+                         >
+                            <Plus size={14}/> Add Sub-category
+                         </button>
+                      </div>
+                  ) : (
+                      <div style={{ padding: 24, textAlign: "center", color: sb.faint, fontSize: 13, lineHeight: 1.5 }}>
+                         Select 'Database' tab on the left to manage folders here.
+                      </div>
+                  )}
+               </div>
+            ) : (
+               <>
+                  <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, right: 0 }}>
+                    <GearAbs id="g-right-top" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); }} />
+                    <GearAbs id="g-right-mid" side="right" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-rightAngle * RATIO + (180 / N_LG)} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); }} />
+                    <GearAbs id="g-right-bot" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); }} />
+                  </div>
+                  
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "14px 16px 0", zIndex: 20 }}>
+                    {topRightButtons}
+                  </div>
+                  
+                  {[
+                    { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: gear1Cat, value: gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : "No Data", onPick: () => { 
+                        const item = gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : null;
+                        if(item && item !== "No Data") {
+                            requireAuth(() => { sendMessage(item); });
+                        }
+                    }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); } },
+                    { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: gear2Cat, value: gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : "No Data", onPick: () => { 
+                        const item = gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : null;
+                        if(item && item !== "No Data") {
+                            requireAuth(() => { sendMessage(item); });
+                        }
+                    }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); } },
+                    { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: gear3Cat, value: gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : "No Data", onPick: () => { 
+                        const item = gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : null;
+                        if(item && item !== "No Data") {
+                            requireAuth(() => { sendMessage(item); });
+                        }
+                    }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); } },
+                  ].map((p: any, i: number) => (
+                    <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "right", right: GEAR_VIS, top: p.y, zIndex: 10 }}>
+                      {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "right" }}>{p.label}</div>}
+                      <button onClick={p.onPick} className="gear-panel-btn" style={{ flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: "0", textAlign: "right" }}>
+                        <span style={{ display: "block", width: "100%", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>{p.value}</span>
+                      </button>
+                      <div style={{ fontSize: 10, color: textFaint, marginTop: 8, opacity: 0.8, fontWeight: 500, textAlign: "right" }}>click gear to cycle</div>
+                    </div>
+                  ))}
+               </>
+            )}
           </aside>
         )}
 
