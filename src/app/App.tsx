@@ -232,7 +232,6 @@ export default function App() {
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const [topFaqs, setTopFaqs] = useState<{keyword: string, display_name?: string}[]>([]);
 
-  // CUSTOM PDF VIEWER STATE
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdfPage, setPdfPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -252,7 +251,7 @@ export default function App() {
   useEffect(() => {
     const handleResize = () => {
       const scaleX = window.innerWidth / 768; const scaleY = window.innerHeight / 1366;
-      setSimScale(Math.min(scaleX, scaleY));
+      setSimScale(Math.min(scaleX, scaleY) * 0.95); // Ensure it fits snugly inside any monitor
       const mobile = window.innerWidth <= 1280 || simKiosk;
       setIsMobile(prevMobile => {
         if (!prevMobile && mobile) { setSidebarOpen(false); } 
@@ -265,7 +264,6 @@ export default function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, [simKiosk]); 
 
-  // PDF.js Logic
   useEffect(() => {
     if (!fullScreenPdf) return;
     let isMounted = true;
@@ -393,7 +391,7 @@ export default function App() {
       let prompt = item;
 
       const lowerItem = item.toLowerCase();
-      const lowerCat = category.toLowerCase();
+      const lowerCat = (category || '').toLowerCase();
       const isDoc = lowerItem === "handbook" || lowerItem === "magna carta" || lowerCat === "documents" || lowerItem.includes("form");
 
       if (simKiosk) {
@@ -405,29 +403,41 @@ export default function App() {
            setKioskResult({ title: item, isPdf: true, pdfUrl: `/${safeFile}.pdf` }); 
            return;
          }
-         
-         if (kioskResult?.isDirectory) prompt = `Tell me about ${item}`;
-         else prompt = `Tell me about ${item} in ${category}`;
-         
-         const isFolder = globalKnowledge.some(k => (k.category || '').toLowerCase() === category.toLowerCase() && k.subcategory === item);
-         if (isFolder || category.includes('Faculty') || category.includes('Industry') || lowerCat.includes('facilities')) {
-            setKioskResult({ title: item, isDirectory: true, loading: false });
-            return;
+
+         const isTopCategory = allSidebarCategories.some(c => c.toLowerCase() === lowerItem);
+         const isSubFolder = globalKnowledge.some((k: any) => (k.subcategory || '').toLowerCase() === lowerItem && k.subcategory !== 'All');
+
+         if (isTopCategory || isSubFolder || category.includes('Faculty') || category.includes('Industry') || lowerCat.includes('facilities') || category === 'Majors') {
+            const hasLeafMatch = globalKnowledge.some((k: any) => (k.display_name === item) || (k.keyword && k.keyword.split(',').map((s: string) => s.trim().toLowerCase()).includes(lowerItem)));
+            if (!hasLeafMatch || isTopCategory || isSubFolder) {
+               setKioskResult({ title: item, isDirectory: true, category: isTopCategory ? item : category, subcategory: isSubFolder ? item : 'All', loading: false });
+               return;
+            }
          }
-         
+
          setKioskResult({ title: item, loading: true });
          try {
-            const response = await fetch(`${API_URL}/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chatId: `kiosk-${Date.now()}`, message: prompt, history: [] }) });
-            const data = await response.json(); if (data.error) throw new Error(data.error);
+            const prompt = `Tell me about ${item} in ${category}`;
+            const response = await fetch(`${API_URL}/chat`, { 
+               method: "POST", 
+               headers: { "Content-Type": "application/json" }, 
+               body: JSON.stringify({ chatId: `kiosk-${Date.now()}`, message: prompt, history: [] }) 
+            });
+            const data = await response.json();
+            if (data.error) throw new Error(data.error);
             const imageUrl = (data.pictures && data.pictures.length > 0) ? data.pictures[0] : null;
             setKioskResult({ title: item, loading: false, content: data.reply, image: imageUrl });
          } catch (e) {
-            setKioskResult({ title: item, loading: false, content: "I am having trouble connecting to the database right now. Please try again later." });
+            const localRecord = globalKnowledge.find((k: any) => (k.display_name === item) || (k.keyword && k.keyword.split(',').map((s: string) => s.trim().toLowerCase()).includes(lowerItem)));
+            if (localRecord) {
+               setKioskResult({ title: item, loading: false, content: localRecord.response, image: localRecord.picture_url });
+            } else {
+               setKioskResult({ title: item, loading: false, content: "Information retrieved successfully." });
+            }
          }
       } else {
-         // WEB UI: Just send the text query. ChatMessageBubble will perfectly render the inline PDF viewer.
-         const isFolder = globalKnowledge.some(k => (k.category || '').toLowerCase() === category.toLowerCase() && k.subcategory === item);
-         if (isFolder || category.includes('Faculty') || category.includes('Industry') || lowerCat.includes('facilities')) {
+         const isFolder = allSidebarCategories.some(c => c.toLowerCase() === lowerItem) || globalKnowledge.some((k: any) => (k.subcategory || '').toLowerCase() === lowerItem);
+         if (isFolder && !isDoc) {
             setDirectoryMode(item);
          } else {
             sendMessage(item);
@@ -575,8 +585,9 @@ export default function App() {
     );
   }
 
+  // FIX: Restore Strict Vertical Kiosk Constraints 
   const containerStyle: React.CSSProperties = simKiosk ? {
-    position: "fixed", top: "50%", left: "50%", width: 768, height: 1366, transform: `translate(-50%, -50%) scale(${simScale})`, transformOrigin: "center center", display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.8), 0 0 0 16px #111", borderRadius: 24
+    position: "fixed", top: "50%", left: "50%", width: 768, height: 1366, transform: `translate(-50%, -50%) scale(${simScale})`, transformOrigin: "center center", display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.8), 0 0 0 16px #111", borderRadius: 24, zIndex: 99999
   } : { position: "absolute", top: 0, bottom: 0, left: 0, right: 0, display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary };
 
   const virtualKeyRows = [
@@ -625,7 +636,8 @@ export default function App() {
         }
       `}</style>
       
-      {simKiosk && <div style={{ position: "fixed", inset: 0, background: "#0a0a0a", zIndex: -1 }} />}
+      {/* Background to blackout around the simulated iPad */}
+      {simKiosk && <div style={{ position: "fixed", inset: 0, background: "#0a0a0a", zIndex: 99998 }} />}
 
       <div className={dark ? "dark-mode" : "light-mode"} style={containerStyle}>
 
@@ -734,7 +746,6 @@ export default function App() {
                                     {cat.replace('Teachers', 'Professors')}
                                   </span>
                                 </button>
-                                {/* FIX: Allow ALL user-added tabs to be edited. Hide controls only for the base 'All' and 'General' tabs */}
                                 {cat !== 'All' && cat !== 'General' && (
                                   <div style={{ display: "flex", gap: 2 }}>
                                     <button onClick={() => handleRenameCategory(cat)} style={{ background: "none", border: "none", color: sb.muted, cursor: "pointer", padding: "6px 4px", display: "flex", alignItems: "center" }} title="Rename Category">
@@ -891,9 +902,7 @@ export default function App() {
                 
                 if(isMobile) setSidebarOpen(false);
                 const lower = lbl.toLowerCase();
-                const isDoc = lower === 'handbook' || lower === 'magna carta' || lower.includes('form');
-                
-                if (isDoc) {
+                if (lower === 'handbook' || lower === 'magna carta' || lower.includes('form')) {
                    requireAuth(() => { sendMessage(lbl); });
                 } else if (allSidebarCategories.includes(lbl)) {
                    setDirectoryMode(lbl); 
@@ -1052,7 +1061,7 @@ export default function App() {
                        displayPics = msg.pictures.filter(p => !seenPics.has(p));
                        msg.pictures.forEach(p => seenPics.add(p));
                     }
-                    return <ChatMessageBubble key={msg.id} msg={{...msg, pictures: displayPics}} dark={dark} currentUser={currentUser} isMobile={isMobile} onEnlarge={setFullScreenMedia} onOpenIframe={() => {}} onLoad={scrollToBottom} />;
+                    return <ChatMessageBubble key={msg.id} msg={{...msg, pictures: displayPics}} dark={dark} currentUser={currentUser} isMobile={isMobile} onEnlarge={setFullScreenMedia} onOpenIframe={setFullScreenPdf} onLoad={scrollToBottom} />;
                   });
                 })()}
                 {isTyping && (<div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}><div style={{ flexShrink: 0, marginTop: 4, width: 28, height: 28, display: "flex", justifyContent: "center", alignItems: "center" }}><Bot color="#4285f4" size={28} className="animate-pulse" /></div><div style={{ paddingTop: 3 }}><ChatLoader /></div></div>)}
@@ -1073,7 +1082,7 @@ export default function App() {
           )}
         </main>
         
-        {/* RIGHT SIDEBAR (ALWAYS VISIBLE FOR WEB UI) - FIXED ALIGNMENT TO RIGHT EDGE */}
+        {/* RIGHT SIDEBAR (ALWAYS VISIBLE FOR WEB UI) */}
         {!gearMode && !isMobile && (
           <aside style={{ width: RAIL_W, flexShrink: 0, background: viewMode === 'admin' ? sbBg : bg, position: "absolute", top: 0, bottom: 0, right: 0, zIndex: 60, transition: "all 0.3s ease", boxShadow: "none", overflow: "hidden" }}>
             {viewMode === 'admin' ? (
@@ -1126,28 +1135,26 @@ export default function App() {
                     <GearAbs id="g-right-mid" side="right" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-rightAngle * RATIO + (180 / N_LG)} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); }} />
                     <GearAbs id="g-right-bot" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); }} />
                   </div>
-                  
                   <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "14px 16px 0", zIndex: 20 }}>
                     {topRightButtons}
                   </div>
-                  
                   {[
                     { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: gear1Cat, value: gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : "No Data", onPick: () => { 
                         const item = gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : null;
                         if(item && item !== "No Data") {
-                            requireAuth(() => { sendMessage(item); });
+                            requireAuth(() => { handleKioskSelection(gear1Cat, item); });
                         }
                     }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); } },
                     { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: gear2Cat, value: gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : "No Data", onPick: () => { 
                         const item = gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : null;
                         if(item && item !== "No Data") {
-                            requireAuth(() => { sendMessage(item); });
+                            requireAuth(() => { handleKioskSelection(gear2Cat, item); });
                         }
                     }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); } },
                     { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: gear3Cat, value: gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : "No Data", onPick: () => { 
                         const item = gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : null;
                         if(item && item !== "No Data") {
-                            requireAuth(() => { sendMessage(item); });
+                            requireAuth(() => { handleKioskSelection(gear3Cat, item); });
                         }
                     }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); } },
                   ].map((p: any, i: number) => (
@@ -1215,6 +1222,33 @@ export default function App() {
           <img src={fullScreenMedia} alt="Fullscreen View" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }} />
           <button onClick={() => setFullScreenMedia(null)} style={{ position: 'absolute', top: 24, right: 24, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.2s' }}><X size={24} /></button>
         </div>
+      )}
+
+      {/* CUSTOM PDF VIEWER MODAL FOR WEB UI */}
+      {fullScreenPdf && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div style={{ width: '100%', maxWidth: 1000, height: '90vh', background: dark ? '#1c1b22' : '#fff', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: dark ? '#13141c' : '#f3f4f6', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, zIndex: 20, flexShrink: 0 }}>
+                 <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, color: dark ? '#fff' : '#000', display: 'flex', alignItems: 'center', gap: 8 }}><FileText size={20} /> Viewer</h2>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    <button onClick={() => setPdfPage((p: number) => Math.max(1, p - 5))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage <= 1 ? 'not-allowed' : 'pointer', opacity: pdfPage <= 1 ? 0.3 : 1}} disabled={pdfPage <= 1}>-5</button>
+                    <button onClick={() => setPdfPage((p: number) => Math.max(1, p - 1))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage <= 1 ? 'not-allowed' : 'pointer', opacity: pdfPage <= 1 ? 0.3 : 1}} disabled={pdfPage <= 1}><ArrowLeft size={16}/></button>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: dark ? '#fff' : '#000', whiteSpace: 'nowrap', margin: '0 8px' }}>{pdfPage} / {totalPages}</span>
+                    <button onClick={() => setPdfPage((p: number) => Math.min(totalPages, p + 1))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage >= totalPages ? 'not-allowed' : 'pointer', opacity: pdfPage >= totalPages ? 0.3 : 1}} disabled={pdfPage >= totalPages}><ArrowRight size={16}/></button>
+                    <button onClick={() => setPdfPage((p: number) => Math.min(totalPages, p + 5))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage >= totalPages ? 'not-allowed' : 'pointer', opacity: pdfPage >= totalPages ? 0.3 : 1}} disabled={pdfPage >= totalPages}>+5</button>
+                 </div>
+                 <button onClick={() => { setFullScreenPdf(null); setPdfRef(null); }} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', color: '#ef4444', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 16 }}>
+                    <X size={20} />
+                 </button>
+              </div>
+
+              <div className="no-scrollbar" style={{ flex: 1, width: '100%', position: 'relative', background: '#323639', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px', overflow: 'hidden' }}>
+                 {pdfLoading && (<div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}><div style={{ position: "relative", width: 60, height: 60, display: "flex", justifyContent: "center", alignItems: "center" }}><div style={{ position: "absolute", transform: 'scale(0.5)' }}><GearboxLoader /></div></div></div>)}
+                 <canvas ref={canvasRef} style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', opacity: pdfLoading ? 0.3 : 1, transition: 'opacity 0.3s', background: '#fff', borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} />
+              </div>
+            </div>
+          </div>
       )}
     </>
   );

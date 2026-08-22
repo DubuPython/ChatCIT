@@ -53,7 +53,7 @@ export function AdminPanel({
   const fetchDashboardData = async () => {
     setIsSyncing(true);
     try {
-      globalFetchData(); // Sync parent App.tsx state
+      globalFetchData(); 
 
       const safeFetch = async (endpoint: string) => {
         try {
