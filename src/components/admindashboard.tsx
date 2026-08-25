@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Database, HelpCircle, Bug, Plus, Save, Edit2, Trash2, CheckCircle, UploadCloud, Users, Key, Search, X, TrendingUp, RotateCcw, RefreshCw, Monitor } from "lucide-react";
+import { Database, HelpCircle, Bug, Plus, Save, Edit2, Trash2, CheckCircle, UploadCloud, Users, Key, Search, X, TrendingUp, RotateCcw, RefreshCw, Monitor, Calendar } from "lucide-react";
 import { GearboxLoader } from "./ui/helpers";
 import { Knowledge, Unanswered, BugReport, User } from "../types";
 import { API_URL } from "../config";
@@ -22,7 +22,7 @@ export function AdminPanel({
   layoutConfig, saveLayoutConfig, syncTrigger
 }: {
   dark: boolean; showToast: (msg: string, type: 'success' | 'error' | 'info') => void; currentUser: User;
-  activeTab: 'knowledge'|'faq'|'unanswered'|'bugs'|'users'|'display'; setActiveTab: (t: 'knowledge'|'faq'|'unanswered'|'bugs'|'users'|'display') => void;
+  activeTab: string; setActiveTab: (t: string) => void;
   activeCategoryTab: string; activeDeptTab: string; allCategories: string[]; mergedSubCategoriesMap: Record<string, string[]>;
   setDbCategories: (cats: string[]) => void; setDbSubCategories: (cats: Record<string, string[]>) => void;
   fetchData: () => void;
@@ -35,11 +35,15 @@ export function AdminPanel({
   const [unanswered, setUnanswered] = useState<Unanswered[]>([]);
   const [bugs, setBugs] = useState<BugReport[]>([]);
   const [users, setUsers] = useState<User[]>([]); 
+  const [calendarData, setCalendarData] = useState<any[]>([]);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All", display_name: "" });
   const [keywordInput, setKeywordInput] = useState(""); 
   
+  const [editingCalId, setEditingCalId] = useState<number | null>(null);
+  const [calForm, setCalForm] = useState({ date: "", endDate: "", title: "", description: "", type: "Special Event" });
+
   const [uploadingImage, setUploadingImage] = useState(false);
   const [searchQuery, setSearchQuery] = useState(""); 
   const [loading, setLoading] = useState(true);
@@ -66,14 +70,15 @@ export function AdminPanel({
         } catch (e) { return []; } 
       };
 
-      const [kData, uData, bData, userRes] = await Promise.all([ 
+      const [kData, uData, bData, userRes, calRes] = await Promise.all([ 
         safeFetch('/knowledge'), 
         safeFetch('/unanswered'), 
         safeFetch('/bugs'), 
-        safeFetch('/users') 
+        safeFetch('/users'),
+        safeFetch('/calendar')
       ]);
 
-      setData(kData); setUnanswered(uData); setBugs(bData); setUsers(userRes);
+      setData(kData); setUnanswered(uData); setBugs(bData); setUsers(userRes); setCalendarData(calRes);
       
       if (kData.length > 0) {
         setDbCategories(Array.from(new Set(kData.map((d: any) => d.category || "Handbook"))));
@@ -122,7 +127,23 @@ export function AdminPanel({
     } catch (e: any) { showToast(e.message || "Error saving record.", "error"); }
   };
 
-  const handleDelete = (type: 'knowledge'|'unanswered'|'bugs'|'users', id: number) => {
+  const handleSaveCalendar = async (id?: number) => {
+    if (!calForm.date || !calForm.title) { showToast("Date and Title are required.", "error"); return; }
+    try {
+      const res = await fetch(id ? `${API_URL}/calendar/${id}` : `${API_URL}/calendar`, {
+        method: id ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(calForm)
+      });
+      if (!res.ok) throw new Error("Failed to save calendar event.");
+      setEditingCalId(null);
+      setCalForm({ date: "", endDate: "", title: "", description: "", type: "Special Event" });
+      fetchDashboardData();
+      showToast(id ? "Calendar updated!" : "New event added!", "success");
+    } catch (e: any) { showToast(e.message, "error"); }
+  };
+
+  const handleDelete = (type: 'knowledge'|'unanswered'|'bugs'|'users'|'calendar', id: number) => {
     setModal({
       isOpen: true, type: 'confirm', title: 'Confirm Deletion', message: `Are you sure you want to delete this ${type === 'users' ? 'user account' : 'entry'}? This action cannot be undone.`, inputValue: '',
       onConfirm: async () => { 
@@ -256,6 +277,47 @@ export function AdminPanel({
     </div>
   );
 
+  const renderCalendarForm = (title: string) => (
+    <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+      <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{title}</h3>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        
+        <div style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 11, color: textMuted }}>Start Date</span>
+          <input type="date" value={calForm.date ? calForm.date.split('T')[0] : ""} onChange={e => setCalForm({...calForm, date: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
+        </div>
+        
+        <div style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 11, color: textMuted }}>End Date (Optional)</span>
+          <input type="date" value={calForm.endDate ? calForm.endDate.split('T')[0] : ""} onChange={e => setCalForm({...calForm, endDate: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
+        </div>
+
+        <div style={{ flex: 2, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 11, color: textMuted }}>Event Title</span>
+          <input type="text" value={calForm.title} onChange={e => setCalForm({...calForm, title: e.target.value})} placeholder="e.g. Midterm Examinations" style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
+        </div>
+        
+        <div style={{ flex: 1, minWidth: 150, display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 11, color: textMuted }}>Event Type</span>
+          <select value={calForm.type} onChange={e => setCalForm({...calForm, type: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
+            <option value="Special Event" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Special Event (Blue)</option>
+            <option value="Examination" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Examination (Red)</option>
+            <option value="Holiday" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Holiday (Green)</option>
+          </select>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <span style={{ fontSize: 11, color: textMuted }}>Description (Optional)</span>
+        <textarea value={calForm.description} onChange={e => setCalForm({...calForm, description: e.target.value})} placeholder="Add extra details..." rows={2} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", resize: "vertical", fontSize: 13 }} />
+      </div>
+      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
+        <button onClick={() => { setEditingCalId(null); }} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "transparent", color: textMuted, cursor: "pointer", fontWeight: 500, fontSize: 13 }}>Cancel</button>
+        <button onClick={() => handleSaveCalendar(editingCalId === 0 || editingCalId === null ? undefined : editingCalId)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 14px", borderRadius: 8, border: "none", background: "#4285f4", color: "#fff", cursor: "pointer", fontWeight: 500, fontSize: 13 }}><Save size={14} /> Save</button>
+      </div>
+    </div>
+  );
+
   if (loading) return (<div style={{ display: "flex", height: "80vh", width: "100%", alignItems: "center", justifyContent: "center" }}><div style={{ transform: "scale(0.8)" }}><GearboxLoader /></div></div>);
 
   return (
@@ -264,6 +326,7 @@ export function AdminPanel({
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}><Database size={22} color="#4285f4" /> Admin Dashboard</h2>
         <div style={{ display: "flex", background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", borderRadius: 10, padding: 4, flexWrap: "wrap", gap: 4, width: "100%", maxWidth: "100%" }}>
           <button onClick={() => setActiveTab('knowledge')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'knowledge' ? "#4285f4" : "transparent", color: activeTab === 'knowledge' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Database size={14} /> Database</button>
+          <button onClick={() => setActiveTab('calendar')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'calendar' ? "#4285f4" : "transparent", color: activeTab === 'calendar' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Calendar size={14} /> Calendar</button>
           <button onClick={() => setActiveTab('faq')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'faq' ? "#4285f4" : "transparent", color: activeTab === 'faq' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><TrendingUp size={14} /> FAQ Analytics</button>
           <button onClick={() => setActiveTab('unanswered')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'unanswered' ? "#4285f4" : "transparent", color: activeTab === 'unanswered' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><HelpCircle size={14} /> Unanswered <span style={{ background: activeTab === 'unanswered' ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.1)", padding: "2px 6px", borderRadius: 12, fontSize: 10 }}>{unanswered.length}</span></button>
           <button onClick={() => setActiveTab('bugs')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'bugs' ? "#4285f4" : "transparent", color: activeTab === 'bugs' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Bug size={14} /> Bugs <span style={{ background: activeTab === 'bugs' ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.1)", padding: "2px 6px", borderRadius: 12, fontSize: 10 }}>{bugs.length}</span></button>
@@ -366,8 +429,89 @@ export function AdminPanel({
                 <Plus size={14} /> Add Entry
               </button>
             )}
+            {activeTab === 'calendar' && editingCalId !== 0 && (
+              <button onClick={() => { 
+                setEditingCalId(0); 
+                setCalForm({ date: "", endDate: "", title: "", description: "", type: "Special Event" }); 
+              }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontWeight: 500, fontSize: 13, flex: 1, whiteSpace: "nowrap" }}>
+                <Plus size={14} /> Add Event
+              </button>
+            )}
           </div>
         </div>
+      )}
+
+      {activeTab === 'calendar' && (
+        <>
+          {editingCalId === 0 && (
+            <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, marginBottom: 20, overflow: 'hidden' }}>
+              {renderCalendarForm("Add New Event")}
+            </div>
+          )}
+
+          <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", width: "100%" }}>
+            {calendarData.length === 0 ? (
+              <div style={{ padding: 30, textAlign: "center", opacity: 0.5, fontSize: 13 }}>No events found.</div>
+            ) : (
+              <table style={{ width: "100%", minWidth: 600, borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" }}>
+                    <th style={{ padding: "10px 12px", fontWeight: 600, width: 120 }}>Date</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 600 }}>Event Details</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 600, width: 100 }}>Type</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 600, width: 80, textAlign: "right" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {calendarData.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).filter(row => row.title.toLowerCase().includes(searchQuery.toLowerCase())).map((row: any) => (
+                    <React.Fragment key={row.id}>
+                      <tr style={{ borderBottom: editingCalId === row.id ? 'none' : `1px solid ${border}`, background: editingCalId === row.id ? (dark ? "rgba(255,255,255,0.02)" : "#f9fafb") : "transparent", transition: "background 0.2s" }}>
+                        <td style={{ padding: "10px 12px", verticalAlign: "top", fontWeight: 600 }}>
+                          {new Date(row.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          
+                          {/* SHOW END DATE IF DIFFERENT FROM START DATE */}
+                          {row.endDate && row.endDate !== row.date && (
+                             <>
+                                <br/><span style={{ fontSize: 11, color: textMuted }}>to</span><br/>
+                                {new Date(row.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                             </>
+                          )}
+                        </td>
+                        <td style={{ padding: "10px 12px", verticalAlign: "top" }}>
+                          <div style={{ fontWeight: 700, color: dark ? '#fff' : '#000', marginBottom: 4 }}>{row.title}</div>
+                          {row.description && <div style={{ color: textMuted, fontSize: 12 }}>{row.description}</div>}
+                        </td>
+                        <td style={{ padding: "10px 12px", verticalAlign: "top" }}>
+                          <span style={{ 
+                            background: row.type?.includes('Exam') ? 'rgba(239, 68, 68, 0.1)' : row.type?.includes('Holiday') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)', 
+                            color: row.type?.includes('Exam') ? '#ef4444' : row.type?.includes('Holiday') ? '#10b981' : '#3b82f6', 
+                            padding: "4px 10px", borderRadius: 12, fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" 
+                          }}>
+                            {row.type || 'Special Event'}
+                          </span>
+                        </td>
+                        <td style={{ padding: "10px 12px", verticalAlign: "top", textAlign: "right", whiteSpace: "nowrap" }}>
+                          <button onClick={() => { 
+                            if (editingCalId === row.id) setEditingCalId(null);
+                            else { setCalForm({ date: row.date, endDate: row.endDate || row.date, title: row.title, description: row.description || "", type: row.type || "Special Event" }); setEditingCalId(row.id); }
+                          }} style={{ background: "none", border: "none", color: editingCalId === row.id ? textMuted : "#4285f4", cursor: "pointer", padding: 4 }} title="Edit"><Edit2 size={14} /></button>
+                          <button onClick={() => handleDelete('calendar', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4 }} title="Delete"><Trash2 size={14} /></button>
+                        </td>
+                      </tr>
+                      {editingCalId === row.id && (
+                        <tr style={{ background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", borderBottom: `1px solid ${border}` }}>
+                          <td colSpan={4} style={{ padding: 0 }}>
+                             {renderCalendarForm("Edit Event")}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </>
       )}
 
       {activeTab === 'knowledge' && (
