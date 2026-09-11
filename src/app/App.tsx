@@ -46,12 +46,20 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
   const prevMonth = () => { setCalendarDate(new Date(currentYear, currentMonth - 1, 1)); setIsCalFormOpen(false); };
   const nextMonth = () => { setCalendarDate(new Date(currentYear, currentMonth + 1, 1)); setIsCalFormOpen(false); };
 
+  // TIMEZONE SAFE PARSER: Strictly parses 'YYYY-MM-DD' as local time
+  const parseLocal = (dStr: string) => {
+     if (!dStr) return new Date();
+     const [y, m, d] = dStr.split('T')[0].split('-');
+     return new Date(Number(y), Number(m) - 1, Number(d));
+  };
+
   const eventsByDay = useMemo(() => {
      const map: Record<number, any[]> = {};
      calendarData.forEach(evt => {
         if (!evt.date) return;
-        const start = new Date(evt.date);
-        const end = evt.endDate || evt.end_date ? new Date(evt.endDate || evt.end_date) : new Date(evt.date);
+        const start = parseLocal(evt.date);
+        const endStr = evt.endDate || evt.end_date || evt.date;
+        const end = parseLocal(endStr);
         
         start.setHours(0,0,0,0);
         end.setHours(0,0,0,0);
@@ -59,14 +67,15 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
         const monthStart = new Date(currentYear, currentMonth, 1);
         const monthEnd = new Date(currentYear, currentMonth + 1, 0);
         
+        // Multi-Day span logic: Occupy all dates from start to end
         if (start <= monthEnd && end >= monthStart) {
            const startDay = start < monthStart ? 1 : start.getDate();
            const endDay = end > monthEnd ? daysInMonth : end.getDate();
            
            for (let d = startDay; d <= endDay; d++) {
               if (!map[d]) map[d] = [];
-              const eventId = evt.id || evt.event_id || evt._id;
-              if (!map[d].find(e => (e.id || e.event_id || e._id) === eventId)) {
+              const eventId = evt.id || evt.event_id || evt._id || evt.title;
+              if (!map[d].find(e => (e.id || e.event_id || e._id || e.title) === eventId)) {
                   map[d].push(evt);
               }
            }
@@ -211,7 +220,8 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {isAdmin && selectedDate && !isCalFormOpen && (
                  <button onClick={() => {
-                    const dateStr = new Date(currentYear, currentMonth, selectedDate).toISOString();
+                    // Timezone safe YYYY-MM-DD parsing for form init
+                    const dateStr = new Date(currentYear, currentMonth, selectedDate).toLocaleDateString('en-CA');
                     setCalForm({ id: null, date: dateStr, endDate: dateStr, title: "", description: "", type: "Special Event" });
                     setIsCalFormOpen(true);
                  }} style={{ background: 'rgba(66, 133, 244, 0.1)', border: '1px solid rgba(66, 133, 244, 0.3)', color: '#4285f4', cursor: 'pointer', borderRadius: 6, display: 'flex', padding: '4px 10px', fontWeight: 800 }}>+ ADD</button>
@@ -227,11 +237,16 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
                  <div style={{ display: 'flex', gap: 8 }}>
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <span style={{ fontSize: 11, color: dark ? '#94a3b8' : '#64748b' }}>Start Date</span>
-                      <input type="date" value={calForm.date ? calForm.date.split('T')[0] : ""} onChange={e => setCalForm({...calForm, date: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 12, outline: 'none' }} />
+                      <input type="date" value={calForm.date} onChange={e => {
+                         const newStart = e.target.value;
+                         let newEnd = calForm.endDate;
+                         if (newStart && newEnd && newStart > newEnd) newEnd = newStart;
+                         setCalForm({...calForm, date: newStart, endDate: newEnd});
+                      }} style={{ width: '100%', padding: '8px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 12, outline: 'none' }} />
                     </div>
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <span style={{ fontSize: 11, color: dark ? '#94a3b8' : '#64748b' }}>End Date (Optional)</span>
-                      <input type="date" value={calForm.endDate ? calForm.endDate.split('T')[0] : ""} onChange={e => setCalForm({...calForm, endDate: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 12, outline: 'none' }} />
+                      <input type="date" value={calForm.endDate} onChange={e => setCalForm({...calForm, endDate: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 12, outline: 'none' }} />
                     </div>
                  </div>
                  <input type="text" placeholder="Event Title" value={calForm.title} onChange={e => setCalForm({...calForm, title: e.target.value})} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 14, outline: 'none' }} />
@@ -254,13 +269,24 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
                        const eventId = evt.id || evt.event_id || evt._id;
 
                        return (
-                          <div key={idx} style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#fff', borderLeft: `4px solid ${style.color}`, borderRadius: 8, padding: '12px 16px', marginBottom: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+                          <div 
+                             key={idx} 
+                             onClick={() => {
+                                // SYNC: Snap the calendar grid directly to the event's true start date
+                                const startDt = parseLocal(evt.date);
+                                setCalendarDate(new Date(startDt.getFullYear(), startDt.getMonth(), 1));
+                                setSelectedDate(startDt.getDate());
+                             }}
+                             style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#fff', borderLeft: `4px solid ${style.color}`, borderRadius: 8, padding: '12px 16px', marginBottom: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'transform 0.2s' }}
+                             onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                             onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                          >
                              <div style={{ fontSize: 10, fontWeight: 800, color: style.color, textTransform: 'uppercase', marginBottom: 4 }}>{style.label}</div>
                              <div style={{ fontSize: 14, fontWeight: 700, color: dark ? '#fff' : '#0f172a', lineHeight: 1.3 }}>{evt.title}</div>
                              
-                             {evt.endDate && evt.endDate !== evt.date && (
+                             {(evt.endDate || evt.end_date) && (evt.endDate || evt.end_date) !== evt.date && (
                                 <div style={{ fontSize: 11, color: style.color, marginTop: 6, fontWeight: 600 }}>
-                                   {new Date(evt.date).toLocaleDateString()} - {new Date(evt.endDate).toLocaleDateString()}
+                                   {parseLocal(evt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric'})} - {parseLocal(evt.endDate || evt.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric'})}
                                 </div>
                              )}
 
@@ -268,7 +294,23 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
                              
                              {isAdmin && (
                                 <div style={{ display: 'flex', gap: 8, marginTop: 12, borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, paddingTop: 12 }}>
-                                   <button onClick={(e) => { e.stopPropagation(); setCalForm({ id: eventId, date: evt.date, endDate: evt.endDate || evt.end_date || evt.date, title: evt.title, description: evt.description || "", type: evt.type || evt.event_type || "Special Event" }); setIsCalFormOpen(true); }} style={{ flex: 1, background: dark ? 'rgba(255,255,255,0.1)' : '#f1f5f9', border: 'none', padding: '6px', borderRadius: 6, cursor: 'pointer', color: dark ? '#cbd5e1' : '#475569', fontSize: 12, fontWeight: 600 }}>Edit</button>
+                                   <button onClick={(e) => { 
+                                       e.stopPropagation();
+                                       // SYNC before edit
+                                       const startDt = parseLocal(evt.date);
+                                       setCalendarDate(new Date(startDt.getFullYear(), startDt.getMonth(), 1));
+                                       setSelectedDate(startDt.getDate());
+                                       
+                                       setCalForm({ 
+                                          id: eventId, 
+                                          date: evt.date.split('T')[0], 
+                                          endDate: (evt.endDate || evt.end_date || evt.date).split('T')[0], 
+                                          title: evt.title, 
+                                          description: evt.description || "", 
+                                          type: evt.type || evt.event_type || "Special Event" 
+                                       }); 
+                                       setIsCalFormOpen(true); 
+                                   }} style={{ flex: 1, background: dark ? 'rgba(255,255,255,0.1)' : '#f1f5f9', border: 'none', padding: '6px', borderRadius: 6, cursor: 'pointer', color: dark ? '#cbd5e1' : '#475569', fontSize: 12, fontWeight: 600 }}>Edit</button>
                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteCalEvent(eventId); }} style={{ flex: 1, background: 'rgba(239, 68, 68, 0.1)', border: 'none', padding: '6px', borderRadius: 6, cursor: 'pointer', color: '#ef4444', fontSize: 12, fontWeight: 600 }}>Delete</button>
                                 </div>
                              )}
@@ -881,8 +923,6 @@ export default function App() {
   const showGearLeft = (isWebMode && gearMode && !isMobile) || (isKioskChat && gearMode);
 
   // Right Sidebar Logic
-  // Desktop Web: Always visible on the right.
-  // Mobile / KioskChat: Toggled overlay via 3-dots.
   const showRightRail = (!useMobileLayout && isWebMode) || rightRailOpen; 
 
   // Main Content Offsets
@@ -892,7 +932,7 @@ export default function App() {
   if (!isKioskScreensaver) {
     if (!useMobileLayout && isWebMode) {
       mainLeft = gearMode ? RAIL_W : (sidebarOpen ? SIDEBAR_W : 0);
-      mainRight = RAIL_W;
+      mainRight = showRightRail ? RAIL_W : 0;
     }
   }
 
@@ -940,7 +980,7 @@ export default function App() {
       <div className={dark ? "dark-mode" : "light-mode"} style={containerStyle}>
 
         {/* 1. KIOSK SCREENSAVER & DIRECTORY RESULTS */}
-        {isKioskScreensaver && (
+        {(simKiosk && (screenState === "screensaver" || screenState === "kiosk_result")) && (
           <KioskScreen 
             dark={dark} screenState={screenState} setScreenState={setScreenState} kioskCategory={kioskCategory} setKioskCategory={setKioskCategory}
             kioskResult={kioskResult} setKioskResult={setKioskResult} handleKioskSelection={handleKioskSelection} topRightButtons={topRightButtons}
@@ -1012,10 +1052,10 @@ export default function App() {
         {(useMobileLayout) && rightRailOpen && <div onClick={() => setRightRailOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
 
         {/* 2. CHAT & ADMIN INTERFACES (Visible in Web Mode AND Kiosk Chat Mode) */}
-        {!isKioskScreensaver && (
+        {(!simKiosk || screenState === "chat") && (
           <>
             {/* LEFT SIDEBAR (STANDARD BLUE WEB UI) */}
-            {showWebLeftSidebar && (
+            {(!gearMode) && (
               <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: sbBg, position: "absolute", top: 0, bottom: 0, left: sidebarOpen ? 0 : -SIDEBAR_W, zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: useMobileLayout && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
                 <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, background: sbBg }}>
                   
@@ -1174,7 +1214,7 @@ export default function App() {
 
             {/* LEFT SIDEBAR (GEAR TASKBAR MODE) */}
             {showGearLeft && (
-              <aside style={{ width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0, left: (useMobileLayout ? (sidebarOpen ? 0 : -RAIL_W) : 0), zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: useMobileLayout && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
+              <aside style={{ width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0, left: sidebarOpen ? 0 : -RAIL_W, zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: useMobileLayout && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
                 <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, left: 0 }}>
                   <GearAbs id="g-left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => i + 1); }} />
                   <GearAbs id="g-left-mid" side="left" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-leftAngle * RATIO + (180 / N_LG)} onClick={() => { setLeftAngle(a => a + STEP_DEG); setMidIdx(i => (i + 1) % MID_CHOICES.length); }} />
@@ -1303,7 +1343,7 @@ export default function App() {
                       {viewMode === 'admin' && !simKiosk ? <Folder size={20} color={dark ? "#60a5fa" : "#2563eb"} /> : <MoreVertical size={20} />}
                     </button>
                   ) : (
-                    (viewMode === 'admin' && !simKiosk) && (
+                    (!gearMode && viewMode !== 'admin') && (
                        topRightButtons
                     )
                   )}
@@ -1391,7 +1431,7 @@ export default function App() {
             </main>
 
             {/* RIGHT SIDEBAR (ADMIN OR GEARS) */}
-            {showRightRail && (
+            {(viewMode === 'admin' || gearMode || rightRailOpen || (!isMobile && !simKiosk && !gearMode)) && (
               <aside style={{ width: RAIL_W, flexShrink: 0, background: (viewMode === 'admin' && !simKiosk) ? sbBg : bg, position: "absolute", top: 0, bottom: 0, right: (useMobileLayout ? (rightRailOpen ? 0 : -RAIL_W) : 0), zIndex: 60, transition: "right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: useMobileLayout && rightRailOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
                 {viewMode === 'admin' && !simKiosk ? (
                    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: sbBg, borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
