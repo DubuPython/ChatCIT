@@ -415,6 +415,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key.toLowerCase() === 'k') { e.preventDefault(); setSimKiosk(prev => !prev); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
     const resetTimer = () => {
       if (!simKiosk) return; 
@@ -852,21 +860,26 @@ export default function App() {
   const isKioskScreensaver = simKiosk && (screenState === "screensaver" || screenState === "kiosk_result");
   const isKioskChat = simKiosk && screenState === "chat";
   
+  // Mobile layout separation: Mobile screens OR Kiosk mode
   const useMobileLayout = isMobile || simKiosk; 
   
+  // Left Sidebar Logic
   const showWebLeftSidebar = (isWebMode && !gearMode) || (isKioskChat && !gearMode);
   const showGearLeft = (isWebMode && gearMode && !isMobile) || (isKioskChat && gearMode);
 
-  // The right sidebar renders the main `topRightButtons` on desktop web.
+  // Right Sidebar Logic
+  // Desktop Web: Always visible on the right.
+  // Mobile / KioskChat: Toggled overlay via 3-dots.
   const showRightRail = (!useMobileLayout && isWebMode) || rightRailOpen; 
 
+  // Main Content Offsets
   let mainLeft = 0;
   let mainRight = 0;
 
   if (!isKioskScreensaver) {
     if (!useMobileLayout && isWebMode) {
       mainLeft = gearMode ? RAIL_W : (sidebarOpen ? SIDEBAR_W : 0);
-      mainRight = showRightRail ? RAIL_W : 0; // FIXED: Forces the center content to stay perfectly centered on desktop
+      mainRight = RAIL_W;
     }
   }
 
@@ -981,7 +994,7 @@ export default function App() {
           ))}
         </div>
 
-        {/* MOBILE & KIOSK OVERLAYS */}
+        {/* MOBILE OVERLAYS */}
         {(useMobileLayout) && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
         {(useMobileLayout) && rightRailOpen && <div onClick={() => setRightRailOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
 
@@ -1277,7 +1290,7 @@ export default function App() {
                       {viewMode === 'admin' && !simKiosk ? <Folder size={20} color={dark ? "#60a5fa" : "#2563eb"} /> : <MoreVertical size={20} />}
                     </button>
                   ) : (
-                    (!gearMode && viewMode !== 'admin') && (
+                    (viewMode === 'admin' && !simKiosk) && (
                        topRightButtons
                     )
                   )}
