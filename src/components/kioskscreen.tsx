@@ -177,7 +177,7 @@ const GlobalKioskStyles = ({ dark }: { dark: boolean }) => (
     .pdf-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
     .kiosk-detail-card {
-       width: 90%; max-width: 860px; flex: 1 0 auto; min-height: 0; max-height: 65vh;
+       width: 90%; max-width: 860px; flex: 1 1 auto; min-height: 75vh; max-height: 80vh;
        background: ${dark ? 'rgba(15, 23, 42, 0.8)' : 'rgba(255,255,255,0.9)'};
        border-radius: 32px; border: 1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)'};
        display: flex; flex-direction: column; box-shadow: 0 24px 60px rgba(0,0,0,0.4);
@@ -241,8 +241,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
   const [isCalFormOpen, setIsCalFormOpen] = useState(false);
-  
-  // ADDED endDate field for multi-day events
   const [calForm, setCalForm] = useState({ id: null as number | null, date: "", endDate: "", title: "", description: "", type: "Special Event" });
 
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
