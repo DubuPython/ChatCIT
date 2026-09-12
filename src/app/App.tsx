@@ -478,6 +478,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key.toLowerCase() === 'k') { e.preventDefault(); setSimKiosk(prev => !prev); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
     const resetTimer = () => {
       if (!simKiosk) return; 
@@ -923,6 +931,8 @@ export default function App() {
   const showGearLeft = (isWebMode && gearMode && !isMobile) || (isKioskChat && gearMode);
 
   // Right Sidebar Logic
+  // Desktop Web: Always visible on the right.
+  // Mobile / KioskChat: Toggled overlay via 3-dots.
   const showRightRail = (!useMobileLayout && isWebMode) || rightRailOpen; 
 
   // Main Content Offsets
@@ -932,7 +942,7 @@ export default function App() {
   if (!isKioskScreensaver) {
     if (!useMobileLayout && isWebMode) {
       mainLeft = gearMode ? RAIL_W : (sidebarOpen ? SIDEBAR_W : 0);
-      mainRight = showRightRail ? RAIL_W : 0;
+      mainRight = RAIL_W;
     }
   }
 
@@ -1052,11 +1062,11 @@ export default function App() {
         {(useMobileLayout) && rightRailOpen && <div onClick={() => setRightRailOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
 
         {/* 2. CHAT & ADMIN INTERFACES (Visible in Web Mode AND Kiosk Chat Mode) */}
-        {(!simKiosk || screenState === "chat") && (
+        {!isKioskScreensaver && (
           <>
             {/* LEFT SIDEBAR (STANDARD BLUE WEB UI) */}
             {(!gearMode) && (
-              <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: sbBg, position: "absolute", top: 0, bottom: 0, left: sidebarOpen ? 0 : -SIDEBAR_W, zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: useMobileLayout && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
+              <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: sbBg, position: "absolute", top: 0, bottom: 0, left: (isMobile || simKiosk) ? (sidebarOpen ? 0 : -SIDEBAR_W) : (sidebarOpen ? 0 : -SIDEBAR_W), zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: (isMobile || simKiosk) && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
                 <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, background: sbBg }}>
                   
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
@@ -1075,7 +1085,7 @@ export default function App() {
                       
                       {viewMode === "admin" ? (
                         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
-                          <button onClick={() => { setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); }} className="sidebar-btn primary"><ArrowLeft size={16} /> Back to Chat</button>
+                          <button onClick={() => { setViewMode("chat"); if(isMobile || simKiosk) setSidebarOpen(false); }} className="sidebar-btn primary"><ArrowLeft size={16} /> Back to Chat</button>
                           
                           {adminTab === 'knowledge' && (
                             <div style={{ marginTop: 8 }}>
@@ -1083,7 +1093,7 @@ export default function App() {
                               <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                                 {["All", ...allSidebarCategories].map(cat => (
                                   <div key={cat} style={{ display: "flex", alignItems: "center", gap: 4, width: "100%" }}>
-                                    <button onClick={() => { setAdminCategory(cat); setAdminDept("All"); if(useMobileLayout) setSidebarOpen(false); }} className={`sidebar-btn ${adminCategory === cat ? 'primary' : ''}`} style={{ flex: 1, paddingRight: 0 }}>
+                                    <button onClick={() => { setAdminCategory(cat); setAdminDept("All"); if(isMobile || simKiosk) setSidebarOpen(false); }} className={`sidebar-btn ${adminCategory === cat ? 'primary' : ''}`} style={{ flex: 1, paddingRight: 0 }}>
                                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "left" }}>
                                         {cat.replace('Teachers', 'Professors')}
                                       </span>
@@ -1122,7 +1132,7 @@ export default function App() {
                             <div style={{ marginTop: 8 }}>
                               <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Departments Filter</span></div>
                               <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                                {["All", "Computer Technology", "Food Processing Technology", "Drafting and Digital Arts Technology", "Welding Technology", "Automotive Technology", "Electrical Technology", "Electronics Technology", "Mechanical Technology", "H/VAC Technology", "Mechatronics Technology"].map(dept => (<button key={dept} onClick={() => { setAdminDept(dept); if(useMobileLayout) setSidebarOpen(false); }} className={`sidebar-btn ${adminDept === dept ? 'primary' : ''}`}>{dept}</button>))}
+                                {["All", "Computer Technology", "Food Processing Technology", "Drafting and Digital Arts Technology", "Welding Technology", "Automotive Technology", "Electrical Technology", "Electronics Technology", "Mechanical Technology", "H/VAC Technology", "Mechatronics Technology"].map(dept => (<button key={dept} onClick={() => { setAdminDept(dept); if(isMobile || simKiosk) setSidebarOpen(false); }} className={`sidebar-btn ${adminDept === dept ? 'primary' : ''}`}>{dept}</button>))}
                               </div>
                             </div>
                           )}
@@ -1133,11 +1143,11 @@ export default function App() {
                       ) : (
                         <>
                           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
-                            <button onClick={() => requireAuth(() => {setActiveChatId(null); setDirectoryMode(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false);})} className="sidebar-btn primary" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer" }}>
+                            <button onClick={() => requireAuth(() => {setActiveChatId(null); setDirectoryMode(null); setViewMode("chat"); if(isMobile || simKiosk) setSidebarOpen(false);})} className="sidebar-btn primary" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer" }}>
                               <Plus size={16} /> New chat
                             </button>
                             {isWebMode && (
-                              <button onClick={() => { setGearMode(true); if(useMobileLayout) setSidebarOpen(false); }} className="sidebar-btn" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, cursor: "pointer" }}>
+                              <button onClick={() => { setGearMode(true); if(isMobile) setSidebarOpen(false); }} className="sidebar-btn" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, cursor: "pointer" }}>
                                 <Settings size={15} /> Change taskbar mode
                               </button>
                             )}
@@ -1147,7 +1157,7 @@ export default function App() {
                           <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 24 }}>
                             {QUICK_PROMPTS.map((lbl: string) => (
                               <button key={lbl} onClick={() => { 
-                                 if(useMobileLayout) setSidebarOpen(false);
+                                 if(isMobile || simKiosk) setSidebarOpen(false);
                                  const lower = lbl.toLowerCase();
                                  const isDoc = lower === 'handbook' || lower === 'magna carta' || lower.includes('form');
                                  
@@ -1168,7 +1178,7 @@ export default function App() {
                               <div style={{ maxHeight: 250, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
                                 {chats.slice(0, 5).map((chat: Chat) => (
                                   <div key={chat.id} className="group" style={{ display: "flex", alignItems: "center", width: "100%", gap: 4 }}>
-                                    <button onClick={() => requireAuth(() => { setActiveChatId(chat.id); setDirectoryMode(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); })} 
+                                    <button onClick={() => requireAuth(() => { setActiveChatId(chat.id); setDirectoryMode(null); setViewMode("chat"); if(isMobile || simKiosk) setSidebarOpen(false); })} 
                                       className={`sidebar-btn ${activeChatId === chat.id && viewMode === "chat" ? 'primary' : ''}`}
                                       style={{ flex: 1, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` }}
                                     >
@@ -1203,7 +1213,7 @@ export default function App() {
                           <div style={{ fontSize: 11, color: sb.faint }}>{currentUser?.role === 'superadmin' ? 'Superadmin' : currentUser?.role === 'admin' ? 'Administrator' : 'Student'}</div>
                         </div>
                         <button onClick={() => setShowProfileModal(true)} style={{ color: sb.muted, background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Edit Profile"><UserCog size={15} /></button>
-                        {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(useMobileLayout) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#fff" : sb.muted, background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Admin Dashboard"><Database size={15} /></button>}
+                        {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(isMobile || simKiosk) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#fff" : sb.muted, background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Admin Dashboard"><Database size={15} /></button>}
                         <button onClick={handleLogout} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Logout"><LogOut size={15} /></button>
                       </div>
                     )}
@@ -1214,7 +1224,7 @@ export default function App() {
 
             {/* LEFT SIDEBAR (GEAR TASKBAR MODE) */}
             {showGearLeft && (
-              <aside style={{ width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0, left: sidebarOpen ? 0 : -RAIL_W, zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: useMobileLayout && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
+              <aside style={{ width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0, left: (isMobile || simKiosk) ? (sidebarOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: (isMobile || simKiosk) && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
                 <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, left: 0 }}>
                   <GearAbs id="g-left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => i + 1); }} />
                   <GearAbs id="g-left-mid" side="left" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-leftAngle * RATIO + (180 / N_LG)} onClick={() => { setLeftAngle(a => a + STEP_DEG); setMidIdx(i => (i + 1) % MID_CHOICES.length); }} />
@@ -1244,7 +1254,7 @@ export default function App() {
                     const lbl = QUICK_PROMPTS.length > 0 ? QUICK_PROMPTS[quickIdx % QUICK_PROMPTS.length] : null;
                     if (!lbl || lbl === "No Data") return;
                     
-                    if(useMobileLayout) setSidebarOpen(false);
+                    if(isMobile || simKiosk) setSidebarOpen(false);
                     const lower = lbl.toLowerCase();
                     if (lower === 'handbook' || lower === 'magna carta' || lower.includes('form')) {
                        requireAuth(() => { sendMessage(lbl); });
@@ -1254,8 +1264,8 @@ export default function App() {
                        requireAuth(() => { sendMessage(lbl); }); 
                     }
                   }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => i + 1); } },
-                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: "", value: MID_CHOICES[midIdx], onPick: () => { if (midIdx === 0) { requireAuth(() => { setActiveChatId(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); }); } else { setGearMode(false); if(useMobileLayout) setSidebarOpen(false); } }, mid: true },
-                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: "Recent", value: chats.length > 0 ? chats[recentsIdx % chats.length].title : "No chats", onPick: () => requireAuth(() => { if(chats.length) { setActiveChatId(chats[recentsIdx % chats.length].id); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); } }), onGear: () => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => i + 1); }, sub: chats.length > 0 ? "Past Conversation" : "" },
+                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: "", value: MID_CHOICES[midIdx], onPick: () => { if (midIdx === 0) { requireAuth(() => { setActiveChatId(null); setViewMode("chat"); if(isMobile || simKiosk) setSidebarOpen(false); }); } else { setGearMode(false); if(isMobile || simKiosk) setSidebarOpen(false); } }, mid: true },
+                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: "Recent", value: chats.length > 0 ? chats[recentsIdx % chats.length].title : "No chats", onPick: () => requireAuth(() => { if(chats.length) { setActiveChatId(chats[recentsIdx % chats.length].id); setViewMode("chat"); if(isMobile || simKiosk) setSidebarOpen(false); } }), onGear: () => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => i + 1); }, sub: chats.length > 0 ? "Past Conversation" : "" },
                 ].map((p: any, i: number) => {
                   const isMidBtn = p.mid;
                   return (
@@ -1343,7 +1353,7 @@ export default function App() {
                       {viewMode === 'admin' && !simKiosk ? <Folder size={20} color={dark ? "#60a5fa" : "#2563eb"} /> : <MoreVertical size={20} />}
                     </button>
                   ) : (
-                    (!gearMode && viewMode !== 'admin') && (
+                    (viewMode === 'admin' && !simKiosk) && (
                        topRightButtons
                     )
                   )}
@@ -1431,7 +1441,7 @@ export default function App() {
             </main>
 
             {/* RIGHT SIDEBAR (ADMIN OR GEARS) */}
-            {(viewMode === 'admin' || gearMode || rightRailOpen || (!isMobile && !simKiosk && !gearMode)) && (
+            {showRightRail && (
               <aside style={{ width: RAIL_W, flexShrink: 0, background: (viewMode === 'admin' && !simKiosk) ? sbBg : bg, position: "absolute", top: 0, bottom: 0, right: (useMobileLayout ? (rightRailOpen ? 0 : -RAIL_W) : 0), zIndex: 60, transition: "right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: useMobileLayout && rightRailOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
                 {viewMode === 'admin' && !simKiosk ? (
                    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: sbBg, borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
