@@ -405,6 +405,52 @@ export default function App() {
   const dynamicCategories = Array.from(new Set(globalKnowledge.map(d => d.category || 'General'))).filter(c => c !== 'General');
   const allSidebarCategories = Array.from(new Set([...dynamicCategories, ...customCategories]));
 
+  // --- SMART CATEGORY RESOLVER ALIAS MATCHER ---
+  const getCategoryMatch = (name: string): string | null => {
+    if (!name) return null;
+    const lower = name.toLowerCase().trim();
+
+    // Exact match
+    const exact = allSidebarCategories.find(c => c.toLowerCase() === lower);
+    if (exact) return exact;
+
+    // Faculty / Professor / Teacher alias match
+    if (lower.includes("faculty") || lower.includes("professor") || lower.includes("teacher")) {
+      const match = allSidebarCategories.find(c => {
+        const cl = c.toLowerCase();
+        return cl.includes("faculty") || cl.includes("professor") || cl.includes("teacher");
+      });
+      if (match) return match;
+    }
+
+    // Industry Partners alias match
+    if (lower.includes("partner") || lower.includes("industry")) {
+      const match = allSidebarCategories.find(c => {
+        const cl = c.toLowerCase();
+        return cl.includes("partner") || cl.includes("industry");
+      });
+      if (match) return match;
+    }
+
+    // Facilities alias match
+    if (lower.includes("facilit")) {
+      const match = allSidebarCategories.find(c => c.toLowerCase().includes("facilit"));
+      if (match) return match;
+    }
+
+    // Organizations alias match
+    if (lower.includes("organ") || lower.includes("org")) {
+      const match = allSidebarCategories.find(c => c.toLowerCase().includes("organ") || c.toLowerCase().includes("org"));
+      if (match) return match;
+    }
+
+    // Check subcategory folders
+    const subMatch = globalKnowledge.find((k: any) => (k.subcategory || '').toLowerCase() === lower && k.subcategory !== 'All');
+    if (subMatch) return subMatch.subcategory;
+
+    return null;
+  };
+
   const [layoutConfig, setLayoutConfig] = useState<{gear1: string, gear2: string, gear3: string, quickPrompts: string[]}>({
     gear1: "", gear2: "", gear3: "", quickPrompts: []
   });
@@ -475,14 +521,6 @@ export default function App() {
     const savedMode = localStorage.getItem('chatcit_viewMode');
     if (savedMode && savedMode !== "auth") setViewMode(savedMode as "chat" | "admin");
     setTimeout(() => setAppLoading(false), 1200);
-  }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key.toLowerCase() === 'k') { e.preventDefault(); setSimKiosk(prev => !prev); }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   useEffect(() => {
@@ -754,9 +792,9 @@ export default function App() {
             }
          }
       } else {
-         const isFolder = allSidebarCategories.some(c => c.toLowerCase() === lowerItem) || globalKnowledge.some((k: any) => (k.subcategory || '').toLowerCase() === lowerItem);
-         if (isFolder && !isDoc) {
-            setDirectoryMode(item);
+         const matchedCat = getCategoryMatch(item);
+         if (matchedCat && !isDoc) {
+            setDirectoryMode(matchedCat);
          } else {
             sendMessage(item);
          }
@@ -942,7 +980,7 @@ export default function App() {
   if (!isKioskScreensaver) {
     if (!useMobileLayout && isWebMode) {
       mainLeft = gearMode ? RAIL_W : (sidebarOpen ? SIDEBAR_W : 0);
-      mainRight = RAIL_W;
+      mainRight = showRightRail ? RAIL_W : 0; // FIXED: Forces the center content to stay perfectly centered on desktop
     }
   }
 
@@ -990,7 +1028,7 @@ export default function App() {
       <div className={dark ? "dark-mode" : "light-mode"} style={containerStyle}>
 
         {/* 1. KIOSK SCREENSAVER & DIRECTORY RESULTS */}
-        {(simKiosk && (screenState === "screensaver" || screenState === "kiosk_result")) && (
+        {isKioskScreensaver && (
           <KioskScreen 
             dark={dark} screenState={screenState} setScreenState={setScreenState} kioskCategory={kioskCategory} setKioskCategory={setKioskCategory}
             kioskResult={kioskResult} setKioskResult={setKioskResult} handleKioskSelection={handleKioskSelection} topRightButtons={topRightButtons}
@@ -1066,7 +1104,7 @@ export default function App() {
           <>
             {/* LEFT SIDEBAR (STANDARD BLUE WEB UI) */}
             {(!gearMode) && (
-              <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: sbBg, position: "absolute", top: 0, bottom: 0, left: (isMobile || simKiosk) ? (sidebarOpen ? 0 : -SIDEBAR_W) : (sidebarOpen ? 0 : -SIDEBAR_W), zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: (isMobile || simKiosk) && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
+              <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: sbBg, position: "absolute", top: 0, bottom: 0, left: sidebarOpen ? 0 : -SIDEBAR_W, zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: useMobileLayout && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
                 <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, background: sbBg }}>
                   
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
@@ -1085,7 +1123,7 @@ export default function App() {
                       
                       {viewMode === "admin" ? (
                         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
-                          <button onClick={() => { setViewMode("chat"); if(isMobile || simKiosk) setSidebarOpen(false); }} className="sidebar-btn primary"><ArrowLeft size={16} /> Back to Chat</button>
+                          <button onClick={() => { setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); }} className="sidebar-btn primary"><ArrowLeft size={16} /> Back to Chat</button>
                           
                           {adminTab === 'knowledge' && (
                             <div style={{ marginTop: 8 }}>
@@ -1093,7 +1131,7 @@ export default function App() {
                               <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                                 {["All", ...allSidebarCategories].map(cat => (
                                   <div key={cat} style={{ display: "flex", alignItems: "center", gap: 4, width: "100%" }}>
-                                    <button onClick={() => { setAdminCategory(cat); setAdminDept("All"); if(isMobile || simKiosk) setSidebarOpen(false); }} className={`sidebar-btn ${adminCategory === cat ? 'primary' : ''}`} style={{ flex: 1, paddingRight: 0 }}>
+                                    <button onClick={() => { setAdminCategory(cat); setAdminDept("All"); if(useMobileLayout) setSidebarOpen(false); }} className={`sidebar-btn ${adminCategory === cat ? 'primary' : ''}`} style={{ flex: 1, paddingRight: 0 }}>
                                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "left" }}>
                                         {cat.replace('Teachers', 'Professors')}
                                       </span>
@@ -1132,7 +1170,7 @@ export default function App() {
                             <div style={{ marginTop: 8 }}>
                               <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Departments Filter</span></div>
                               <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                                {["All", "Computer Technology", "Food Processing Technology", "Drafting and Digital Arts Technology", "Welding Technology", "Automotive Technology", "Electrical Technology", "Electronics Technology", "Mechanical Technology", "H/VAC Technology", "Mechatronics Technology"].map(dept => (<button key={dept} onClick={() => { setAdminDept(dept); if(isMobile || simKiosk) setSidebarOpen(false); }} className={`sidebar-btn ${adminDept === dept ? 'primary' : ''}`}>{dept}</button>))}
+                                {["All", "Computer Technology", "Food Processing Technology", "Drafting and Digital Arts Technology", "Welding Technology", "Automotive Technology", "Electrical Technology", "Electronics Technology", "Mechanical Technology", "H/VAC Technology", "Mechatronics Technology"].map(dept => (<button key={dept} onClick={() => { setAdminDept(dept); if(useMobileLayout) setSidebarOpen(false); }} className={`sidebar-btn ${adminDept === dept ? 'primary' : ''}`}>{dept}</button>))}
                               </div>
                             </div>
                           )}
@@ -1143,11 +1181,11 @@ export default function App() {
                       ) : (
                         <>
                           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
-                            <button onClick={() => requireAuth(() => {setActiveChatId(null); setDirectoryMode(null); setViewMode("chat"); if(isMobile || simKiosk) setSidebarOpen(false);})} className="sidebar-btn primary" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer" }}>
+                            <button onClick={() => requireAuth(() => {setActiveChatId(null); setDirectoryMode(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false);})} className="sidebar-btn primary" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer" }}>
                               <Plus size={16} /> New chat
                             </button>
                             {isWebMode && (
-                              <button onClick={() => { setGearMode(true); if(isMobile) setSidebarOpen(false); }} className="sidebar-btn" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, cursor: "pointer" }}>
+                              <button onClick={() => { setGearMode(true); if(useMobileLayout) setSidebarOpen(false); }} className="sidebar-btn" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, cursor: "pointer" }}>
                                 <Settings size={15} /> Change taskbar mode
                               </button>
                             )}
@@ -1157,14 +1195,15 @@ export default function App() {
                           <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 24 }}>
                             {QUICK_PROMPTS.map((lbl: string) => (
                               <button key={lbl} onClick={() => { 
-                                 if(isMobile || simKiosk) setSidebarOpen(false);
+                                 if(useMobileLayout) setSidebarOpen(false);
                                  const lower = lbl.toLowerCase();
                                  const isDoc = lower === 'handbook' || lower === 'magna carta' || lower.includes('form');
+                                 const matchedCat = getCategoryMatch(lbl);
                                  
                                  if (isDoc) {
                                     requireAuth(() => { sendMessage(lbl); });
-                                 } else if (allSidebarCategories.includes(lbl)) {
-                                    setDirectoryMode(lbl); 
+                                 } else if (matchedCat) {
+                                    setDirectoryMode(matchedCat); 
                                  } else {
                                     requireAuth(() => { sendMessage(lbl); }); 
                                  }
@@ -1178,7 +1217,7 @@ export default function App() {
                               <div style={{ maxHeight: 250, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
                                 {chats.slice(0, 5).map((chat: Chat) => (
                                   <div key={chat.id} className="group" style={{ display: "flex", alignItems: "center", width: "100%", gap: 4 }}>
-                                    <button onClick={() => requireAuth(() => { setActiveChatId(chat.id); setDirectoryMode(null); setViewMode("chat"); if(isMobile || simKiosk) setSidebarOpen(false); })} 
+                                    <button onClick={() => requireAuth(() => { setActiveChatId(chat.id); setDirectoryMode(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); })} 
                                       className={`sidebar-btn ${activeChatId === chat.id && viewMode === "chat" ? 'primary' : ''}`}
                                       style={{ flex: 1, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` }}
                                     >
@@ -1213,7 +1252,7 @@ export default function App() {
                           <div style={{ fontSize: 11, color: sb.faint }}>{currentUser?.role === 'superadmin' ? 'Superadmin' : currentUser?.role === 'admin' ? 'Administrator' : 'Student'}</div>
                         </div>
                         <button onClick={() => setShowProfileModal(true)} style={{ color: sb.muted, background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Edit Profile"><UserCog size={15} /></button>
-                        {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(isMobile || simKiosk) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#fff" : sb.muted, background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Admin Dashboard"><Database size={15} /></button>}
+                        {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(useMobileLayout) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#fff" : sb.muted, background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Admin Dashboard"><Database size={15} /></button>}
                         <button onClick={handleLogout} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Logout"><LogOut size={15} /></button>
                       </div>
                     )}
@@ -1224,7 +1263,7 @@ export default function App() {
 
             {/* LEFT SIDEBAR (GEAR TASKBAR MODE) */}
             {showGearLeft && (
-              <aside style={{ width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0, left: (isMobile || simKiosk) ? (sidebarOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: (isMobile || simKiosk) && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
+              <aside style={{ width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0, left: sidebarOpen ? 0 : -RAIL_W, zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: useMobileLayout && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
                 <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, left: 0 }}>
                   <GearAbs id="g-left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => i + 1); }} />
                   <GearAbs id="g-left-mid" side="left" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-leftAngle * RATIO + (180 / N_LG)} onClick={() => { setLeftAngle(a => a + STEP_DEG); setMidIdx(i => (i + 1) % MID_CHOICES.length); }} />
@@ -1254,18 +1293,21 @@ export default function App() {
                     const lbl = QUICK_PROMPTS.length > 0 ? QUICK_PROMPTS[quickIdx % QUICK_PROMPTS.length] : null;
                     if (!lbl || lbl === "No Data") return;
                     
-                    if(isMobile || simKiosk) setSidebarOpen(false);
+                    if(useMobileLayout) setSidebarOpen(false);
                     const lower = lbl.toLowerCase();
-                    if (lower === 'handbook' || lower === 'magna carta' || lower.includes('form')) {
+                    const isDoc = lower === 'handbook' || lower === 'magna carta' || lower.includes('form');
+                    const matchedCat = getCategoryMatch(lbl);
+
+                    if (isDoc) {
                        requireAuth(() => { sendMessage(lbl); });
-                    } else if (allSidebarCategories.includes(lbl)) {
-                       setDirectoryMode(lbl); 
+                    } else if (matchedCat) {
+                       setDirectoryMode(matchedCat); 
                     } else {
                        requireAuth(() => { sendMessage(lbl); }); 
                     }
                   }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => i + 1); } },
-                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: "", value: MID_CHOICES[midIdx], onPick: () => { if (midIdx === 0) { requireAuth(() => { setActiveChatId(null); setViewMode("chat"); if(isMobile || simKiosk) setSidebarOpen(false); }); } else { setGearMode(false); if(isMobile || simKiosk) setSidebarOpen(false); } }, mid: true },
-                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: "Recent", value: chats.length > 0 ? chats[recentsIdx % chats.length].title : "No chats", onPick: () => requireAuth(() => { if(chats.length) { setActiveChatId(chats[recentsIdx % chats.length].id); setViewMode("chat"); if(isMobile || simKiosk) setSidebarOpen(false); } }), onGear: () => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => i + 1); }, sub: chats.length > 0 ? "Past Conversation" : "" },
+                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: "", value: MID_CHOICES[midIdx], onPick: () => { if (midIdx === 0) { requireAuth(() => { setActiveChatId(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); }); } else { setGearMode(false); if(useMobileLayout) setSidebarOpen(false); } }, mid: true },
+                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: "Recent", value: chats.length > 0 ? chats[recentsIdx % chats.length].title : "No chats", onPick: () => requireAuth(() => { if(chats.length) { setActiveChatId(chats[recentsIdx % chats.length].id); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); } }), onGear: () => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => i + 1); }, sub: chats.length > 0 ? "Past Conversation" : "" },
                 ].map((p: any, i: number) => {
                   const isMidBtn = p.mid;
                   return (
