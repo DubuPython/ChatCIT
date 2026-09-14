@@ -112,6 +112,7 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
       const payload = {
           date: calForm.date,
           endDate: calForm.endDate || calForm.date,
+          end_date: calForm.endDate || calForm.date,
           title: calForm.title,
           description: calForm.description,
           type: calForm.type,
@@ -331,7 +332,7 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
 export default function App() {
   const [simKiosk, setSimKiosk] = useState(false);
   const [simScale, setSimScale] = useState(1);
-  const [screenState, setScreenState] = useState<"screensaver" | "kiosk_result" | "chat">("screensaver");
+  const [screenState, setScreenState] = useState<"presentation" | "home" | "kiosk_result" | "chat">("presentation");
   const [kioskCategory, setKioskCategory] = useState<string | null>(null);
   const [kioskResult, setKioskResult] = useState<any>(null);
 
@@ -497,8 +498,9 @@ export default function App() {
       setKioskMapping({
          "Faculty": ["Faculty & Professors"],
          "Accomplishment": ["Industry Partners"],
-         "Student Affairs": ["Organizations"],
-         "Curriculum and Extensions": ["Majors"]
+         "Student Affairs": ["Organizations", "Handbook", "Magna Carta"],
+         "Curriculum": ["Majors"],
+         "Extensions": []
       });
     }
   }, []);
@@ -541,7 +543,6 @@ export default function App() {
   useEffect(() => {
     if (typeof window !== "undefined") {
        const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-       // We assume standard Android Kiosks are large portrait touch displays
        const isPortrait = window.innerHeight > window.innerWidth;
        const isLargeScreen = window.innerHeight >= 1080;
        
@@ -562,10 +563,12 @@ export default function App() {
     const resetTimer = () => {
       if (!simKiosk) return; 
       clearTimeout(timeoutId);
+      // 5 Minute Idle -> Presentation Mode
       timeoutId = setTimeout(() => {
-        setScreenState("screensaver"); setKioskCategory(null); setKioskResult(null); setActiveChatId(null);
+        setScreenState("presentation"); 
+        setKioskCategory(null); setKioskResult(null); setActiveChatId(null);
         setViewMode("chat"); setSidebarOpen(false); setRightRailOpen(false); setGearMode(false);
-      }, 120000); 
+      }, 300000); 
     };
     resetTimer();
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
@@ -575,7 +578,8 @@ export default function App() {
 
   useEffect(() => {
     if (simKiosk) { 
-      setScreenState("screensaver"); setKioskCategory(null); setKioskResult(null); setGearMode(false); 
+      setScreenState(localStorage.getItem('permanent_kiosk') === 'true' ? 'home' : 'screensaver'); 
+      setKioskCategory(null); setKioskResult(null); setGearMode(false); 
       setSidebarOpen(false); setRightRailOpen(false);
     } else {
       if (window.innerWidth > 1280) setSidebarOpen(true);
@@ -731,7 +735,7 @@ export default function App() {
     const content = text.trim(); setInput("");
     setDirectoryMode(null); 
     
-    if (simKiosk && (screenState === "screensaver" || screenState === "kiosk_result")) {
+    if (simKiosk && (screenState === "presentation" || screenState === "home" || screenState === "kiosk_result")) {
       setScreenState("chat"); setKioskCategory(null); setKioskResult(null); setSidebarOpen(false); setRightRailOpen(false);
     }
 
@@ -946,7 +950,7 @@ export default function App() {
     </div>
   );
 
-  const isKioskScreensaver = simKiosk && (screenState === "screensaver" || screenState === "kiosk_result");
+  const isKioskScreensaver = simKiosk && (screenState === "presentation" || screenState === "home" || screenState === "kiosk_result");
   const bg = isKioskScreensaver ? (dark ? "#1C1D55" : "#f8fafc") : (dark ? "#1c1b22" : "#f4f5f7");
   const sbBg = dark ? "#0d2460" : "#1558d6";
   const textPrimary = dark ? "#e8eaed" : "#1a1a2e";
@@ -981,13 +985,16 @@ export default function App() {
   const showGearLeft = (isWebMode && gearMode && !isMobile) || (isKioskChat && gearMode);
 
   // Right Sidebar Logic
-  const showRightRail = (!useMobileLayout && isWebMode) || rightRailOpen; 
+  const showRightRail = (!useMobileLayout && isWebMode) || rightRailOpen || isKioskChat; 
 
   // Main Content Offsets
   let mainLeft = 0;
   let mainRight = 0;
 
-  if (!isKioskScreensaver) {
+  if (isKioskChat) {
+     mainLeft = 0;
+     mainRight = RAIL_W; // Force gears sidebar on the right for kiosk chat
+  } else if (!isKioskScreensaver) {
     if (!useMobileLayout && isWebMode) {
       mainLeft = gearMode ? RAIL_W : (sidebarOpen ? SIDEBAR_W : 0);
       mainRight = showRightRail ? RAIL_W : 0; 
@@ -1038,7 +1045,7 @@ export default function App() {
       <div className={dark ? "dark-mode" : "light-mode"} style={containerStyle}>
 
         {/* 1. KIOSK SCREENSAVER & DIRECTORY RESULTS */}
-        {isKioskScreensaver && (
+        {(simKiosk && (screenState === "presentation" || screenState === "home" || screenState === "kiosk_result")) && (
           <KioskScreen 
             dark={dark} screenState={screenState} setScreenState={setScreenState} kioskCategory={kioskCategory} setKioskCategory={setKioskCategory}
             kioskResult={kioskResult} setKioskResult={setKioskResult} handleKioskSelection={handleKioskSelection} topRightButtons={topRightButtons}
@@ -1266,6 +1273,90 @@ export default function App() {
               </aside>
             )}
 
+            {/* LEFT SIDEBAR (GEAR TASKBAR MODE) */}
+            {showGearLeft && (
+              <aside style={{ width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0, left: sidebarOpen ? 0 : -RAIL_W, zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: (isMobile || simKiosk) && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
+                <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, left: 0 }}>
+                  <GearAbs id="g-left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => i + 1); }} />
+                  <GearAbs id="g-left-mid" side="left" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-leftAngle * RATIO + (180 / N_LG)} onClick={() => { setLeftAngle(a => a + STEP_DEG); setMidIdx(i => (i + 1) % MID_CHOICES.length); }} />
+                  <GearAbs id="g-left-bot" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => i + 1); }} />
+                </div>
+                
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-start", padding: "14px 16px 0", zIndex: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                    {currentUser && Number(currentUser.id) !== -1 ? (
+                      <>
+                        <Avatar name={currentUser?.username || currentUser?.email || "User"} size={30} bg="#7c3aed" />
+                        <div style={{ fontSize: 13, fontWeight: 600, color: textPrimary, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentUser?.username || currentUser?.email.split('@')[0]}</div>
+                        {!simKiosk && <button onClick={() => setShowProfileModal(true)} style={{ color: textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Edit Profile"><UserCog size={15} /></button>}
+                        {!simKiosk && (currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(useMobileLayout) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#4285f4" : textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Admin Panel"><Database size={15} /></button>}
+                        {!simKiosk && <button onClick={handleLogout} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Logout"><LogOut size={15} /></button>}
+                      </>
+                    ) : (
+                      <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+                        <button onClick={() => { setAuthMode("login"); setShowAuthPopup(true); }} style={{ padding: "6px 16px", borderRadius: 20, background: dark ? "#fff" : "#1a1a2e", color: dark ? "#1a1a2e" : "#fff", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}>Log in to Save Chats</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {[
+                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: "Quick Prompts", value: QUICK_PROMPTS.length > 0 ? QUICK_PROMPTS[quickIdx % QUICK_PROMPTS.length] : "No Data", onPick: () => { 
+                    const lbl = QUICK_PROMPTS.length > 0 ? QUICK_PROMPTS[quickIdx % QUICK_PROMPTS.length] : null;
+                    if (!lbl || lbl === "No Data") return;
+                    
+                    if(useMobileLayout) setSidebarOpen(false);
+                    const lower = lbl.toLowerCase();
+                    const isDoc = lower === 'handbook' || lower === 'magna carta' || lower.includes('form');
+                    const matchedCat = getCategoryMatch(lbl);
+
+                    if (isDoc) {
+                       requireAuth(() => { sendMessage(lbl); });
+                    } else if (matchedCat) {
+                       setDirectoryMode(matchedCat); 
+                    } else {
+                       requireAuth(() => { sendMessage(lbl); }); 
+                    }
+                  }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => i + 1); } },
+                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: "", value: MID_CHOICES[midIdx], onPick: () => { if (midIdx === 0) { requireAuth(() => { setActiveChatId(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); }); } else { setGearMode(false); if(useMobileLayout) setSidebarOpen(false); } }, mid: true },
+                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: "Recent", value: chats.length > 0 ? chats[recentsIdx % chats.length].title : "No chats", onPick: () => requireAuth(() => { if(chats.length) { setActiveChatId(chats[recentsIdx % chats.length].id); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); } }), onGear: () => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => i + 1); }, sub: chats.length > 0 ? "Past Conversation" : "" },
+                ].map((p: any, i: number) => {
+                  const isMidBtn = p.mid;
+                  return (
+                    <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "left", left: GEAR_VIS, top: p.y, zIndex: 10 }}>
+                      {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "left" }}>{p.label}</div>}
+                      
+                      <button 
+                        onClick={p.onPick} 
+                        className={`gear-panel-btn ${p.sub ? 'is-sub' : ''}`}
+                        style={{
+                          flexDirection: isMidBtn ? "row" : "column",
+                          alignItems: isMidBtn ? "center" : "flex-start",
+                          justifyContent: isMidBtn ? "flex-start" : "center",
+                          gap: isMidBtn ? "8px" : "0",
+                          textAlign: "left"
+                        }}
+                      >
+                        {isMidBtn && (midIdx === 0 ? <Plus size={16} style={{ flexShrink: 0 }} /> : <Settings size={16} style={{ flexShrink: 0 }} />)}
+                        
+                        {p.sub ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', width: '100%', alignItems: 'flex-start' }}>
+                            <div style={{ width: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.value}</div>
+                            <div style={{ fontSize: 10, color: textFaint, marginTop: 4, fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase" }}>{p.sub}</div>
+                          </div>
+                        ) : (
+                          <span style={{ display: "block", width: "100%", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>
+                            {isMidBtn && midIdx === 0 ? p.value.replace(/^\+\s*/, '') : p.value.replace('Teachers', 'Professors')}
+                          </span>
+                        )}
+                      </button>
+                      <div style={{ fontSize: 10, color: textFaint, marginTop: 8, opacity: 0.8, fontWeight: 500, textAlign: "left" }}>click gear to cycle</div>
+                    </div>
+                  );
+                })}
+              </aside>
+            )}
+
             {/* MAIN CHAT & ADMIN INTERFACE */}
             <main style={{ 
               flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "absolute",
@@ -1284,18 +1375,18 @@ export default function App() {
                   
                   {isKioskChat && (
                     <button 
-                      onClick={() => { setScreenState("screensaver"); setKioskCategory(null); setKioskResult(null); setActiveChatId(null); setDirectoryMode(null); setSidebarOpen(false); setRightRailOpen(false); }} 
-                      style={{ background: dark ? 'rgba(28, 29, 85, 0.8)' : 'rgba(166, 1, 18, 0.1)', border: `1px solid ${dark ? 'rgba(253, 181, 28, 0.3)' : 'rgba(166, 1, 18, 0.2)'}`, color: dark ? '#fff' : '#A60112', padding: '6px 14px', borderRadius: 20, fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: "transform 0.1s" }}
+                      onClick={() => { setScreenState("home"); setKioskCategory(null); setKioskResult(null); setActiveChatId(null); setDirectoryMode(null); setSidebarOpen(false); setRightRailOpen(false); }} 
+                      style={{ background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, color: dark ? '#fff' : '#0f172a', padding: '8px 16px', borderRadius: 24, fontSize: 15, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: "transform 0.1s" }}
                       onMouseEnter={e => e.currentTarget.style.transform = "scale(0.95)"}
                       onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
                     >
-                      <ArrowLeft size={16} /> Home
+                      <ArrowLeft size={18} /> Home
                     </button>
                   )}
 
                   {(!isKioskChat && (useMobileLayout || (!gearMode && !sidebarOpen))) && (
-                    <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', color: dark ? '#ffffff' : '#0f172a' }}>
-                      Chat<span style={{ color: dark ? '#60a5fa' : '#2563eb' }}>CIT</span>
+                    <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.5px' }}>
+                      <span style={{ color: dark ? '#fff' : '#0f172a' }}>Chat</span><span style={{ color: '#4285f4' }}>CIT</span>
                     </div>
                   )}
                 </div>
@@ -1303,15 +1394,15 @@ export default function App() {
                 {/* CENTER HEADER ZONE */}
                 {((isKioskChat) || (isWebMode && !useMobileLayout && gearMode)) && (
                   <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', color: dark ? '#ffffff' : '#0f172a' }}>
-                      Chat<span style={{ color: dark ? '#60a5fa' : '#2563eb' }}>CIT</span>
+                    <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.5px' }}>
+                      <span style={{ color: dark ? '#fff' : '#0f172a' }}>Chat</span><span style={{ color: '#4285f4' }}>CIT</span>
                     </div>
                   </div>
                 )}
 
                 {/* RIGHT HEADER ZONE */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, flex: 1 }}>
-                  {useMobileLayout ? (
+                  {useMobileLayout && !isKioskChat ? (
                     <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer", zIndex: 60 }}>
                       <MoreVertical size={20} />
                     </button>
@@ -1330,10 +1421,10 @@ export default function App() {
                     {adminTab === 'kiosk' ? (
                        <div style={{ flex: 1, overflowY: "auto", padding: "32px", WebkitOverflowScrolling: "touch" }}>
                           <h2 style={{ fontSize: 28, fontWeight: 800, color: textPrimary, marginBottom: 8 }}>Kiosk Layout Editor</h2>
-                          <p style={{ color: textMuted, marginBottom: 32 }}>Map your databank categories and folders to the 4 main Kiosk Clusters.</p>
+                          <p style={{ color: textMuted, marginBottom: 32 }}>Map your databank categories and folders to the 5 main Kiosk Clusters.</p>
 
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
-                             {["Faculty", "Accomplishment", "Student Affairs", "Curriculum and Extensions"].map(cluster => (
+                             {["Faculty", "Accomplishment", "Student Affairs", "Curriculum", "Extensions"].map(cluster => (
                                 <div key={cluster} style={{ background: dark ? 'rgba(255,255,255,0.03)' : '#fff', border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column' }}>
                                    <h3 style={{ fontSize: 18, fontWeight: 700, color: textPrimary, margin: '0 0 16px' }}>{cluster}</h3>
                                    
@@ -1445,8 +1536,8 @@ export default function App() {
             </main>
 
             {/* RIGHT SIDEBAR (ADMIN OR GEARS) */}
-            {(viewMode === 'admin' || rightRailOpen || (!useMobileLayout && !gearMode)) && (
-              <aside style={{ width: RAIL_W, flexShrink: 0, background: (viewMode === 'admin' && !simKiosk) ? sbBg : bg, position: "absolute", top: 0, bottom: 0, right: (useMobileLayout ? (rightRailOpen ? 0 : -RAIL_W) : 0), zIndex: 60, transition: "right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: useMobileLayout && rightRailOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
+            {(viewMode === 'admin' || rightRailOpen || (!useMobileLayout && !gearMode) || isKioskChat) && (
+              <aside style={{ width: RAIL_W, flexShrink: 0, background: (viewMode === 'admin' && !simKiosk) ? sbBg : bg, position: "absolute", top: 0, bottom: 0, right: (useMobileLayout && !isKioskChat) ? (rightRailOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: useMobileLayout && rightRailOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
                 {viewMode === 'admin' && !simKiosk ? (
                    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: sbBg, borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
@@ -1492,20 +1583,19 @@ export default function App() {
                    </div>
                 ) : (
                    <>
-                      {/* ONLY show gears on normal web UI (no simKiosk) */}
-                      {!simKiosk && (
+                      {/* ONLY show gears on normal web UI or Kiosk Chat */}
+                      {(!simKiosk || screenState === 'chat') && (
                         <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, right: 0 }}>
                           <GearAbs id="g-right-top" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); }} />
                           <GearAbs id="g-right-mid" side="right" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-rightAngle * RATIO + (180 / N_LG)} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); }} />
                           <GearAbs id="g-right-bot" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); }} />
                         </div>
                       )}
-                      
                       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "14px 16px 0", zIndex: 20 }}>
                         {topRightButtons}
                       </div>
-
-                      {/* ONLY show gear floating buttons on normal web UI (no simKiosk) */}
+                      
+                      {/* ONLY show gear floating buttons on normal web UI */}
                       {!simKiosk && [
                         { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: gear1Cat, value: gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : "No Data", onPick: () => { 
                             const item = gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : null;
@@ -1555,7 +1645,7 @@ export default function App() {
                 </div>
             )}
             
-            {/* WEB CALENDAR MODAL */}
+            {/* WEB CALENDAR MODAL (ADMIN EDITING) */}
             {showCalendar && (
                 <div className={simKiosk ? "kiosk-calendar-wrapper" : ""} style={{ pointerEvents: 'auto', display: 'flex', justifyContent: 'center', width: '100%' }}>
                     <WebCalendarModal dark={dark} setShowCalendar={setShowCalendar} currentUser={currentUser} API_URL={API_URL} showToast={showToast} />
