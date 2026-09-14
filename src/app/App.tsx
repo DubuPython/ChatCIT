@@ -7,7 +7,6 @@ import { ProfileModal } from "../components/modals/profilemodal";
 import { BugModal } from "../components/modals/bugsmodal";
 import { ChatDirectory } from "../components/chatdirectory";
 
-import { VirtualKeyboard } from "../components/ui/virtualkeyboard";
 import { KioskScreen } from "../components/kioskscreen";
 
 import { Avatar, GearAbs, DayNightToggle, GearboxLoader, RATIO, N_SM, OR_SM, CENTER_D, TOP_H, GEAR_VIS, RAIL_W, STEP_DEG, OR_LG, PANEL_W, IR_SM, IR_LG, N_LG } from "../components/ui/helpers";
@@ -46,7 +45,6 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
   const prevMonth = () => { setCalendarDate(new Date(currentYear, currentMonth - 1, 1)); setIsCalFormOpen(false); };
   const nextMonth = () => { setCalendarDate(new Date(currentYear, currentMonth + 1, 1)); setIsCalFormOpen(false); };
 
-  // TIMEZONE SAFE PARSER: Strictly parses 'YYYY-MM-DD' as local time
   const parseLocal = (dStr: string) => {
      if (!dStr) return new Date();
      const [y, m, d] = dStr.split('T')[0].split('-');
@@ -67,7 +65,6 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
         const monthStart = new Date(currentYear, currentMonth, 1);
         const monthEnd = new Date(currentYear, currentMonth + 1, 0);
         
-        // Multi-Day span logic: Occupy all dates from start to end
         if (start <= monthEnd && end >= monthStart) {
            const startDay = start < monthStart ? 1 : start.getDate();
            const endDay = end > monthEnd ? daysInMonth : end.getDate();
@@ -164,7 +161,7 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
   };
 
   return (
-    <div style={{ display: 'flex', width: '100%', maxWidth: 860, background: dark ? '#1e2332' : '#ffffff', borderRadius: 24, boxShadow: '0 24px 60px rgba(0,0,0,0.4)', border: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)'}`, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', width: '100%', maxWidth: 860, background: dark ? '#1C1D55' : '#ffffff', borderRadius: 24, boxShadow: '0 24px 60px rgba(0,0,0,0.4)', border: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)'}`, overflow: 'hidden' }}>
       <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
            <CalendarIcon size={24} color="#4285f4" />
@@ -185,12 +182,12 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
               const evts = eventsByDay[day] || [];
               const isSelected = selectedDate === day;
               
-              let cellBg = dark ? 'rgba(19, 20, 28, 0.6)' : '#f8fafc';
+              let cellBg = dark ? 'rgba(18, 87, 172, 0.3)' : '#f8fafc';
               let cellBorder = dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
               
               if (isSelected) {
-                  cellBg = dark ? 'rgba(66, 133, 244, 0.15)' : 'rgba(66, 133, 244, 0.1)';
-                  cellBorder = '#4285f4';
+                  cellBg = dark ? 'rgba(253, 181, 28, 0.2)' : 'rgba(166, 1, 18, 0.1)';
+                  cellBorder = dark ? '#FDB51C' : '#A60112';
               }
 
               return (
@@ -220,7 +217,6 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {isAdmin && selectedDate && !isCalFormOpen && (
                  <button onClick={() => {
-                    // Timezone safe YYYY-MM-DD parsing for form init
                     const dateStr = new Date(currentYear, currentMonth, selectedDate).toLocaleDateString('en-CA');
                     setCalForm({ id: null, date: dateStr, endDate: dateStr, title: "", description: "", type: "Special Event" });
                     setIsCalFormOpen(true);
@@ -272,7 +268,6 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
                           <div 
                              key={idx} 
                              onClick={() => {
-                                // SYNC: Snap the calendar grid directly to the event's true start date
                                 const startDt = parseLocal(evt.date);
                                 setCalendarDate(new Date(startDt.getFullYear(), startDt.getMonth(), 1));
                                 setSelectedDate(startDt.getDate());
@@ -296,7 +291,6 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
                                 <div style={{ display: 'flex', gap: 8, marginTop: 12, borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, paddingTop: 12 }}>
                                    <button onClick={(e) => { 
                                        e.stopPropagation();
-                                       // SYNC before edit
                                        const startDt = parseLocal(evt.date);
                                        setCalendarDate(new Date(startDt.getFullYear(), startDt.getMonth(), 1));
                                        setSelectedDate(startDt.getDate());
@@ -340,7 +334,6 @@ export default function App() {
   const [screenState, setScreenState] = useState<"screensaver" | "kiosk_result" | "chat">("screensaver");
   const [kioskCategory, setKioskCategory] = useState<string | null>(null);
   const [kioskResult, setKioskResult] = useState<any>(null);
-  const [kbOpen, setKbOpen] = useState(false);
 
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && (window.innerWidth <= 1280));
   const [appLoading, setAppLoading] = useState(true); 
@@ -410,11 +403,9 @@ export default function App() {
     if (!name) return null;
     const lower = name.toLowerCase().trim();
 
-    // Exact match
     const exact = allSidebarCategories.find(c => c.toLowerCase() === lower);
     if (exact) return exact;
 
-    // Faculty / Professor / Teacher alias match
     if (lower.includes("faculty") || lower.includes("professor") || lower.includes("teacher")) {
       const match = allSidebarCategories.find(c => {
         const cl = c.toLowerCase();
@@ -423,7 +414,6 @@ export default function App() {
       if (match) return match;
     }
 
-    // Industry Partners alias match
     if (lower.includes("partner") || lower.includes("industry")) {
       const match = allSidebarCategories.find(c => {
         const cl = c.toLowerCase();
@@ -432,19 +422,21 @@ export default function App() {
       if (match) return match;
     }
 
-    // Facilities alias match
     if (lower.includes("facilit")) {
       const match = allSidebarCategories.find(c => c.toLowerCase().includes("facilit"));
       if (match) return match;
     }
 
-    // Organizations alias match
-    if (lower.includes("organ") || lower.includes("org")) {
+    if (lower.includes("organ") || lower.includes("org") || lower.includes("affair")) {
       const match = allSidebarCategories.find(c => c.toLowerCase().includes("organ") || c.toLowerCase().includes("org"));
       if (match) return match;
     }
+    
+    if (lower.includes("major") || lower.includes("curriculum")) {
+      const match = allSidebarCategories.find(c => c.toLowerCase().includes("major"));
+      if (match) return match;
+    }
 
-    // Check subcategory folders
     const subMatch = globalKnowledge.find((k: any) => (k.subcategory || '').toLowerCase() === lower && k.subcategory !== 'All');
     if (subMatch) return subMatch.subcategory;
 
@@ -493,6 +485,20 @@ export default function App() {
   const gear2Items = getGearItems(gear2Cat);
   const gear3Items = getGearItems(gear3Cat);
 
+  // STATE FOR MAPPING ADMIN KIOSK CLUSTERS
+  const [kioskMapping, setKioskMapping] = useState<Record<string, string[]>>({});
+  
+  useEffect(() => {
+    const savedMap = localStorage.getItem('chatcit_kiosk_mapping');
+    if (savedMap) {
+      try { setKioskMapping(JSON.parse(savedMap)); } catch(e){}
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(kioskMapping));
+  }, [kioskMapping]);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
@@ -523,6 +529,25 @@ export default function App() {
     setTimeout(() => setAppLoading(false), 1200);
   }, []);
 
+  // SMART AUTO-DETECT KIOSK MODE
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+       const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+       const isPortrait = window.innerHeight > window.innerWidth;
+       const isLargeScreen = window.innerHeight >= 1080;
+       
+       const urlParams = new URLSearchParams(window.location.search);
+       
+       // Lock to kiosk mode if specifically requested via URL, or if it matches an Android Kiosk profile.
+       if (urlParams.get("kiosk") === "true" || (isTouch && isPortrait && isLargeScreen)) {
+          localStorage.setItem("permanent_kiosk", "true");
+          setSimKiosk(true);
+       } else if (localStorage.getItem("permanent_kiosk") === "true") {
+          setSimKiosk(true);
+       }
+    }
+  }, []);
+
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
     const resetTimer = () => {
@@ -531,7 +556,7 @@ export default function App() {
       timeoutId = setTimeout(() => {
         setScreenState("screensaver"); setKioskCategory(null); setKioskResult(null); setActiveChatId(null);
         setViewMode("chat"); setSidebarOpen(false); setRightRailOpen(false); setGearMode(false);
-      }, 60000); 
+      }, 120000); 
     };
     resetTimer();
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
@@ -656,17 +681,6 @@ export default function App() {
      };
      renderPage();
   }, [pdfRef, pdfPage]);
-
-  useEffect(() => {
-    if (!simKiosk) { setKbOpen(false); return; }
-    const handleFocusIn = (e: FocusEvent) => {
-      const target = e.target as HTMLElement;
-      if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName) && target.getAttribute('type') !== 'file') { setKbOpen(true); }
-    };
-    const handleFocusOut = () => { setTimeout(() => { const el = document.activeElement; if (!el || !['INPUT', 'TEXTAREA'].includes(el.tagName)) { setKbOpen(false); } }, 100); };
-    window.addEventListener('focusin', handleFocusIn); window.addEventListener('focusout', handleFocusOut);
-    return () => { window.removeEventListener('focusin', handleFocusIn); window.removeEventListener('focusout', handleFocusOut); };
-  }, [simKiosk]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Date.now(); setToasts(prev => [...prev, { id, message, type }]);
@@ -899,34 +913,20 @@ export default function App() {
   const deleteChat = (idToDelete: string) => { setChats(prev => prev.filter(c => c.id !== idToDelete)); if (activeChatId === idToDelete) { setActiveChatId(null); setViewMode("chat"); } showToast("Chat deleted successfully.", "success"); };
   const handleLogout = () => { setCurrentUser({ id: -1, email: "guest@bulsu.edu.ph", role: "student", username: "Guest User" }); setChats([]); setActiveChatId(null); setViewMode("chat"); localStorage.removeItem('chatcit_user'); localStorage.removeItem('chatcit_chats'); showToast("Logged out successfully.", "info"); setAuthMode("login"); setShowAuthPopup(true); };
 
-  const handleVirtualKeyPress = (key: string, e: React.MouseEvent) => {
-    e.preventDefault(); const el = document.activeElement as HTMLInputElement | HTMLTextAreaElement;
-    if (!el || !['INPUT', 'TEXTAREA'].includes(el.tagName)) return;
-    let newValue = el.value;
-    if (key === 'BACK') { newValue = newValue.slice(0, -1); } 
-    else if (key === 'ENTER') { const form = el.closest('form'); if (form) { const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement; if (submitBtn && !submitBtn.disabled) submitBtn.click(); } else { el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true })); } return; } 
-    else if (key === 'CLOSE') { setKbOpen(false); el.blur(); return; } 
-    else if (key === 'SPACE') { newValue += ' '; } 
-    else { newValue += key; }
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
-    const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-    if (el.tagName === 'INPUT' && nativeInputValueSetter) { nativeInputValueSetter.call(el, newValue); } 
-    else if (el.tagName === 'TEXTAREA' && nativeTextAreaValueSetter) { nativeTextAreaValueSetter.call(el, newValue); } 
-    else { el.value = newValue; }
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  };
-
   const trBtnSize = simKiosk ? 64 : 40; const trIconSize = simKiosk ? 32 : 20; const trRadius = simKiosk ? 20 : 12; const trGap = simKiosk ? 20 : 12;
   const topRightButtons = (
     <div style={{ display: "flex", alignItems: "center", gap: trGap }}>
-      <button onClick={() => setSimKiosk(!simKiosk)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: trBtnSize, height: trBtnSize, borderRadius: trRadius, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", color: "#a855f7", cursor: "pointer", transition: "all 0.2s" }} title={simKiosk ? "Exit Kiosk Mode" : "Enter Kiosk Mode"}><Smartphone size={trIconSize} /></button>
+      {/* Hide manual kiosk toggle if permanent mode is detected via localStorage */}
+      {localStorage.getItem('permanent_kiosk') !== 'true' && (
+         <button onClick={() => setSimKiosk(!simKiosk)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: trBtnSize, height: trBtnSize, borderRadius: trRadius, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", color: "#a855f7", cursor: "pointer", transition: "all 0.2s" }} title={simKiosk ? "Exit Kiosk Mode" : "Enter Kiosk Mode"}><Smartphone size={trIconSize} /></button>
+      )}
       <button onClick={() => requireAuth(() => setShowBugModal(true))} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: trBtnSize, height: trBtnSize, borderRadius: trRadius, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", color: "#ef4444", cursor: "pointer", transition: "all 0.2s" }} title="Report a Bug"><Bug size={trIconSize} /></button>
       <button onClick={() => requireAuth(() => setShowCalendar(true))} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: trBtnSize, height: trBtnSize, borderRadius: trRadius, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", color: "#10b981", cursor: "pointer", transition: "all 0.2s" }} title="Academic Calendar"><CalendarIcon size={trIconSize} /></button>
       <div className="theme-toggle-wrapper" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: trBtnSize, transform: simKiosk ? 'scale(1.3)' : 'scale(0.85)', transformOrigin: 'center' }}><DayNightToggle dark={dark} toggleDark={() => setDark(!dark)} /></div>
     </div>
   );
 
-  const bg = dark ? "#1c1b22" : "#f4f5f7";
+  const bg = simKiosk ? (dark ? "#1C1D55" : "#f8fafc") : (dark ? "#1c1b22" : "#f4f5f7");
   const sbBg = dark ? "#0d2460" : "#1558d6";
   const textPrimary = dark ? "#e8eaed" : "#1a1a2e";
   const textMuted = dark ? "#9aa0a6" : "#6b7280";
@@ -946,14 +946,6 @@ export default function App() {
     position: "fixed", top: "50%", left: "50%", width: 768, height: 1366, transform: `translate(-50%, -50%) scale(${simScale})`, transformOrigin: "center center", display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.8), 0 0 0 16px #111", borderRadius: 24, zIndex: 99999
   } : { position: "absolute", top: 0, bottom: 0, left: 0, right: 0, display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary };
 
-  const virtualKeyRows = [
-    ['1','2','3','4','5','6','7','8','9','0'],
-    ['q','w','e','r','t','y','u','i','o','p'],
-    ['a','s','d','f','g','h','j','k','l'],
-    ['z','x','c','v','b','n','m', 'BACK'],
-    ['SPACE', 'ENTER', 'CLOSE']
-  ];
-
   // =====================================================================
   // ROBUST LAYOUT ENGINE LOGIC
   // =====================================================================
@@ -969,8 +961,6 @@ export default function App() {
   const showGearLeft = (isWebMode && gearMode && !isMobile) || (isKioskChat && gearMode);
 
   // Right Sidebar Logic
-  // Desktop Web: Always visible on the right.
-  // Mobile / KioskChat: Toggled overlay via 3-dots.
   const showRightRail = (!useMobileLayout && isWebMode) || rightRailOpen; 
 
   // Main Content Offsets
@@ -980,7 +970,7 @@ export default function App() {
   if (!isKioskScreensaver) {
     if (!useMobileLayout && isWebMode) {
       mainLeft = gearMode ? RAIL_W : (sidebarOpen ? SIDEBAR_W : 0);
-      mainRight = showRightRail ? RAIL_W : 0; // FIXED: Forces the center content to stay perfectly centered on desktop
+      mainRight = showRightRail ? RAIL_W : 0; 
     }
   }
 
@@ -1028,17 +1018,12 @@ export default function App() {
       <div className={dark ? "dark-mode" : "light-mode"} style={containerStyle}>
 
         {/* 1. KIOSK SCREENSAVER & DIRECTORY RESULTS */}
-        {isKioskScreensaver && (
+        {(simKiosk && (screenState === "screensaver" || screenState === "kiosk_result")) && (
           <KioskScreen 
             dark={dark} screenState={screenState} setScreenState={setScreenState} kioskCategory={kioskCategory} setKioskCategory={setKioskCategory}
             kioskResult={kioskResult} setKioskResult={setKioskResult} handleKioskSelection={handleKioskSelection} topRightButtons={topRightButtons}
-            setFullScreenIframe={() => {}}
-            setFullScreenMedia={setFullScreenMedia} 
-            gear1={{ label: gear1Cat, items: gear1Items }}
-            gear2={{ label: gear2Cat, items: gear2Items }}
-            gear3={{ label: gear3Cat, items: gear3Items }}
-            quickPrompts={QUICK_PROMPTS}
-            currentUser={currentUser}
+            setFullScreenMedia={setFullScreenMedia} setShowCalendar={setShowCalendar}
+            kioskMapping={kioskMapping} setKioskMapping={setKioskMapping} allSidebarCategories={allSidebarCategories} isAdmin={currentUser?.role === 'admin' || currentUser?.role === 'superadmin'}
           />
         )}
 
@@ -1095,7 +1080,7 @@ export default function App() {
           ))}
         </div>
 
-        {/* MOBILE & KIOSK OVERLAYS */}
+        {/* MOBILE OVERLAYS */}
         {(useMobileLayout) && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
         {(useMobileLayout) && rightRailOpen && <div onClick={() => setRightRailOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
 
@@ -1184,7 +1169,8 @@ export default function App() {
                             <button onClick={() => requireAuth(() => {setActiveChatId(null); setDirectoryMode(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false);})} className="sidebar-btn primary" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer" }}>
                               <Plus size={16} /> New chat
                             </button>
-                            {isWebMode && (
+                            {/* Hide taskbar mode switch in permanent kiosk */}
+                            {isWebMode && localStorage.getItem('permanent_kiosk') !== 'true' && (
                               <button onClick={() => { setGearMode(true); if(useMobileLayout) setSidebarOpen(false); }} className="sidebar-btn" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, cursor: "pointer" }}>
                                 <Settings size={15} /> Change taskbar mode
                               </button>
@@ -1311,8 +1297,8 @@ export default function App() {
                 ].map((p: any, i: number) => {
                   const isMidBtn = p.mid;
                   return (
-                    <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "left", left: GEAR_VIS, top: p.y, zIndex: 10 }}>
-                      {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "left" }}>{p.label}</div>}
+                    <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "right", left: GEAR_VIS, top: p.y, zIndex: 10 }}>
+                      {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "right" }}>{p.label}</div>}
                       
                       <button 
                         onClick={p.onPick} 
@@ -1351,7 +1337,7 @@ export default function App() {
               top: 0, bottom: 0, 
               left: mainLeft, 
               right: mainRight, 
-              paddingBottom: kbOpen ? 360 : 0, transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
             }}>
               <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: useMobileLayout ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
                 
@@ -1364,7 +1350,7 @@ export default function App() {
                   {isKioskChat && (
                     <button 
                       onClick={() => { setScreenState("screensaver"); setKioskCategory(null); setKioskResult(null); setActiveChatId(null); setDirectoryMode(null); setSidebarOpen(false); setRightRailOpen(false); }} 
-                      style={{ background: dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)', border: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)'}`, color: dark ? '#fff' : '#0f172a', padding: '6px 14px', borderRadius: 20, fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: "transform 0.1s" }}
+                      style={{ background: dark ? 'rgba(28, 29, 85, 0.8)' : 'rgba(166, 1, 18, 0.1)', border: `1px solid ${dark ? 'rgba(253, 181, 28, 0.3)' : 'rgba(166, 1, 18, 0.2)'}`, color: dark ? '#fff' : '#A60112', padding: '6px 14px', borderRadius: 20, fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: "transform 0.1s" }}
                       onMouseEnter={e => e.currentTarget.style.transform = "scale(0.95)"}
                       onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
                     >
@@ -1373,8 +1359,8 @@ export default function App() {
                   )}
 
                   {(!isKioskChat && (useMobileLayout || (!gearMode && !sidebarOpen))) && (
-                    <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', color: dark ? '#ffffff' : '#0f172a' }}>
-                      Chat<span style={{ color: dark ? '#60a5fa' : '#2563eb' }}>CIT</span>
+                    <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px' }}>
+                      <span style={{ color: dark ? '#fff' : '#0f172a' }}>Chat</span><span style={{ color: dark ? '#FDB51C' : '#A60112' }}>CIT</span>
                     </div>
                   )}
                 </div>
@@ -1382,8 +1368,8 @@ export default function App() {
                 {/* CENTER HEADER ZONE */}
                 {((isKioskChat) || (isWebMode && !useMobileLayout && gearMode)) && (
                   <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', color: dark ? '#ffffff' : '#0f172a' }}>
-                      Chat<span style={{ color: dark ? '#60a5fa' : '#2563eb' }}>CIT</span>
+                    <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px' }}>
+                      <span style={{ color: dark ? '#fff' : '#0f172a' }}>in</span><span style={{ color: '#1257AC' }}>CIT</span><span style={{ color: dark ? '#fff' : '#0f172a' }}>e</span>
                     </div>
                   </div>
                 )}
@@ -1392,7 +1378,7 @@ export default function App() {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, flex: 1 }}>
                   {useMobileLayout ? (
                     <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer", zIndex: 60 }}>
-                      {viewMode === 'admin' && !simKiosk ? <Folder size={20} color={dark ? "#60a5fa" : "#2563eb"} /> : <MoreVertical size={20} />}
+                      {viewMode === 'admin' && !simKiosk ? <Folder size={20} color={dark ? "#FDB51C" : "#A60112"} /> : <MoreVertical size={20} />}
                     </button>
                   ) : (
                     (viewMode === 'admin' && !simKiosk) && (
@@ -1427,7 +1413,7 @@ export default function App() {
                 ) : !activeChat || activeChat.messages.length === 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, padding: "48px 16px" }}>
                     <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}><div style={{ position: "absolute", transform: useMobileLayout ? "scale(0.65)" : "scale(0.85)" }}><GearboxLoader /></div></div>
-                    <h1 style={{ fontSize: useMobileLayout ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{currentUser && Number(currentUser.id) === -1 ? "Guest" : currentUser?.username || currentUser?.email?.split('@')[0] || "Bulsuan"}!</strong></h1>
+                    <h1 style={{ fontSize: useMobileLayout ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{currentUser && Number(currentUser.id) === -1 ? "CITizen" : currentUser?.username || currentUser?.email?.split('@')[0] || "CITizen"}!</strong></h1>
                     <p style={{ color: textMuted, fontSize: 15, marginBottom: 32, textAlign: "center" }}>How can I help you today?</p>
                     
                     {topFaqs.length > 0 && (!currentUser || Number(currentUser.id) !== -1) && (
@@ -1439,9 +1425,9 @@ export default function App() {
                               <button 
                                 key={idx} 
                                 onClick={() => sendMessage(primaryTag)} 
-                                style={{ flexShrink: 0, padding: "10px 18px", borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? "rgba(255,255,255,0.03)" : "#fff", color: textPrimary, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "normal", wordBreak: "break-word", maxWidth: "100%", lineHeight: 1.4, textAlign: "center" }} 
-                                onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.08)" : "#ffffff"} 
-                                onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.03)" : "#fff"}
+                                style={{ flexShrink: 0, padding: "10px 18px", borderRadius: 24, border: `1px solid ${dark ? 'rgba(253, 181, 28, 0.3)' : 'rgba(166, 1, 18, 0.2)'}`, background: dark ? "rgba(18, 87, 172, 0.2)" : "#fff", color: textPrimary, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "normal", wordBreak: "break-word", maxWidth: "100%", lineHeight: 1.4, textAlign: "center" }} 
+                                onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(253, 181, 28, 0.15)" : "#ffffff"} 
+                                onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(18, 87, 172, 0.2)" : "#fff"}
                               >
                                 {primaryTag}
                               </button>
@@ -1464,7 +1450,7 @@ export default function App() {
                         return <ChatMessageBubble key={msg.id} msg={{...msg, pictures: displayPics}} dark={dark} currentUser={currentUser} isMobile={useMobileLayout} onEnlarge={setFullScreenMedia} onOpenIframe={setFullScreenPdf} onLoad={scrollToBottom} />;
                       });
                     })()}
-                    {isTyping && (<div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}><div style={{ flexShrink: 0, marginTop: 4, width: 28, height: 28, display: "flex", justifyContent: "center", alignItems: "center" }}><Bot color="#4285f4" size={28} className="animate-pulse" /></div><div style={{ paddingTop: 3 }}><ChatLoader /></div></div>)}
+                    {isTyping && (<div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}><div style={{ flexShrink: 0, marginTop: 4, width: 28, height: 28, display: "flex", justifyContent: "center", alignItems: "center" }}><Bot color={dark ? "#FDB51C" : "#A60112"} size={28} className="animate-pulse" /></div><div style={{ paddingTop: 3 }}><ChatLoader /></div></div>)}
                     <div ref={messagesEndRef} />
                   </div>
                 )}
@@ -1593,31 +1579,6 @@ export default function App() {
                     <WebCalendarModal dark={dark} setShowCalendar={setShowCalendar} currentUser={currentUser} API_URL={API_URL} showToast={showToast} />
                 </div>
             )}
-          </div>
-        )}
-        
-        {simKiosk && kbOpen && (
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "16px 8px 24px", background: dark ? "rgba(28, 27, 34, 0.98)" : "rgba(229, 231, 235, 0.98)", backdropFilter: "blur(20px)", borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, zIndex: 999999, display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 -10px 40px rgba(0,0,0,0.5)", animation: "slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }}>
-            {virtualKeyRows.map((row, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "center", gap: 8 }}>
-                {row.map(k => (
-                  <button 
-                    key={k} 
-                    onMouseDown={(e) => handleVirtualKeyPress(k, e)} 
-                    style={{ 
-                      padding: "16px 0", flex: k === 'SPACE' ? 2.5 : (k === 'ENTER' || k === 'BACK' || k === 'CLOSE') ? 1.5 : 1, 
-                      maxWidth: k.length === 1 ? 64 : 'none', fontSize: 18, fontWeight: 600, 
-                      background: k === 'ENTER' ? '#4285f4' : k === 'CLOSE' ? '#ef4444' : (dark ? '#333340' : '#fff'), 
-                      color: (k === 'ENTER' || k === 'CLOSE') ? '#fff' : (dark ? '#fff' : '#000'), 
-                      border: "none", borderRadius: 10, cursor: "pointer", textTransform: k.length > 1 ? 'uppercase' : 'lowercase',
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.3)"
-                    }}
-                  >
-                    {k === 'BACK' ? '⌫' : k === 'ENTER' ? '↵' : k === 'CLOSE' ? '✕' : k}
-                  </button>
-                ))}
-              </div>
-            ))}
           </div>
         )}
       </div>
