@@ -70,7 +70,7 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
 
     @keyframes pulse-attention {
        0% { transform: scale(1); box-shadow: 0 0 0 0 ${dark ? 'rgba(18, 87, 172, 0.8)' : 'rgba(166, 1, 18, 0.6)'}; }
-       50% { transform: scale(1.03); box-shadow: 0 0 0 25px rgba(253, 181, 28, 0); }
+       50% { transform: scale(1.02); box-shadow: 0 0 0 25px rgba(253, 181, 28, 0); }
        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(253, 181, 28, 0); }
     }
 
@@ -85,6 +85,23 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     @keyframes slideUp {
        from { opacity: 0; transform: translateY(30px); }
        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .marquee-container {
+       width: 100%; overflow: hidden; white-space: nowrap; position: relative;
+       padding: 12px; border-radius: 12px; border: 1px solid;
+    }
+    
+    .marquee-text {
+       display: inline-block;
+       animation: marquee 20s linear infinite;
+       font-weight: 800; font-size: 16px;
+       letter-spacing: 2px; text-transform: uppercase;
+    }
+
+    @keyframes marquee {
+       0% { transform: translateX(50%); }
+       100% { transform: translateX(-100%); }
     }
     
     .glassy-option-btn {
@@ -111,13 +128,17 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
       display: flex; align-items: center; justify-content: center; 
       position: absolute; bottom: 24px; right: 24px; transition: all 0.3s ease;
     }
+    .glassy-cluster-card:hover .card-arrow {
+       background: ${dark ? theme.accent : theme.cardBorder};
+       color: ${dark ? '#1C1D55' : '#fff'} !important;
+    }
 
     .back-btn-modern {
       display: flex; align-items: center; gap: 8px; 
       background: ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)'};
       border: 1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}; color: ${theme.text};
       padding: 12px 20px; border-radius: 24px; font-size: 16px; font-weight: 700; cursor: pointer; 
-      transition: transform 0.1s; box-shadow: 0 8px 24px rgba(0,0,0,0.1); backdrop-filter: blur(12px);
+      transition: transform 0.1s; box-shadow: 0 8px 24px rgba(0,0,0,0.1); backdrop-filter: blur(10px);
     }
     .back-btn-modern:active { transform: scale(0.92); }
 
@@ -384,14 +405,28 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                   <div key={idx} onClick={() => setKioskCategory(item.label)} className="glassy-cluster-card" style={{ gridColumn: idx < 3 ? 'span 2' : 'span 3' }}>
                      <div style={{ color: dark ? theme.accent : theme.cardBorder, marginBottom: 16 }}>{item.icon}</div>
                      <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Browse</div>
-                     <div style={{ fontSize: 22, color: theme.text, fontWeight: 800, lineHeight: 1.2, marginTop: 4 }}>{item.label}</div>
+                     <div style={{ fontSize: 22, color: theme.text, fontWeight: 800, lineHeight: 1.2, marginTop: 4, paddingRight: 32 }}>{item.label}</div>
                      <div className="card-arrow" style={{ borderColor: dark ? theme.accent : theme.cardBorder, color: dark ? theme.accent : theme.cardBorder }}><ArrowRight size={16}/></div>
                   </div>
                ))}
             </div>
 
-            {/* HIGHLIGHTS OF THE MONTH */}
-            <div style={{ width: '100%', maxWidth: 680, marginTop: 40, marginBottom: 32, padding: '0 16px' }}>
+            {/* DOUBLE MARQUEES & HIGHLIGHTS OF THE MONTH */}
+            <div style={{ width: '100%', maxWidth: 680, marginTop: 48, marginBottom: 32, padding: '0 16px' }}>
+               
+               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', marginBottom: 32 }}>
+                  <div className="marquee-container" style={{ background: dark ? 'rgba(166, 1, 18, 0.15)' : 'rgba(166, 1, 18, 0.05)', borderColor: dark ? '#A60112' : 'rgba(166, 1, 18, 0.2)' }}>
+                     <div className="marquee-text" style={{ color: dark ? '#fff' : '#A60112' }}>
+                        #ALABBULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #ALABBULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; 
+                     </div>
+                  </div>
+                  <div className="marquee-container" style={{ background: dark ? 'rgba(253, 181, 28, 0.15)' : 'rgba(245, 170, 42, 0.1)', borderColor: dark ? '#FDB51C' : 'rgba(245, 170, 42, 0.3)' }}>
+                     <div className="marquee-text" style={{ animationDirection: 'reverse', color: dark ? '#FDB51C' : '#F5AA2A' }}>
+                        #AMPLIFIEDCIT &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #AMPLIFIEDCIT &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; 
+                     </div>
+                  </div>
+               </div>
+
                <h3 style={{ color: theme.text, fontSize: 20, fontWeight: 800, margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: 10 }}>
                   <CalendarIcon size={22} color={theme.accent} /> Highlights of the Month
                </h3>
