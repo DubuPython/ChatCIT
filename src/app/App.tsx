@@ -163,7 +163,7 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
   };
 
   return (
-    <div style={{ display: 'flex', width: '100%', maxWidth: 860, background: dark ? '#1C1D55' : '#ffffff', borderRadius: 24, boxShadow: '0 24px 60px rgba(0,0,0,0.4)', border: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)'}`, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', width: '100%', maxWidth: 860, background: dark ? '#1e2332' : '#ffffff', borderRadius: 24, boxShadow: '0 24px 60px rgba(0,0,0,0.4)', border: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)'}`, overflow: 'hidden' }}>
       <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
            <CalendarIcon size={24} color="#4285f4" />
@@ -184,12 +184,12 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
               const evts = eventsByDay[day] || [];
               const isSelected = selectedDate === day;
               
-              let cellBg = dark ? 'rgba(18, 87, 172, 0.3)' : '#f8fafc';
+              let cellBg = dark ? 'rgba(19, 20, 28, 0.6)' : '#f8fafc';
               let cellBorder = dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
               
               if (isSelected) {
-                  cellBg = dark ? 'rgba(253, 181, 28, 0.2)' : 'rgba(166, 1, 18, 0.1)';
-                  cellBorder = dark ? '#FDB51C' : '#A60112';
+                  cellBg = dark ? 'rgba(66, 133, 244, 0.15)' : 'rgba(66, 133, 244, 0.1)';
+                  cellBorder = '#4285f4';
               }
 
               return (
@@ -334,7 +334,6 @@ export default function App() {
   const [simKiosk, setSimKiosk] = useState(() => {
      if (typeof window !== 'undefined') {
         if (localStorage.getItem("permanent_kiosk") === "true") return true;
-        
         // Auto-detect large portrait displays (Android Kiosk profiles)
         const isPortrait = window.innerHeight > window.innerWidth;
         const isLargeScreen = window.innerWidth >= 600; 
@@ -347,11 +346,10 @@ export default function App() {
   const [screenState, setScreenState] = useState<"presentation" | "home" | "kiosk_result" | "chat">(simKiosk ? "presentation" : "chat");
   const [kioskCategory, setKioskCategory] = useState<string | null>(null);
   const [kioskResult, setKioskResult] = useState<any>(null);
-  const [kbOpen, setKbOpen] = useState(false); // Retained for the custom keyboard logic
+  const [kbOpen, setKbOpen] = useState(false); 
 
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && (window.innerWidth <= 1280));
   
-  // Physically lock to full view if it is a real kiosk device
   const isPhysicalKiosk = useMemo(() => {
      if (typeof window === "undefined") return false;
      return window.innerHeight >= window.innerWidth;
@@ -517,10 +515,10 @@ export default function App() {
       // Default initial mapping if empty
       setKioskMapping({
          "Faculty": ["Faculty & Professors"],
-         "Accomplishment": ["Industry Partners"],
+         "Extensions": [],
          "Student Affairs": ["Organizations", "Handbook", "Magna Carta"],
          "Curriculum": ["Majors"],
-         "Extensions": []
+         "Accomplishment": ["Industry Partners"]
       });
     }
   }, []);
@@ -575,6 +573,16 @@ export default function App() {
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
     events.forEach(e => document.addEventListener(e, resetTimer));
     return () => { clearTimeout(timeoutId); events.forEach(e => document.removeEventListener(e, resetTimer)); };
+  }, [simKiosk]);
+
+  useEffect(() => {
+    if (simKiosk) { 
+      setScreenState(localStorage.getItem('permanent_kiosk') === 'true' ? 'home' : 'screensaver'); 
+      setKioskCategory(null); setKioskResult(null); setGearMode(false); 
+      setSidebarOpen(false); setRightRailOpen(false);
+    } else {
+      if (window.innerWidth > 1280) setSidebarOpen(true);
+    }
   }, [simKiosk]);
 
   useEffect(() => {
@@ -686,20 +694,36 @@ export default function App() {
      renderPage();
   }, [pdfRef, pdfPage]);
 
-  // KIOSK VIRTUAL KEYBOARD INJECTION & NATIVE KEYBOARD BLOCKER
+  // VIRTUAL KEYBOARD & ANDROID NATIVE BLOCKER
   useEffect(() => {
     if (!simKiosk) { setKbOpen(false); return; }
+    
+    // Inject inputmode='none' globally to stop native keyboard
+    const disableSysKb = () => {
+      document.querySelectorAll('input, textarea').forEach(el => {
+        if (el.getAttribute('type') !== 'file' && el.getAttribute('inputmode') !== 'none') {
+          el.setAttribute('inputmode', 'none');
+        }
+      });
+    };
+    disableSysKb();
+    const observer = new MutationObserver(disableSysKb);
+    observer.observe(document.body, { childList: true, subtree: true });
+
     const handleFocusIn = (e: FocusEvent) => {
       const target = e.target as HTMLElement;
       if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName) && target.getAttribute('type') !== 'file') { 
-         // Force inputmode="none" to prevent Android native keyboard from squishing the layout
-         target.setAttribute('inputmode', 'none'); 
          setKbOpen(true); 
       }
     };
     const handleFocusOut = () => { setTimeout(() => { const el = document.activeElement; if (!el || !['INPUT', 'TEXTAREA'].includes(el.tagName)) { setKbOpen(false); } }, 100); };
-    window.addEventListener('focusin', handleFocusIn); window.addEventListener('focusout', handleFocusOut);
-    return () => { window.removeEventListener('focusin', handleFocusIn); window.removeEventListener('focusout', handleFocusOut); };
+    window.addEventListener('focusin', handleFocusIn); 
+    window.addEventListener('focusout', handleFocusOut);
+    return () => { 
+       observer.disconnect();
+       window.removeEventListener('focusin', handleFocusIn); 
+       window.removeEventListener('focusout', handleFocusOut); 
+    };
   }, [simKiosk]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -807,7 +831,7 @@ export default function App() {
 
          setKioskResult({ title: item, loading: true });
          try {
-            const prompt = `Tell me about ${item} in${category}`;
+            const prompt = `Tell me about ${item} in ${category}`;
             const response = await fetch(`${API_URL}/chat`, { 
                method: "POST", 
                headers: { "Content-Type": "application/json" }, 
@@ -934,11 +958,11 @@ export default function App() {
   const addCategoryToCluster = (cluster: string, cat: string) => {
      if (!cat || (kioskMapping[cluster] || []).includes(cat)) return;
      setKioskMapping(prev => ({ ...prev, [cluster]: [...(prev[cluster] || []), cat] }));
-     showToast(`Added ${cat} to${cluster}`, "success");
+     showToast(`Added ${cat} to ${cluster}`, "success");
   };
   const removeCategoryFromCluster = (cluster: string, cat: string) => {
      setKioskMapping(prev => ({ ...prev, [cluster]: (prev[cluster] || []).filter((c: string) => c !== cat) }));
-     showToast(`Removed ${cat} from${cluster}`, "info");
+     showToast(`Removed ${cat} from ${cluster}`, "info");
   };
 
   const deleteChat = (idToDelete: string) => { setChats(prev => prev.filter(c => c.id !== idToDelete)); if (activeChatId === idToDelete) { setActiveChatId(null); setViewMode("chat"); } showToast("Chat deleted successfully.", "success"); };
@@ -1026,7 +1050,7 @@ export default function App() {
   const showGearLeft = (isWebMode && gearMode && !isMobile) || (isKioskChat && gearMode);
 
   // Right Sidebar Logic
-  const showRightRail = (!useMobileLayout && isWebMode) || rightRailOpen || isKioskChat; 
+  const showRightRail = (!useMobileLayout && isWebMode) || rightRailOpen; 
 
   // Main Content Offsets
   let mainLeft = 0;
@@ -1034,7 +1058,7 @@ export default function App() {
 
   if (isKioskChat) {
      mainLeft = 0;
-     mainRight = RAIL_W; // Force gears sidebar on the right for kiosk chat
+     mainRight = 0; // Forced to 0 so the chat container expands fully. The sidebar is toggled via the hamburger menu.
   } else if (!isKioskScreensaver) {
     if (!useMobileLayout && isWebMode) {
       mainLeft = gearMode ? RAIL_W : (sidebarOpen ? SIDEBAR_W : 0);
@@ -1050,23 +1074,715 @@ export default function App() {
         * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
         [role="tablist"], .tabs-list { overflow-x: visible !important; flex-wrap: wrap !important; height: auto !important; }
         .kiosk-bug-wrapper [role="dialog"], .kiosk-bug-wrapper [class*="bg-"][class*="rounded-"] { transform: scale(1.4) !important; }
-        .kiosk-calendar-wrapper [role="dialog"], .kiosk-calendar-To get the kiosk UI running smoothly and looking polished for the BulSU students, we can fix these layout and scaling issues using some targeted HTML and CSS adjustments. 
+        .kiosk-calendar-wrapper [role="dialog"], .kiosk-calendar-wrapper [class*="bg-"][class*="rounded-"] { display: flex !important; flex-direction: column !important; width: 90vw !important; max-width: 420px !important; height: auto !important; max-height: 85vh !important; overflow-y: auto !important; overflow-x: hidden !important; transform: scale(1.15) !important; }
+        .kiosk-calendar-wrapper [role="dialog"] > *, .kiosk-calendar-wrapper [class*="bg-"][class*="rounded-"] > * { width: 100% !important; min-width: 100% !important; border-left: none !important; border-right: none !important; }
+        .theme-toggle-wrapper input[type="checkbox"] { display: none !important; opacity: 0 !important; width: 0px !important; height: 0px !important; position: absolute; z-index: -100; }
+        .sidebar-btn { width: 100%; padding: 10px 14px; border-radius: 12px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); display: flex; align-items: center; gap: 10px; border: 1px solid transparent; text-align: left; }
+        .dark-mode .sidebar-btn { background: rgba(255,255,255,0.03); color: #9aa0a6; border-color: rgba(255,255,255,0.05); }
+        .dark-mode .sidebar-btn.primary { background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.02) 100%); color: #fff; border-color: rgba(255,255,255,0.15); font-weight: 600; box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05); }
+        .dark-mode .sidebar-btn:hover { background: linear-gradient(135deg, rgba(66, 133, 244, 0.2) 0%, rgba(66, 133, 244, 0.05) 100%); border-color: rgba(66, 133, 244, 0.5); color: #fff; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .light-mode .sidebar-btn { background: rgba(255,255,255,0.1); color: #ffffff; border-color: rgba(255,255,255,0.2); }
+        .light-mode .sidebar-btn.primary { background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%); color: #1558d6; border-color: rgba(66, 133, 244, 0.3); font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .light-mode .sidebar-btn:hover { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.4); color: #ffffff; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .light-mode .sidebar-btn.primary:hover { background: linear-gradient(135deg, #ffffff 0%, #eef2ff 100%); border-color: rgba(66, 133, 244, 0.6); color: #1558d6; box-shadow: 0 4px 12px rgba(66, 133, 244, 0.15); }
+        .sidebar-btn:active { transform: scale(0.98) !important; }
+        .gear-panel-btn { width: 100%; padding: 10px 14px; border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); backdrop-filter: blur(12px); z-index: 10; position: relative; display: flex; }
+        .dark-mode .gear-panel-btn { background: linear-gradient(135deg, rgba(30, 35, 50, 0.7) 0%, rgba(15, 18, 25, 0.7) 100%); border: 1px solid rgba(66, 133, 244, 0.2); color: #e8eaed; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.05); }
+        .dark-mode .gear-panel-btn:hover { background: linear-gradient(135deg, rgba(40, 50, 75, 0.9) 0%, rgba(20, 25, 35, 0.9) 100%); border-color: rgba(66, 133, 244, 0.9); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 20px rgba(66, 133, 244, 0.4); transform: scale(1.04) translateY(-2px); color: #fff; text-shadow: 0 0 8px rgba(255,255,255,0.3); }
+        .light-mode .gear-panel-btn { background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(230, 240, 255, 0.95) 100%); border: 1px solid rgba(66, 133, 244, 0.4); color: #0f172a; box-shadow: 0 4px 12px rgba(66, 133, 244, 0.15), inset 0 2px 4px rgba(255, 255, 255, 1); }
+        .light-mode .gear-panel-btn:hover { background: linear-gradient(135deg, #ffffff 0%, rgba(220, 235, 255, 1) 100%); border-color: rgba(66, 133, 244, 0.9); box-shadow: 0 8px 24px rgba(66, 133, 244, 0.3), 0 0 20px rgba(66, 133, 244, 0.35); transform: scale(1.04) translateY(-2px); color: #1558d6; }
+        .gear-panel-btn:active { transform: scale(0.98) !important; }
+        .gear-panel-btn.is-sub { background: transparent !important; border: 1px dashed rgba(150, 150, 150, 0.3) !important; box-shadow: none !important; padding: 8px 12px; }
+        .dark-mode .gear-panel-btn.is-sub:hover { border-color: rgba(66, 133, 244, 0.6) !important; background: rgba(66, 133, 244, 0.1) !important; }
+        .light-mode .gear-panel-btn.is-sub:hover { border-color: rgba(66, 133, 244, 0.6) !important; background: rgba(66, 133, 244, 0.05) !important; }
 
-### Fixing the Accomplishment Card Overlap
-In **image_cd1d2f.png**, the word "Accomplishment" is too long and bleeds into the yellow arrow button. You can fix this by enforcing text wrapping and adjusting the layout of the card so the text and button are separated. 
-* Add `overflow-wrap: break-word;` to the text element so it wraps to a new line instead of overflowing.
-* Use a flexbox layout on the card container to keep the text and button properly spaced.
+        @media (max-width: 768px) {
+          .admin-panel-wrapper { overflow-x: hidden; width: 100%; }
+          .admin-panel-wrapper table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; border-collapse: collapse; }
+          .admin-panel-wrapper [class*="grid-cols-"] { grid-template-columns: 1fr !important; gap: 12px !important; }
+          .admin-panel-wrapper input, .admin-panel-wrapper textarea { max-width: 100%; }
+        }
+      `}</style>
+      
+      {/* Background to blackout around the simulated iPad */}
+      {simKiosk && <div style={{ position: "fixed", inset: 0, background: "#0a0a0a", zIndex: 99998 }} />}
 
-```css
-.browse-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px; /* Creates breathing room between text and button */
-}
+      <div className={dark ? "dark-mode" : "light-mode"} style={containerStyle}>
 
-.browse-title {
-  overflow-wrap: break-word;
-  word-wrap: break-word;
-  max-width: 70%; /* Prevents text from reaching the button */
+        {/* 1. KIOSK SCREENSAVER & DIRECTORY RESULTS */}
+        {(simKiosk && (screenState === "presentation" || screenState === "home" || screenState === "kiosk_result")) && (
+          <KioskScreen 
+            dark={dark} screenState={screenState} setScreenState={setScreenState} kioskCategory={kioskCategory} setKioskCategory={setKioskCategory}
+            kioskResult={kioskResult} setKioskResult={setKioskResult} handleKioskSelection={handleKioskSelection} topRightButtons={topRightButtons}
+            setFullScreenMedia={setFullScreenMedia} setShowCalendar={setShowCalendar}
+            kioskMapping={kioskMapping} setKioskMapping={setKioskMapping} allSidebarCategories={allSidebarCategories} isAdmin={currentUser?.role === 'admin' || currentUser?.role === 'superadmin'}
+          />
+        )}
+
+        {/* UI PROMPTS */}
+        {uiPrompt && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div style={{ background: bg, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, borderRadius: 12, padding: 24, width: '100%', maxWidth: 400, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)' }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 600, color: textPrimary }}>{uiPrompt.title}</h3>
+              <input 
+                type="text" autoFocus id="ui-prompt-input" 
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', color: textPrimary, outline: 'none', marginBottom: 20 }} 
+                onKeyDown={(e) => { if (e.key === 'Enter') { const val = (e.target as HTMLInputElement).value; if(val.trim()){ uiPrompt.onSubmit(val.trim()); setUiPrompt(null); } } }} 
+              />
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button onClick={() => setUiPrompt(null)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'transparent', color: textMuted, cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
+                <button onClick={() => { const val = (document.getElementById('ui-prompt-input') as HTMLInputElement).value; if(val.trim()){ uiPrompt.onSubmit(val.trim()); setUiPrompt(null); } }} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#4285f4', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>Save</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showResetModal && (
+          <div style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 1000000, background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)", padding: 20 }}>
+             <div style={{ position: "relative", width: "100%", maxWidth: 380, padding: 24, background: dark ? "#1e1e24" : "#ffffff", borderRadius: 20, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", border: dark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.05)" }}>
+                <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, color: textPrimary }}>Reset Password</h2>
+                <p style={{ fontSize: 13, color: textMuted, marginBottom: 20 }}>Enter your new password below to regain access to your account.</p>
+                <input type="password" placeholder="New Password (min 6 chars)" value={newPassword} onChange={e => setNewPassword(e.target.value)} style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: dark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)", background: dark ? "rgba(0,0,0,0.2)" : "#f9fafb", color: textPrimary, fontSize: 14, marginBottom: 16, outline: "none" }} />
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => { setShowResetModal(false); setResetToken(null); setNewPassword(""); }} style={{ flex: 1, padding: "10px 0", borderRadius: 12, background: "transparent", border: dark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)", color: textPrimary, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+                  <button onClick={handlePasswordReset} disabled={isResetting} style={{ flex: 1, padding: "10px 0", borderRadius: 12, background: "#4285f4", border: "none", color: "#fff", fontWeight: 600, cursor: isResetting ? "not-allowed" : "pointer", opacity: isResetting ? 0.7 : 1 }}>{isResetting ? "Saving..." : "Save Password"}</button>
+                </div>
+             </div>
+          </div>
+        )}
+
+        {showAuthPopup && (
+          <div style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 1000000, background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)", padding: 20 }}>
+             <div style={{ position: "relative", width: "100%", maxWidth: 380, background: dark ? "#1e1e24" : "#ffffff", borderRadius: 20, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", border: dark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.05)" }}>
+                <button onClick={() => setShowAuthPopup(false)} style={{ position: "absolute", top: 16, right: 16, zIndex: 50, background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", border: "none", color: textPrimary, width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"} onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}><X size={18} /></button>
+                <AuthScreen dark={dark} initialIsLogin={authMode === "login"} onSuccess={(userData: ChatUser, userChats: Chat[]) => { setCurrentUser(userData); setChats(userChats); setViewMode("chat"); setShowAuthPopup(false); showToast(`Welcome back, ${userData.username || 'Bulsuan'}!`, "success"); }} />
+             </div>
+          </div>
+        )}
+
+        {/* TOASTS */}
+        <div style={{ position: "absolute", bottom: 24, right: 24, zIndex: 1000001, display: "flex", flexDirection: "column", gap: 10 }}>
+          {toasts.map((t: ToastMsg) => (
+            <div key={t.id} style={{ background: dark ? '#25242c' : '#fff', border: `1px solid ${t.type === 'error' ? '#ef4444' : t.type === 'success' ? '#10b981' : '#4285f4'}`, color: textPrimary, padding: "12px 16px", borderRadius: 8, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.2)", fontSize: 14, fontWeight: 500, minWidth: 280, animation: "badgePop 0.3s cubic-bezier(0.2, 1.5, 0.5, 1)" }}>
+              {t.type === 'success' && <CheckCircle size={18} color="#10b981" />}
+              {t.type === 'error' && <AlertCircle size={18} color="#ef4444" />}
+              {t.type === 'info' && <Info size={18} color="#4285f4" />}
+              {t.message}
+            </div>
+          ))}
+        </div>
+
+        {/* MOBILE OVERLAYS */}
+        {(useMobileLayout) && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
+        {(useMobileLayout) && rightRailOpen && <div onClick={() => setRightRailOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} />}
+
+        {/* 2. CHAT & ADMIN INTERFACES (Visible in Web Mode AND Kiosk Chat Mode) */}
+        {!isKioskScreensaver && (
+          <>
+            {/* LEFT SIDEBAR (STANDARD BLUE WEB UI) */}
+            {(!gearMode) && (
+              <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: sbBg, position: "absolute", top: 0, bottom: 0, left: (isMobile || simKiosk) ? (sidebarOpen ? 0 : -SIDEBAR_W) : (sidebarOpen ? 0 : -SIDEBAR_W), zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: (isMobile || simKiosk) && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
+                <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, background: sbBg }}>
+                  
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', color: '#ffffff' }}>
+                        Chat<span style={{ color: dark ? '#60a5fa' : '#7dd3fc' }}>CIT</span>
+                      </div>
+                    </div>
+                    <button onClick={() => setSidebarOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: sb.muted, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <ArrowLeft size={18} />
+                    </button>
+                  </div>
+
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                    <div style={{ padding: "12px 12px 0 12px", display: "flex", flexDirection: "column", height: "100%", overflowY: "auto" }}>
+                      
+                      {viewMode === "admin" ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
+                          <button onClick={() => { setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); }} className="sidebar-btn primary"><ArrowLeft size={16} /> Back to Chat</button>
+                          
+                          {/* NEW KIOSK EDITOR TAB */}
+                          <button onClick={() => { setAdminTab("kiosk"); if(useMobileLayout) setSidebarOpen(false); }} className={`sidebar-btn ${adminTab === 'kiosk' ? 'primary' : ''}`}>
+                            <LayoutGrid size={16} /> Kiosk Editor
+                          </button>
+
+                          <div style={{ marginTop: 8 }}>
+                            <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Database Categories</span></div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                              {["All", ...allSidebarCategories].map(cat => (
+                                <div key={cat} style={{ display: "flex", alignItems: "center", gap: 4, width: "100%" }}>
+                                  <button onClick={() => { setAdminTab('knowledge'); setAdminCategory(cat); setAdminDept("All"); if(useMobileLayout) setSidebarOpen(false); }} className={`sidebar-btn ${adminTab === 'knowledge' && adminCategory === cat ? 'primary' : ''}`} style={{ flex: 1, paddingRight: 0 }}>
+                                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "left" }}>
+                                      {cat.replace('Teachers', 'Professors')}
+                                    </span>
+                                  </button>
+                                  {cat !== 'All' && cat !== 'General' && (
+                                    <div style={{ display: "flex", gap: 2 }}>
+                                      <button onClick={() => handleRenameCategory(cat)} style={{ background: "none", border: "none", color: sb.muted, cursor: "pointer", padding: "6px 4px", display: "flex", alignItems: "center" }} title="Rename Category">
+                                        <Edit2 size={13} />
+                                      </button>
+                                      <button onClick={() => handleDeleteCategory(cat)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: "6px 4px", display: "flex", alignItems: "center" }} title="Delete Category">
+                                        <Trash2 size={13} />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                              <button 
+                                 onClick={() => setUiPrompt({ 
+                                    isOpen: true, title: "Enter new category name:", 
+                                    onSubmit: (val) => { 
+                                       setCustomCategories(p => Array.from(new Set([...p, val]))); 
+                                       setAdminTab('knowledge');
+                                       setAdminCategory(val); 
+                                       setAdminDept("All"); 
+                                       showToast(`Added custom tab: ${val}`, "success"); 
+                                    } 
+                                 })} 
+                                 className="sidebar-btn" style={{ border: `1px dashed ${sb.faint}` }}
+                              >
+                                 <Plus size={14}/> Add Custom Tab
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div style={{ marginTop: 8 }}>
+                            <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Departments Filter</span></div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                              {["All", "Computer Technology", "Food Processing Technology", "Drafting and Digital Arts Technology", "Welding Technology", "Automotive Technology", "Electrical Technology", "Electronics Technology", "Mechanical Technology", "H/VAC Technology", "Mechatronics Technology"].map(dept => (<button key={dept} onClick={() => { setAdminTab('users'); setAdminDept(dept); if(useMobileLayout) setSidebarOpen(false); }} className={`sidebar-btn ${adminTab === 'users' && adminDept === dept ? 'primary' : ''}`}>{dept}</button>))}
+                            </div>
+                          </div>
+                          {adminTab !== 'knowledge' && adminTab !== 'users' && adminTab !== 'kiosk' && (
+                            <div style={{ padding: "24px 4px", textAlign: "center", color: sb.faint, fontSize: 12 }}>Select a tab to view settings.</div>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
+                            <button onClick={() => requireAuth(() => {setActiveChatId(null); setDirectoryMode(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false);})} className="sidebar-btn primary" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer" }}>
+                              <Plus size={16} /> New chat
+                            </button>
+                            {/* Hide taskbar mode switch in permanent kiosk */}
+                            {isWebMode && localStorage.getItem('permanent_kiosk') !== 'true' && (
+                              <button onClick={() => { setGearMode(true); if(useMobileLayout) setSidebarOpen(false); }} className="sidebar-btn" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, cursor: "pointer" }}>
+                                <Settings size={15} /> Change taskbar mode
+                              </button>
+                            )}
+                          </div>
+
+                          <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Quick Prompts</span></div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 24 }}>
+                            {QUICK_PROMPTS.map((lbl: string) => (
+                              <button key={lbl} onClick={() => { 
+                                 if(useMobileLayout) setSidebarOpen(false);
+                                 const lower = lbl.toLowerCase();
+                                 const isDoc = lower === 'handbook' || lower === 'magna carta' || lower.includes('form');
+                                 const matchedCat = getCategoryMatch(lbl);
+                                 
+                                 if (isDoc) {
+                                    requireAuth(() => { sendMessage(lbl); });
+                                 } else if (matchedCat) {
+                                    setDirectoryMode(matchedCat); 
+                                 } else {
+                                    requireAuth(() => { sendMessage(lbl); }); 
+                                 }
+                              }} className="sidebar-btn">{lbl.replace('Teachers', 'Professors')}</button>
+                            ))}
+                          </div>
+                          
+                          {currentUser && Number(currentUser.id) !== -1 && chats.length > 0 && (
+                            <>
+                              <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Recent</span></div>
+                              <div style={{ maxHeight: 250, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
+                                {chats.slice(0, 5).map((chat: Chat) => (
+                                  <div key={chat.id} className="group" style={{ display: "flex", alignItems: "center", width: "100%", gap: 4 }}>
+                                    <button onClick={() => requireAuth(() => { setActiveChatId(chat.id); setDirectoryMode(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); })} 
+                                      className={`sidebar-btn ${activeChatId === chat.id && viewMode === "chat" ? 'primary' : ''}`}
+                                      style={{ flex: 1, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` }}
+                                    >
+                                      {chat.title}
+                                    </button>
+                                    <button onClick={(e) => { e.stopPropagation(); requireAuth(() => deleteChat(chat.id)); }} 
+                                      style={{ padding: "10px", background: "transparent", border: "none", color: sb.muted, cursor: "pointer", transition: "color 0.2s" }}
+                                      onMouseEnter={e => e.currentTarget.style.color = "#ef4444"} onMouseLeave={e => e.currentTarget.style.color = sb.muted} title="Delete Chat"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ padding: "16px 12px 18px", borderTop: `1px solid ${sb.border}`, flexShrink: 0 }}>
+                    {currentUser && Number(currentUser.id) === -1 ? (
+                      <div style={{ display: "flex", gap: 8, width: "100%" }}>
+                        <button onClick={() => { setAuthMode("login"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "#fff", color: "#1a1a2e", fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", transition: "opacity 0.2s" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.9"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Log in</button>
+                        <button onClick={() => { setAuthMode("signup"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 13, fontWeight: 600, border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}>Sign up</button>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div onClick={() => setShowProfileModal(true)} style={{ cursor: "pointer", transition: "transform 0.2s" }} onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"} onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}><Avatar name={currentUser?.username || currentUser?.email || "User"} size={34} bg="#7c3aed" /></div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: sb.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentUser?.username || currentUser?.email?.split('@')[0]}</div>
+                          <div style={{ fontSize: 11, color: sb.faint }}>{currentUser?.role === 'superadmin' ? 'Superadmin' : currentUser?.role === 'admin' ? 'Administrator' : 'Student'}</div>
+                        </div>
+                        <button onClick={() => setShowProfileModal(true)} style={{ color: sb.muted, background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Edit Profile"><UserCog size={15} /></button>
+                        {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(useMobileLayout) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#fff" : sb.muted, background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Admin Dashboard"><Database size={15} /></button>}
+                        <button onClick={handleLogout} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 5 }} title="Logout"><LogOut size={15} /></button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </aside>
+            )}
+
+            {/* LEFT SIDEBAR (GEAR TASKBAR MODE) */}
+            {showGearLeft && (
+              <aside style={{ width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0, left: sidebarOpen ? 0 : -RAIL_W, zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: (isMobile || simKiosk) && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
+                <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, left: 0 }}>
+                  <GearAbs id="g-left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => i + 1); }} />
+                  <GearAbs id="g-left-mid" side="left" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-leftAngle * RATIO + (180 / N_LG)} onClick={() => { setLeftAngle(a => a + STEP_DEG); setMidIdx(i => (i + 1) % MID_CHOICES.length); }} />
+                  <GearAbs id="g-left-bot" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => i + 1); }} />
+                </div>
+                
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-start", padding: "14px 16px 0", zIndex: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                    {currentUser && Number(currentUser.id) !== -1 ? (
+                      <>
+                        <Avatar name={currentUser?.username || currentUser?.email || "User"} size={30} bg="#7c3aed" />
+                        <div style={{ fontSize: 13, fontWeight: 600, color: textPrimary, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentUser?.username || currentUser?.email.split('@')[0]}</div>
+                        {!simKiosk && <button onClick={() => setShowProfileModal(true)} style={{ color: textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Edit Profile"><UserCog size={15} /></button>}
+                        {!simKiosk && (currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(useMobileLayout) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#4285f4" : textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Admin Panel"><Database size={15} /></button>}
+                        {!simKiosk && <button onClick={handleLogout} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Logout"><LogOut size={15} /></button>}
+                      </>
+                    ) : (
+                      <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+                        <button onClick={() => { setAuthMode("login"); setShowAuthPopup(true); }} style={{ padding: "6px 16px", borderRadius: 20, background: dark ? "#fff" : "#1a1a2e", color: dark ? "#1a1a2e" : "#fff", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}>Log in to Save Chats</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {[
+                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: "Quick Prompts", value: QUICK_PROMPTS.length > 0 ? QUICK_PROMPTS[quickIdx % QUICK_PROMPTS.length] : "No Data", onPick: () => { 
+                    const lbl = QUICK_PROMPTS.length > 0 ? QUICK_PROMPTS[quickIdx % QUICK_PROMPTS.length] : null;
+                    if (!lbl || lbl === "No Data") return;
+                    
+                    if(useMobileLayout) setSidebarOpen(false);
+                    const lower = lbl.toLowerCase();
+                    const isDoc = lower === 'handbook' || lower === 'magna carta' || lower.includes('form');
+                    const matchedCat = getCategoryMatch(lbl);
+
+                    if (isDoc) {
+                       requireAuth(() => { sendMessage(lbl); });
+                    } else if (matchedCat) {
+                       setDirectoryMode(matchedCat); 
+                    } else {
+                       requireAuth(() => { sendMessage(lbl); }); 
+                    }
+                  }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => i + 1); } },
+                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: "", value: MID_CHOICES[midIdx], onPick: () => { if (midIdx === 0) { requireAuth(() => { setActiveChatId(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); }); } else { setGearMode(false); if(useMobileLayout) setSidebarOpen(false); } }, mid: true },
+                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: "Recent", value: chats.length > 0 ? chats[recentsIdx % chats.length].title : "No chats", onPick: () => requireAuth(() => { if(chats.length) { setActiveChatId(chats[recentsIdx % chats.length].id); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); } }), onGear: () => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => i + 1); }, sub: chats.length > 0 ? "Past Conversation" : "" },
+                ].map((p: any, i: number) => {
+                  const isMidBtn = p.mid;
+                  return (
+                    <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "left", left: GEAR_VIS, top: p.y, zIndex: 10 }}>
+                      {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "left" }}>{p.label}</div>}
+                      
+                      <button 
+                        onClick={p.onPick} 
+                        className={`gear-panel-btn ${p.sub ? 'is-sub' : ''}`}
+                        style={{
+                          flexDirection: isMidBtn ? "row" : "column",
+                          alignItems: isMidBtn ? "center" : "flex-start",
+                          justifyContent: isMidBtn ? "flex-start" : "center",
+                          gap: isMidBtn ? "8px" : "0",
+                          textAlign: "left"
+                        }}
+                      >
+                        {isMidBtn && (midIdx === 0 ? <Plus size={16} style={{ flexShrink: 0 }} /> : <Settings size={16} style={{ flexShrink: 0 }} />)}
+                        
+                        {p.sub ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', width: '100%', alignItems: 'flex-start' }}>
+                            <div style={{ width: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.value}</div>
+                            <div style={{ fontSize: 10, color: textFaint, marginTop: 4, fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase" }}>{p.sub}</div>
+                          </div>
+                        ) : (
+                          <span style={{ display: "block", width: "100%", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>
+                            {isMidBtn && midIdx === 0 ? p.value.replace(/^\+\s*/, '') : p.value.replace('Teachers', 'Professors')}
+                          </span>
+                        )}
+                      </button>
+                      <div style={{ fontSize: 10, color: textFaint, marginTop: 8, opacity: 0.8, fontWeight: 500, textAlign: "left" }}>click gear to cycle</div>
+                    </div>
+                  );
+                })}
+              </aside>
+            )}
+
+            {/* MAIN CHAT & ADMIN INTERFACE */}
+            <main style={{ 
+              flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "absolute",
+              top: 0, bottom: 0, 
+              left: mainLeft, 
+              right: mainRight, 
+              paddingBottom: kbOpen ? 360 : 0, transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+            }}>
+              <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: useMobileLayout ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
+                
+                {/* LEFT HEADER ZONE */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
+                  {((useMobileLayout) || (!gearMode && !sidebarOpen)) && (
+                    <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", zIndex: 60 }}><Menu size={22} /></button>
+                  )}
+                  
+                  {isKioskChat && (
+                    <button 
+                      onClick={() => { setScreenState("home"); setKioskCategory(null); setKioskResult(null); setActiveChatId(null); setDirectoryMode(null); setSidebarOpen(false); setRightRailOpen(false); }} 
+                      style={{ background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, color: dark ? '#fff' : '#0f172a', padding: '8px 16px', borderRadius: 24, fontSize: 15, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: "transform 0.1s" }}
+                      onMouseEnter={e => e.currentTarget.style.transform = "scale(0.95)"}
+                      onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                    >
+                      <ArrowLeft size={18} /> Home
+                    </button>
+                  )}
+
+                  {(!isKioskChat && (useMobileLayout || (!gearMode && !sidebarOpen))) && (
+                    <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.5px' }}>
+                      <span style={{ color: dark ? '#fff' : '#0f172a' }}>Chat</span><span style={{ color: '#4285f4' }}>CIT</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* CENTER HEADER ZONE */}
+                {((isKioskChat) || (isWebMode && !useMobileLayout && gearMode)) && (
+                  <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.5px' }}>
+                      <span style={{ color: dark ? '#fff' : '#0f172a' }}>Chat</span><span style={{ color: '#4285f4' }}>CIT</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* RIGHT HEADER ZONE */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, flex: 1 }}>
+                  {(useMobileLayout || isKioskChat) ? (
+                    <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer", zIndex: 60 }}>
+                      <MoreVertical size={28} color={dark ? "#FDB51C" : "#A60112"} />
+                    </button>
+                  ) : (
+                    (viewMode === 'admin' && !simKiosk) && (
+                       topRightButtons
+                    )
+                  )}
+                </div>
+              </header>
+
+              <div id="chat-scroll-container" className="no-scrollbar" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", WebkitOverflowScrolling: "touch", display: "flex", flexDirection: "column" }}>
+                {viewMode === "admin" && currentUser && !simKiosk ? (
+                  <div className="admin-panel-wrapper" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, paddingBottom: useMobileLayout ? 120 : 24, display: "flex", flexDirection: "column" }}>
+                    
+                    {adminTab === 'kiosk' ? (
+                       <div style={{ flex: 1, overflowY: "auto", padding: "32px", WebkitOverflowScrolling: "touch" }}>
+                          <h2 style={{ fontSize: 28, fontWeight: 800, color: textPrimary, marginBottom: 8 }}>Kiosk Layout Editor</h2>
+                          <p style={{ color: textMuted, marginBottom: 32 }}>Map your databank categories and folders to the 5 main Kiosk Clusters.</p>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+                             {["Faculty", "Extensions", "Student Affairs", "Curriculum", "Accomplishment"].map(cluster => (
+                                <div key={cluster} style={{ background: dark ? 'rgba(255,255,255,0.03)' : '#fff', border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column' }}>
+                                   <h3 style={{ fontSize: 18, fontWeight: 700, color: textPrimary, margin: '0 0 16px' }}>{cluster}</h3>
+                                   
+                                   <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                                      <select id={`select-${cluster}`} style={{ flex: 1, padding: 10, borderRadius: 8, background: dark ? 'rgba(0,0,0,0.2)' : '#f1f5f9', color: textPrimary, border: 'none', outline: 'none' }}>
+                                         <option value="" style={{ color: '#000' }}>Add category...</option>
+                                         {allSidebarCategories.filter(c => !(kioskMapping[cluster] || []).includes(c)).map(c => (
+                                            <option key={c} value={c} style={{ color: '#000' }}>{c}</option>
+                                         ))}
+                                         {!allSidebarCategories.includes('Handbook') && !(kioskMapping[cluster] || []).includes('Handbook') && <option value="Handbook" style={{ color: '#000' }}>Handbook</option>}
+                                         {!allSidebarCategories.includes('Magna Carta') && !(kioskMapping[cluster] || []).includes('Magna Carta') && <option value="Magna Carta" style={{ color: '#000' }}>Magna Carta</option>}
+                                      </select>
+                                      <button onClick={() => {
+                                         const sel = document.getElementById(`select-${cluster}`) as HTMLSelectElement;
+                                         if (sel.value) { addCategoryToCluster(cluster, sel.value); sel.value = ""; }
+                                      }} style={{ background: '#4285f4', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>Add</button>
+                                   </div>
+
+                                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+                                      {(kioskMapping[cluster] || []).map(cat => (
+                                         <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: dark ? 'rgba(0,0,0,0.3)' : '#f8fafc', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
+                                            <span style={{ fontSize: 14, fontWeight: 600, color: textPrimary }}>{cat.replace('Teachers', 'Professors')}</span>
+                                            <button onClick={() => removeCategoryFromCluster(cluster, cat)} style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', border: 'none', width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Trash2 size={14} /></button>
+                                         </div>
+                                      ))}
+                                      {!(kioskMapping[cluster] || []).length && <div style={{ textAlign: 'center', color: textFaint, fontSize: 13, marginTop: 20 }}>No items assigned.</div>}
+                                   </div>
+                                </div>
+                             ))}
+                          </div>
+                       </div>
+                    ) : (
+                       <div style={{ flex: 1, overflowY: "auto", padding: "16px", WebkitOverflowScrolling: "touch" }}>
+                         <AdminPanel 
+                            dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allSidebarCategories} 
+                            mergedSubCategoriesMap={mergedSubCategoriesMap} 
+                            setDbCategories={setDbCategories} setDbSubCategories={setDbSubCategories} 
+                            fetchData={fetchGlobalKnowledge}
+                            layoutConfig={layoutConfig}
+                            saveLayoutConfig={saveLayoutConfig}
+                            syncTrigger={syncTrigger}
+                         />
+                       </div>
+                    )}
+                  </div>
+                ) : directoryMode ? (
+                  <ChatDirectory 
+                     dark={dark} 
+                     category={directoryMode} 
+                     onClose={() => setDirectoryMode(null)} 
+                     onCardClick={(name) => handleKioskSelection(directoryMode, name)} 
+                  />
+                ) : !activeChat || activeChat.messages.length === 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, padding: "48px 16px" }}>
+                    <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}><div style={{ position: "absolute", transform: useMobileLayout ? "scale(0.65)" : "scale(0.85)" }}><GearboxLoader /></div></div>
+                    <h1 style={{ fontSize: useMobileLayout ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{currentUser && Number(currentUser.id) === -1 ? "CITizen" : currentUser?.username || currentUser?.email?.split('@')[0] || "CITizen"}!</strong></h1>
+                    <p style={{ color: textMuted, fontSize: 15, marginBottom: 32, textAlign: "center" }}>How can I help you today?</p>
+                    
+                    {topFaqs.length > 0 && (!currentUser || Number(currentUser.id) !== -1) && (
+                      <div className="no-scrollbar" style={{ width: "100%", maxWidth: 700, display: "flex", justifyContent: "center", padding: "4px 16px" }}>
+                        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10 }}>
+                          {topFaqs.slice(0, useMobileLayout ? 5 : topFaqs.length).map((faq, idx) => {
+                            const primaryTag = faq.display_name || (faq.keyword ? faq.keyword.split(',')[0].trim() : "Question");
+                            return (
+                              <button 
+                                key={idx} 
+                                onClick={() => sendMessage(primaryTag)} 
+                                style={{ flexShrink: 0, padding: "10px 18px", borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? "rgba(255,255,255,0.03)" : "#fff", color: textPrimary, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "normal", wordBreak: "break-word", maxWidth: "100%", lineHeight: 1.4, textAlign: "center" }} 
+                                onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.08)" : "#ffffff"} 
+                                onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.03)" : "#fff"}
+                              >
+                                {primaryTag}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ maxWidth: 960, width: "100%", margin: "0 auto", padding: useMobileLayout ? "16px 12px" : "24px 16px", display: "flex", flexDirection: "column", gap: 24, flexShrink: 0 }}>
+                    {(() => {
+                      const seenPics = new Set<string>();
+                      return activeChat.messages.map((msg: Message) => {
+                        let displayPics = msg.pictures;
+                        if (msg.role === 'model' && msg.pictures) {
+                           displayPics = msg.pictures.filter(p => !seenPics.has(p));
+                           msg.pictures.forEach(p => seenPics.add(p));
+                        }
+                        return <ChatMessageBubble key={msg.id} msg={{...msg, pictures: displayPics}} dark={dark} currentUser={currentUser} isMobile={useMobileLayout} onEnlarge={setFullScreenMedia} onOpenIframe={setFullScreenPdf} onLoad={scrollToBottom} />;
+                      });
+                    })()}
+                    {isTyping && (<div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}><div style={{ flexShrink: 0, marginTop: 4, width: 28, height: 28, display: "flex", justifyContent: "center", alignItems: "center" }}><Bot color={dark ? "#60a5fa" : "#2563eb"} size={28} className="animate-pulse" /></div><div style={{ paddingTop: 3 }}><ChatLoader /></div></div>)}
+                    <div ref={messagesEndRef} />
+                  </div>
+                )}
+              </div>
+
+              {viewMode === "chat" && !directoryMode && (
+                <div style={{ flexShrink: 0, padding: useMobileLayout ? "8px 12px 12px" : "8px 16px 16px" }}>
+                  <div style={{ maxWidth: 960, width: "100%", margin: "0 auto" }}>
+                    <div onClick={scrollToBottom} onFocus={scrollToBottom}>
+                      <CosmicInput input={input} setInput={setInput} onSend={() => sendMessage()} isTyping={isTyping} dark={dark} />
+                    </div>
+                    <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, color: textFaint, letterSpacing: "0.2px" }}>ChatCIT is AI. By using it, you agree to our <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Terms</span> & <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Privacy Policy</span>.</div>
+                  </div>
+                </div>
+              )}
+            </main>
+
+            {/* RIGHT SIDEBAR (ADMIN OR GEARS) */}
+            {(viewMode === 'admin' || rightRailOpen || (!useMobileLayout && !gearMode) || isKioskChat) && (
+              <aside style={{ width: RAIL_W, flexShrink: 0, background: (viewMode === 'admin' && !simKiosk) ? sbBg : bg, position: "absolute", top: 0, bottom: 0, right: (useMobileLayout || isKioskChat) ? (rightRailOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: (useMobileLayout || isKioskChat) && rightRailOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
+                {viewMode === 'admin' && !simKiosk ? (
+                   <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: sbBg, borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
+                         <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
+                           <Folder size={18} /> Sub-Categories
+                         </div>
+                      </div>
+                      
+                      {adminTab === 'knowledge' ? (
+                          <div style={{ padding: "12px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                             {['All', ...(mergedSubCategoriesMap[adminCategory] || [])].map(sub => (
+                                <div key={sub} style={{ display: "flex", alignItems: "center", gap: 4, width: "100%" }}>
+                                  <button onClick={() => { setAdminDept(sub); }} className={`sidebar-btn ${adminDept === sub ? 'primary' : 'is-sub'}`} style={{ flex: 1, paddingLeft: 12 }}>
+                                    {sub}
+                                  </button>
+                                  {sub !== 'All' && (
+                                    <div style={{ display: "flex", gap: 2 }}>
+                                      <button onClick={() => handleRenameSubCategory(adminCategory, sub)} style={{ background: "none", border: "none", color: sb.muted, cursor: "pointer", padding: 6, display: "flex", alignItems: "center" }} title="Rename Subcategory">
+                                        <Edit2 size={13} />
+                                      </button>
+                                      <button onClick={() => handleDeleteSubCategory(adminCategory, sub)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 6, display: "flex", alignItems: "center" }} title="Delete Subcategory">
+                                        <Trash2 size={13} />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                             ))}
+                             <button 
+                                onClick={() => setUiPrompt({ 
+                                   isOpen: true, title: "Enter new sub-category (folder):", 
+                                   onSubmit: (val) => { setCustomSubCats((prev: {cat: string, sub: string}[]) => [...prev, {cat: adminCategory, sub: val}]); setAdminDept(val); showToast(`Added sub-category: ${val}`, "success"); } 
+                                })} 
+                                className="sidebar-btn is-sub" style={{ border: `1px dashed ${sb.faint}`, marginTop: 8 }}
+                             >
+                                <Plus size={14}/> Add Sub-category
+                             </button>
+                          </div>
+                      ) : (
+                          <div style={{ padding: 24, textAlign: "center", color: sb.faint, fontSize: 13, lineHeight: 1.5 }}>
+                             Select 'Database' tab on the left to manage folders here.
+                          </div>
+                      )}
+                   </div>
+                ) : (
+                   <>
+                      {/* ONLY show gears on normal web UI */}
+                      {(!simKiosk) && (
+                        <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, right: 0 }}>
+                          <GearAbs id="g-right-top" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); }} />
+                          <GearAbs id="g-right-mid" side="right" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-rightAngle * RATIO + (180 / N_LG)} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); }} />
+                          <GearAbs id="g-right-bot" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); }} />
+                        </div>
+                      )}
+                      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "14px 16px 0", zIndex: 20 }}>
+                        {topRightButtons}
+                      </div>
+                      
+                      {/* ONLY show gear floating buttons on normal web UI */}
+                      {!simKiosk && [
+                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: gear1Cat, value: gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : "No Data", onPick: () => { 
+                            const item = gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : null;
+                            if(item && item !== "No Data") {
+                                requireAuth(() => { handleKioskSelection(gear1Cat, item); });
+                            }
+                        }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); } },
+                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: gear2Cat, value: gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : "No Data", onPick: () => { 
+                            const item = gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : null;
+                            if(item && item !== "No Data") {
+                                requireAuth(() => { handleKioskSelection(gear2Cat, item); });
+                            }
+                        }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); } },
+                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: gear3Cat, value: gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : "No Data", onPick: () => { 
+                            const item = gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : null;
+                            if(item && item !== "No Data") {
+                                requireAuth(() => { handleKioskSelection(gear3Cat, item); });
+                            }
+                        }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); } },
+                      ].map((p: any, i: number) => (
+                        <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "right", right: GEAR_VIS, top: p.y, zIndex: 10 }}>
+                          {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "right" }}>{p.label}</div>}
+                          <button onClick={p.onPick} className="gear-panel-btn" style={{ flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: "0", textAlign: "right" }}>
+                            <span style={{ display: "block", width: "100%", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>{p.value}</span>
+                          </button>
+                          <div style={{ fontSize: 10, color: textFaint, marginTop: 8, opacity: 0.8, fontWeight: 500, textAlign: "right" }}>click gear to cycle</div>
+                        </div>
+                      ))}
+                   </>
+                )}
+              </aside>
+            )}
+          </>
+        )}
+        
+        {/* MODAL TRAP (PROFILE, BUGS, ACADEMIC CALENDAR) */}
+        {(showProfileModal || showBugModal || showCalendar) && (
+          <div className="kiosk-modal-trap" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999998, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {showProfileModal && currentUser && (
+                <div className={simKiosk ? "kiosk-bug-wrapper" : ""} style={{ pointerEvents: 'auto', display: 'flex', justifyContent: 'center', width: '100%' }}>
+                    <ProfileModal dark={dark} user={currentUser} onClose={() => setShowProfileModal(false)} onUpdate={(updated: ChatUser) => { setCurrentUser(updated); showToast("Profile updated successfully!", "success"); }} showToast={showToast} />
+                </div>
+            )}
+            {showBugModal && (
+                <div className={simKiosk ? "kiosk-bug-wrapper" : ""} style={{ pointerEvents: 'auto', display: 'flex', justifyContent: 'center', width: '100%' }}>
+                    <BugModal dark={dark} user={currentUser} onClose={() => setShowBugModal(false)} showToast={showToast} />
+                </div>
+            )}
+            
+            {/* WEB CALENDAR MODAL */}
+            {showCalendar && (
+                <div className={simKiosk ? "kiosk-calendar-wrapper" : ""} style={{ pointerEvents: 'auto', display: 'flex', justifyContent: 'center', width: '100%' }}>
+                    <WebCalendarModal dark={dark} setShowCalendar={setShowCalendar} currentUser={currentUser} API_URL={API_URL} showToast={showToast} />
+                </div>
+            )}
+          </div>
+        )}
+
+        {/* CUSTOM VIRTUAL KEYBOARD */}
+        {simKiosk && kbOpen && (
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "16px 8px 32px", background: dark ? "rgba(28, 27, 34, 0.98)" : "rgba(229, 231, 235, 0.98)", backdropFilter: "blur(20px)", borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, zIndex: 999999, display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 -10px 40px rgba(0,0,0,0.5)", animation: "slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }}>
+            {virtualKeyRows.map((row, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "center", gap: 8 }}>
+                {row.map(k => (
+                  <button 
+                    key={k} 
+                    onMouseDown={(e) => handleVirtualKeyPress(k, e)} 
+                    style={{ 
+                      padding: "16px 0", flex: k === 'SPACE' ? 2.5 : (k === 'ENTER' || k === 'BACK' || k === 'CLOSE') ? 1.5 : 1, 
+                      maxWidth: k.length === 1 ? 64 : 'none', fontSize: 18, fontWeight: 600, 
+                      background: k === 'ENTER' ? '#4285f4' : k === 'CLOSE' ? '#ef4444' : (dark ? '#333340' : '#fff'), 
+                      color: (k === 'ENTER' || k === 'CLOSE') ? '#fff' : (dark ? '#fff' : '#000'), 
+                      border: "none", borderRadius: 10, cursor: "pointer", textTransform: k.length > 1 ? 'uppercase' : 'lowercase',
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.3)"
+                    }}
+                  >
+                    {k === 'BACK' ? '⌫' : k === 'ENTER' ? '↵' : k === 'CLOSE' ? '✕' : k}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* FULLSCREEN IMAGE MODAL FIX */}
+      {fullScreenMedia && (
+        <div onClick={() => setFullScreenMedia(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', padding: 24 }}>
+          <img onClick={(e) => { e.stopPropagation(); setFullScreenMedia(null); }} src={fullScreenMedia} alt="Fullscreen View" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)', cursor: 'zoom-out' }} />
+          <button onClick={() => setFullScreenMedia(null)} style={{ position: 'absolute', top: 24, right: 24, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.2s' }}><X size={24} /></button>
+        </div>
+      )}
+
+      {/* CUSTOM PDF VIEWER MODAL FOR WEB UI */}
+      {fullScreenPdf && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div style={{ width: '100%', maxWidth: 1000, height: '90vh', background: dark ? '#1c1b22' : '#fff', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: dark ? '#13141c' : '#f3f4f6', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, zIndex: 20, flexShrink: 0 }}>
+                 <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, color: dark ? '#fff' : '#000', display: 'flex', alignItems: 'center', gap: 8 }}><FileText size={20} /> Viewer</h2>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    <button onClick={() => setPdfPage((p: number) => Math.max(1, p - 5))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage <= 1 ? 'not-allowed' : 'pointer', opacity: pdfPage <= 1 ? 0.3 : 1}} disabled={pdfPage <= 1}>-5</button>
+                    <button onClick={() => setPdfPage((p: number) => Math.max(1, p - 1))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage <= 1 ? 'not-allowed' : 'pointer', opacity: pdfPage <= 1 ? 0.3 : 1}} disabled={pdfPage <= 1}><ArrowLeft size={16}/></button>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: dark ? '#fff' : '#000', whiteSpace: 'nowrap', margin: '0 8px' }}>{pdfPage} / {totalPages}</span>
+                    <button onClick={() => setPdfPage((p: number) => Math.min(totalPages, p + 1))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage >= totalPages ? 'not-allowed' : 'pointer', opacity: pdfPage >= totalPages ? 0.3 : 1}} disabled={pdfPage >= totalPages}><ArrowRight size={16}/></button>
+                    <button onClick={() => setPdfPage((p: number) => Math.min(totalPages, p + 5))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage >= totalPages ? 'not-allowed' : 'pointer', opacity: pdfPage >= totalPages ? 0.3 : 1}} disabled={pdfPage >= totalPages}>+5</button>
+                 </div>
+                 <button onClick={() => { setFullScreenPdf(null); setPdfRef(null); }} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', color: '#ef4444', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 16 }}>
+                    <X size={20} />
+                 </button>
+              </div>
+
+              <div className="no-scrollbar" style={{ flex: 1, width: '100%', position: 'relative', background: '#323639', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px', overflow: 'hidden' }}>
+                 {pdfLoading && (<div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}><div style={{ position: "relative", width: 60, height: 60, display: "flex", justifyContent: "center", alignItems: "center" }}><div style={{ position: "absolute", transform: 'scale(0.5)' }}><GearboxLoader /></div></div></div>)}
+                 <canvas ref={canvasRef} style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', opacity: pdfLoading ? 0.3 : 1, transition: 'opacity 0.3s', background: '#fff', borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} />
+              </div>
+            </div>
+          </div>
+      )}
+    </>
+  );
 }
