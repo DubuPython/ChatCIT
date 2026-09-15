@@ -171,7 +171,7 @@ const getIconForCategory = (cat: string, size = 20) => {
   return <LayoutGrid size={size} />;
 };
 
-export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, setKioskCategory, kioskResult, setKioskResult, handleKioskSelection, topRightButtons, setFullScreenMedia, setShowCalendar, kioskMapping, setKioskMapping, allSidebarCategories, isAdmin }: any) => {
+export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, setKioskCategory, kioskResult, setKioskResult, handleKioskSelection, topRightButtons, setFullScreenMedia, setShowCalendar, kioskMapping }: any) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdfPage, setPdfPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -187,19 +187,18 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
 
   const [currentTime, setCurrentTime] = useState(new Date());
   
-  // 60-30-10 Palette Implementation
   const theme = dark ? {
-    bg: '#1C1D55',        // 60% Background (Dark Blue)
-    card: '#1257AC',      // 30% Secondary Elements
-    accent: '#FDB51C',    // 10% Highlights (Yellow)
+    bg: '#1C1D55',
+    card: '#1257AC',
+    accent: '#FDB51C',
     text: '#ffffff',
     textMuted: 'rgba(255,255,255,0.7)',
     border: 'rgba(255,255,255,0.15)'
   } : {
-    bg: '#f8fafc',        // 60% Neutral Background
-    card: '#ffffff',      // Secondary surface
-    cardBorder: '#A60112',// 30% Primary ALAB Red
-    accent: '#F5AA2A',    // 10% Yellow Accent
+    bg: '#f8fafc',
+    card: '#ffffff',
+    cardBorder: '#A60112',
+    accent: '#F5AA2A',
     text: '#0f172a',
     textMuted: '#64748b',
     border: 'rgba(166, 1, 18, 0.2)'
@@ -213,7 +212,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const formattedDate = currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const formattedTime = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-  // THE 5 MAIN KIOSK CLUSTERS (Swapped Accomplishment & Extensions to prevent overlap)
+  // THE 5 MAIN KIOSK CLUSTERS
   const clusterItems = [
     { label: "Faculty", alias: "Faculty & Professors", icon: <UserSquare size={36} /> },
     { label: "Extensions", alias: "Extensions", icon: <FileText size={36} /> },
@@ -222,7 +221,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     { label: "Accomplishment", alias: "Accomplishments", icon: <Briefcase size={36} /> }
   ];
 
-  // IDLE PRESENTATION SLIDES
   const presentationSlides = [
     { title: "Our Mission", desc: "Bulacan State University exists to produce highly competent, ethical and service-oriented professionals that contribute to the sustainable socio-economic growth and development of the nation.", img: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1600&q=80" },
     { title: "Our Vision", desc: "Bulacan State University is a progressive knowledge-generating institution globally recognized for excellent instruction, pioneering research, and responsive extension services.", img: "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1600&q=80" },
@@ -317,7 +315,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const currentDirData = filteredDirectory.slice((dirPage - 1) * ITEMS_PER_PAGE, dirPage * ITEMS_PER_PAGE);
   const subCategories = Array.from(new Set(dbDirectoryData.map((d: any) => d.subcategory))).filter(s => s && s !== 'All');
 
-  // RESOLVE ITEMS TO RENDER FOR THE CURRENT SUB-MENU FROM ADMIN MAPPING
+  // RESOLVE ITEMS TO RENDER FOR THE CURRENT SUB-MENU FROM APP MAPPING
   let itemsToRender: string[] = [];
   const isClusterCategory = clusterItems.some(c => c.label === kioskCategory);
   if (isClusterCategory) {
@@ -328,7 +326,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     setScreenState("home");
     setKioskCategory(null);
     setKioskResult(null);
-    setIsEditingCluster(false);
   };
 
   // FULL-SCREEN IDLE PRESENTATION
@@ -406,27 +403,32 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                   <div key={idx} onClick={() => setKioskCategory(item.label)} className="glassy-cluster-card" style={{ gridColumn: idx < 3 ? 'span 2' : 'span 3' }}>
                      <div style={{ color: dark ? theme.accent : theme.cardBorder, marginBottom: 16 }}>{item.icon}</div>
                      <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Browse</div>
-                     {/* Added padding right to ensure text safely clears the absolute arrow */}
                      <div style={{ fontSize: 22, color: theme.text, fontWeight: 800, lineHeight: 1.2, marginTop: 4, paddingRight: 40 }}>{item.label}</div>
                      <div className="card-arrow" style={{ borderColor: dark ? theme.accent : theme.cardBorder, color: dark ? theme.accent : theme.cardBorder }}><ArrowRight size={16}/></div>
                   </div>
                ))}
             </div>
 
-            {/* MARQUEE SANDWICH & HIGHLIGHTS OF THE MONTH */}
+            {/* DOUBLE MARQUEES & HIGHLIGHTS OF THE MONTH */}
             <div style={{ width: '100%', maxWidth: 680, marginTop: 48, marginBottom: 32, padding: '0 16px' }}>
                
-               <div className="marquee-container" style={{ background: dark ? 'rgba(166, 1, 18, 0.15)' : 'rgba(166, 1, 18, 0.05)', borderColor: dark ? '#A60112' : 'rgba(166, 1, 18, 0.2)', marginBottom: 24 }}>
-                  <div className="marquee-text" style={{ color: dark ? '#fff' : '#A60112' }}>
-                     #ALABBULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #ALABBULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; 
+               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', marginBottom: 32 }}>
+                  <div className="marquee-container" style={{ background: dark ? 'rgba(166, 1, 18, 0.15)' : 'rgba(166, 1, 18, 0.05)', borderColor: dark ? '#A60112' : 'rgba(166, 1, 18, 0.2)' }}>
+                     <div className="marquee-text" style={{ color: dark ? '#fff' : '#A60112' }}>
+                        #ALABBULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #ALABBULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; 
+                     </div>
+                  </div>
+                  <div className="marquee-container" style={{ background: dark ? 'rgba(253, 181, 28, 0.15)' : 'rgba(245, 170, 42, 0.1)', borderColor: dark ? '#FDB51C' : 'rgba(245, 170, 42, 0.3)' }}>
+                     <div className="marquee-text" style={{ animationDirection: 'reverse', color: dark ? '#FDB51C' : '#F5AA2A' }}>
+                        #AMPLIFIEDCIT &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #AMPLIFIEDCIT &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; 
+                     </div>
                   </div>
                </div>
 
                <h3 style={{ color: theme.text, fontSize: 20, fontWeight: 800, margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: 10 }}>
                   <CalendarIcon size={22} color={theme.accent} /> Highlights of the Month
                </h3>
-               
-               <div className="no-scrollbar" style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 16, snapType: 'x mandatory', marginBottom: 12 }}>
+               <div className="no-scrollbar" style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 16, snapType: 'x mandatory' }}>
                   {[
                      { title: 'CIT Week 2026', img: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=400&q=80', date: 'Sept 20-25' },
                      { title: 'Tech Symposium', img: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=400&q=80', date: 'Sept 28' },
@@ -440,12 +442,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                         </div>
                      </div>
                   ))}
-               </div>
-
-               <div className="marquee-container" style={{ background: dark ? 'rgba(253, 181, 28, 0.15)' : 'rgba(245, 170, 42, 0.1)', borderColor: dark ? '#FDB51C' : 'rgba(245, 170, 42, 0.3)', marginTop: 0 }}>
-                  <div className="marquee-text" style={{ animationDirection: 'reverse', color: dark ? '#FDB51C' : '#F5AA2A' }}>
-                     #AMPLIFIEDCIT &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #AMPLIFIEDCIT &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; 
-                  </div>
                </div>
             </div>
 
