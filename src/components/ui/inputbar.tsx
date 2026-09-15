@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Mic, MicOff } from 'lucide-react';
 
 const getCosmicStyles = (dark: boolean) => `
 .cosmic-wrapper { position: relative; width: 100%; border-radius: 10px; isolation: isolate; }
@@ -9,7 +10,7 @@ const getCosmicStyles = (dark: boolean) => `
 }
 @keyframes cosmicTwinkle { 0%, 100% { opacity: ${dark ? 0.1 : 0.2}; } 50% { opacity: ${dark ? 0.3 : 0.5}; } }
 .cosmic-stardust, .cosmic-ring, .cosmic-starfield, .cosmic-nebula { height: 100%; width: 100%; position: absolute; inset: 0; overflow: hidden; z-index: -1; border-radius: 12px; filter: blur(3px); }
-.cosmic-input { background-color: ${dark ? '#05071b' : '#ffffff'}; border: ${dark ? 'none' : '1px solid rgba(0,0,0,0.15)'}; width: 100%; height: 56px; border-radius: 10px; color: ${dark ? '#a9c7ff' : '#1a1a2e'}; padding-inline: 59px; font-size: 15px; font-family: inherit; transition: background-color 0.3s, border-color 0.3s; }
+.cosmic-input { background-color: ${dark ? '#05071b' : '#ffffff'}; border: ${dark ? 'none' : '1px solid rgba(0,0,0,0.15)'}; width: 100%; height: 56px; border-radius: 10px; color: ${dark ? '#a9c7ff' : '#1a1a2e'}; padding-left: 59px; padding-right: 100px; font-size: 15px; font-family: inherit; transition: background-color 0.3s, border-color 0.3s; }
 .cosmic-search-container { display: flex; align-items: center; justify-content: center; width: 100%; position: relative; }
 .cosmic-input::placeholder { color: ${dark ? '#6e8cff' : '#64748b'}; }
 .cosmic-input:focus { outline: none; border-color: #4285f4; }
@@ -54,17 +55,42 @@ const getCosmicStyles = (dark: boolean) => `
 }
 .cosmic-search-icon { position: absolute; left: 20px; top: 16px; pointer-events: none; }
 @keyframes cosmicRotate { 100% { transform: translate(-50%, -50%) rotate(450deg); } }
+
+/* VOICE TYPING MIC STYLES */
+.cosmic-mic-icon { position: absolute; right: 52px; top: 8px; display: flex; align-items: center; justify-content: center; z-index: 2; height: 40px; width: 40px; border-radius: 10px; background: transparent; border: none; cursor: pointer; color: ${dark ? '#a9c7ff' : '#2563eb'}; transition: all 0.2s; }
+.cosmic-mic-icon:hover { background: ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}; }
+.cosmic-mic-listening { color: #ef4444 !important; animation: cosmicPulse 1.5s infinite; }
+@keyframes cosmicPulse { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
 `;
 
-interface Props {
-  input: string;
-  setInput: (val: string) => void;
-  onSend: () => void;
-  isTyping: boolean;
-  dark: boolean;
-}
+interface Props { input: string; setInput: (val: string) => void; onSend: () => void; isTyping: boolean; dark: boolean; }
 
 export function CosmicInput({ input, setInput, onSend, isTyping, dark }: Props) {
+  const [isListening, setIsListening] = useState(false);
+
+  const handleVoice = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return alert("Voice typing is not supported in this browser.");
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US'; 
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      const toast = document.createElement('div');
+      toast.id = 'voice-prompt-toast';
+      toast.innerHTML = '🎙️ <strong>Listening...</strong><br/>Please speak clearly in English.';
+      toast.style.cssText = `position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%); background: #ef4444; color: white; padding: 16px 24px; border-radius: 16px; font-size: 15px; text-align: center; line-height: 1.4; box-shadow: 0 10px 25px rgba(239, 68, 68, 0.4); z-index: 999999; animation: slideUp 0.3s ease; pointer-events: none; font-family: 'Inter', sans-serif;`;
+      document.body.appendChild(toast);
+    };
+
+    recognition.onresult = (event: any) => setInput((prev: string) => (prev + " " + event.results[0][0].transcript).trim());
+    recognition.onerror = (event: any) => console.error("Speech error:", event.error);
+    recognition.onend = () => { setIsListening(false); document.getElementById('voice-prompt-toast')?.remove(); };
+    recognition.start();
+  };
+
   return (
     <div className="cosmic-wrapper">
       <style>{getCosmicStyles(dark)}</style>
@@ -85,14 +111,14 @@ export function CosmicInput({ input, setInput, onSend, isTyping, dark }: Props) 
             placeholder="Explore ChatCIT..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                onSend();
-              }
-            }}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
             disabled={isTyping}
           />
+          
+          <button className={`cosmic-mic-icon ${isListening ? 'cosmic-mic-listening' : ''}`} onClick={handleVoice} title="Voice Typing (English)">
+            {isListening ? <MicOff size={20} /> : <Mic size={20} />}
+          </button>
+
           <div className="cosmic-wormhole-border" />
           <button
             className="cosmic-wormhole-icon"
@@ -101,17 +127,10 @@ export function CosmicInput({ input, setInput, onSend, isTyping, dark }: Props) 
             style={{ opacity: (!input.trim() || isTyping) ? 0.5 : 1, cursor: (!input.trim() || isTyping) ? 'not-allowed' : 'pointer' }}
           >
             <svg strokeLinejoin="round" strokeLinecap="round" strokeWidth={2} stroke={dark ? "#a9c7ff" : "#2563eb"} fill="none" height={20} width={20} viewBox="0 0 24 24" className={isTyping ? "animate-spin" : ""}>
-              {isTyping ? (
-                 <circle cx="12" cy="12" r="10" stroke={dark ? "#a9c7ff" : "#2563eb"} strokeWidth="4" strokeDasharray="32" strokeLinecap="round" />
-              ) : (
-                 <>
-                   <circle r={10} cy={12} cx={12} />
-                   <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                   <path d="M2 12h20" />
-                 </>
-              )}
+              {isTyping ? ( <circle cx="12" cy="12" r="10" stroke={dark ? "#a9c7ff" : "#2563eb"} strokeWidth="4" strokeDasharray="32" strokeLinecap="round" /> ) : ( <> <circle r={10} cy={12} cx={12} /> <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /> <path d="M2 12h20" /> </> )}
             </svg>
           </button>
+          
           <div className="cosmic-search-icon">
             <svg strokeLinejoin="round" strokeLinecap="round" strokeWidth={2} stroke={dark ? "url(#cosmic-search)" : "#3b82f6"} fill="none" height={24} width={24} viewBox="0 0 24 24">
               <circle r={8} cy={11} cx={11} />
