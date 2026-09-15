@@ -9,7 +9,7 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     
     .screensaver-fullscreen {
       position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 999995;
-      background: #000;
+      background: ${theme.bg};
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       animation: fadeIn 0.4s ease; border-radius: inherit; overflow: hidden;
     }
@@ -192,7 +192,8 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1600&q=80",
     "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1600&q=80"
   ];
-  const activeSlides = (screensaverSlides && screensaverSlides.length > 0) ? screensaverSlides : defaultSlides;
+  // Parse slides correctly whether they are raw strings or objects
+  const activeSlides = (screensaverSlides && screensaverSlides.length > 0) ? screensaverSlides.map((s: any) => typeof s === 'string' ? s : s.img).filter(Boolean) : defaultSlides;
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const defaultHighlights = [
@@ -303,7 +304,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
        <>
          <GlobalKioskStyles dark={dark} theme={theme} />
          <div className="screensaver-fullscreen" style={{ background: '#000' }}>
-            <img key={currentSlide} src={activeSlides[currentSlide]?.img || activeSlides[currentSlide]} className="slide-enter" style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute' }} />
+            <img key={currentSlide} src={activeSlides[currentSlide]} className="slide-enter" style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute' }} />
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 300, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)', zIndex: 10, pointerEvents: 'none' }} />
             <div style={{ position: 'absolute', bottom: 120, zIndex: 20 }}>
                <button onClick={goHome} className="kiosk-pulse-btn" style={{ padding: '24px 64px', borderRadius: 100, fontSize: 32, fontWeight: 900, cursor: 'pointer', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>Interact with inCITe</button>
@@ -316,7 +317,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   return (
     <>
       <GlobalKioskStyles dark={dark} theme={theme} />
-      <div className="screensaver-fullscreen">
+      <div className="screensaver-fullscreen" style={{ background: theme.bg }}>
         <div className="bg-blob-1" />
         <div className="bg-blob-2" />
         
