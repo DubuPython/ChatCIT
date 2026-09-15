@@ -9,7 +9,7 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     
     .screensaver-fullscreen {
       position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 999995;
-      background: ${theme.bg};
+      background: #000;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       animation: fadeIn 0.4s ease; border-radius: inherit; overflow: hidden;
     }
@@ -192,8 +192,13 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1600&q=80",
     "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1600&q=80"
   ];
-  // Parse slides correctly whether they are raw strings or objects
-  const activeSlides = (screensaverSlides && screensaverSlides.length > 0) ? screensaverSlides.map((s: any) => typeof s === 'string' ? s : s.img).filter(Boolean) : defaultSlides;
+  
+  // Safely parse slides in case they were stored as objects or strings
+  let activeSlides = defaultSlides;
+  if (screensaverSlides && screensaverSlides.length > 0) {
+      activeSlides = screensaverSlides.map((s: any) => typeof s === 'string' ? s : s.img).filter(Boolean);
+      if (activeSlides.length === 0) activeSlides = defaultSlides;
+  }
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const defaultHighlights = [
