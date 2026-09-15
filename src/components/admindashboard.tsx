@@ -38,7 +38,8 @@ export function AdminPanel({
   const [calendarData, setCalendarData] = useState<any[]>([]);
 
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [form, setForm] = useState({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All", display_name: "" });
+  // ADDED qr_link to the form state
+  const [form, setForm] = useState({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All", display_name: "", qr_link: "" });
   const [keywordInput, setKeywordInput] = useState(""); 
   
   const [editingCalId, setEditingCalId] = useState<number | null>(null);
@@ -119,9 +120,13 @@ export function AdminPanel({
   const handleSaveKnowledge = async (id?: number) => {
     if (!form.keyword.trim() || !form.response.trim()) { showToast("At least one Keyword and a Response are required.", "error"); return; }
     try {
-      const res = await fetch(id ? `${API_URL}/knowledge/${id}` : `${API_URL}/knowledge`, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      // MAGIC: Automatically combine the QR Link into the response so it works with the current database schema
+      const finalResponse = form.qr_link.trim() ? `${form.response.trim()}\n\n${form.qr_link.trim()}` : form.response.trim();
+      const payload = { ...form, response: finalResponse };
+
+      const res = await fetch(id ? `${API_URL}/knowledge/${id}` : `${API_URL}/knowledge`, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) throw new Error((await res.json()).error || "Server failed to save record.");
-      setEditingId(null); setForm({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All", display_name: "" }); setKeywordInput(""); 
+      setEditingId(null); setForm({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All", display_name: "", qr_link: "" }); setKeywordInput(""); 
       fetchDashboardData(); 
       showToast(id ? "Record updated!" : "New record added!", "success");
     } catch (e: any) { showToast(e.message || "Error saving record.", "error"); }
@@ -187,7 +192,7 @@ export function AdminPanel({
     setActiveTab('knowledge'); 
     setEditingId(0); 
     setForm({ 
-      keyword: question, response: "", picture_url: "", 
+      keyword: question, response: "", picture_url: "", qr_link: "",
       category: activeCategoryTab !== "All" ? activeCategoryTab : "Handbook", 
       subcategory: activeDeptTab !== "All" ? activeDeptTab : "All", display_name: "" 
     }); 
@@ -270,6 +275,12 @@ export function AdminPanel({
           <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} style={{ display: "none" }} />
         </label>
       </div>
+
+      {/* NEW: DEDICATED QR LINK BOX */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <input value={form.qr_link} onChange={e => setForm({...form, qr_link: e.target.value})} placeholder="Target URL / QR Code Link (Optional, e.g. https://bulsu.edu.ph)" style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
+      </div>
+
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
         <button onClick={() => { setEditingId(null); setKeywordInput(""); }} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "transparent", color: textMuted, cursor: "pointer", fontWeight: 500, fontSize: 13 }}>Cancel</button>
         <button onClick={() => handleSaveKnowledge(editingId === 0 || editingId === null ? undefined : editingId)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 14px", borderRadius: 8, border: "none", background: "#4285f4", color: "#fff", cursor: "pointer", fontWeight: 500, fontSize: 13 }}><Save size={14} /> Save</button>
@@ -422,7 +433,8 @@ export function AdminPanel({
                   picture_url: "", 
                   category: activeCategoryTab !== "All" ? activeCategoryTab : "Handbook", 
                   subcategory: activeDeptTab !== "All" ? activeDeptTab : "All", 
-                  display_name: "" 
+                  display_name: "",
+                  qr_link: "" 
                 }); 
                 setKeywordInput(""); 
               }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontWeight: 500, fontSize: 13, flex: 1, whiteSpace: "nowrap" }}>
@@ -557,7 +569,19 @@ export function AdminPanel({
                             if (editingId === row.id) {
                                 setEditingId(null);
                             } else {
-                                setForm({ keyword: row.keyword, response: row.response, picture_url: row.picture_url || "", category: row.category || "Handbook", subcategory: row.subcategory || "All", display_name: row.display_name || "" }); 
+                                // Extract the URL if it was embedded in the response earlier
+                                const extractedLink = row.response.match(/(https?:\/\/[^\s]+[^.,;:"'\s])/)?.[0] || "";
+                                const cleanResponse = extractedLink ? row.response.replace(extractedLink, '').trim() : row.response;
+                                
+                                setForm({ 
+                                   keyword: row.keyword, 
+                                   response: cleanResponse, 
+                                   picture_url: row.picture_url || "", 
+                                   category: row.category || "Handbook", 
+                                   subcategory: row.subcategory || "All", 
+                                   display_name: row.display_name || "",
+                                   qr_link: extractedLink 
+                                }); 
                                 setKeywordInput(""); 
                                 setEditingId(row.id); 
                             }
