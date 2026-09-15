@@ -187,11 +187,11 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
                  </div>
                  <input type="text" placeholder="Event Title" value={calForm.title} onChange={e => setCalForm({...calForm, title: e.target.value})} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 14, outline: 'none' }} />
                  <select value={calForm.type} onChange={e => setCalForm({...calForm, type: e.target.value})} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 14, outline: 'none' }}>
-                    <option value="Special Event" style={{ background: dark ? '#1e1e24' : '#fff' }}>Special Event (Blue)</option>
-                    <option value="Examination" style={{ background: dark ? '#1e1e24' : '#fff' }}>Examination (Red)</option>
-                    <option value="Holiday" style={{ background: dark ? '#1e1e24' : '#fff' }}>Holiday (Green)</option>
+                    <option value="Special Event" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Special Event (Blue)</option>
+                    <option value="Examination" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Examination (Red)</option>
+                    <option value="Holiday" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Holiday (Green)</option>
                  </select>
-                 <textarea placeholder="Description" value={calForm.description} onChange={e => setCalForm({...calForm, description: e.target.value})} rows={3} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 14, outline: 'none', resize: 'vertical' }} />
+                 <textarea placeholder="Description (Optional)" value={calForm.description} onChange={e => setCalForm({...calForm, description: e.target.value})} rows={3} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 14, outline: 'none', resize: 'vertical' }} />
                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
                     <button onClick={() => setIsCalFormOpen(false)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'transparent', color: dark ? '#94a3b8' : '#64748b', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
                     <button onClick={handleSaveCalEvent} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#4285f4', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Save Event</button>
@@ -329,7 +329,11 @@ export default function App() {
   });
   
   const [syncTrigger, setSyncTrigger] = useState(0);
+
+  // KIOSK STATE
+  const [kioskMapping, setKioskMapping] = useState<Record<string, string[]>>({});
   const [screensaverSlides, setScreensaverSlides] = useState<any[]>([]);
+  const [kioskHighlights, setKioskHighlights] = useState<any[]>([]);
 
   useEffect(() => { localStorage.setItem('chatcit_custom_cats', JSON.stringify(customCategories)); }, [customCategories]);
   useEffect(() => { localStorage.setItem('chatcit_custom_subcats', JSON.stringify(customSubCats)); }, [customSubCats]);
@@ -398,62 +402,27 @@ export default function App() {
   const gear2Items = getGearItems(gear2Cat);
   const gear3Items = getGearItems(gear3Cat);
 
-  const defaultMapping = {
-    "Faculty": ["Faculty & Professors"], "Extensions": [], "Student Affairs": ["Organizations", "Handbook", "Magna Carta"], "Curriculum": ["Majors"], "Accomplishment": ["Industry Partners"]
-  };
-  
-  const [kioskMapping, setKioskMapping] = useState<Record<string, string[]>>(() => {
-     if (typeof window !== "undefined") {
-        const savedMap = localStorage.getItem('chatcit_kiosk_mapping');
-        if (savedMap && savedMap !== 'undefined') {
-           try { const parsed = JSON.parse(savedMap); if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Object.keys(parsed).length > 0) return parsed; } catch(e){}
-        }
-     }
-     return defaultMapping;
-  });
-
-  const [draftMapping, setDraftMapping] = useState<Record<string, string[]>>({});
-
   // BULLETPROOF FETCHING LOGIC - Decrypts Database Objects/Strings safely
   const fetchKioskSettings = async () => {
     try {
-      const resMap = await fetch(`${API_URL}/settings/kiosk_mapping?_t=${Date.now()}`);
-      if (resMap.ok) { 
-         const data = await resMap.json(); 
-         let val = data.value !== undefined ? data.value : data;
-         if (typeof val === 'string') { try { val = JSON.parse(val); } catch(e){} }
-         if (val && typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length > 0) { 
-            setKioskMapping(val); 
-            localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(val)); 
-         } 
-      }
-      
-      const resSaver = await fetch(`${API_URL}/settings/kiosk_screensaver?_t=${Date.now()}`);
-      if (resSaver.ok) { 
-         const data = await resSaver.json(); 
-         let val = data.value !== undefined ? data.value : data;
-         if (typeof val === 'string') { try { val = JSON.parse(val); } catch(e){} }
-         if (Array.isArray(val)) setScreensaverSlides(val); 
-      }
+      const fetchSetting = async (key: string, setter: Function, parser?: Function) => {
+         const res = await fetch(`${API_URL}/settings/${key}?_t=${Date.now()}`);
+         if (res.ok) {
+            const data = await res.json();
+            let val = data.value !== undefined ? data.value : data;
+            if (typeof val === 'string') { try { val = JSON.parse(val); } catch(e){} }
+            if (parser) val = parser(val);
+            setter(val);
+         }
+      };
+
+      await fetchSetting('kiosk_mapping', (v:any) => { setKioskMapping(v); localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(v)); }, (v:any) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {}));
+      await fetchSetting('kiosk_screensaver', setScreensaverSlides, (v:any) => (Array.isArray(v) ? v : []));
+      await fetchSetting('kiosk_highlights', setKioskHighlights, (v:any) => (Array.isArray(v) ? v : []));
     } catch(e) {}
   };
 
   useEffect(() => { fetchKioskSettings(); const interval = setInterval(fetchKioskSettings, 30000); return () => clearInterval(interval); }, []);
-  useEffect(() => { if (adminTab === 'kiosk') { setDraftMapping(kioskMapping); } }, [adminTab, kioskMapping]);
-
-  // BULLETPROOF SAVE MAPPING LOGIC - Serializes before sending
-  const saveKioskMapping = async () => {
-     try {
-        const payload = { value: JSON.stringify(draftMapping) };
-        await fetch(`${API_URL}/settings/kiosk_mapping`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        setKioskMapping(draftMapping); 
-        localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(draftMapping));
-        showToast("Kiosk layout saved to cloud successfully!", "success");
-     } catch(e) { showToast("Failed to save layout to cloud.", "error"); }
-  };
-
-  const addDraftCat = (cluster: string, cat: string) => { if (!cat || (draftMapping[cluster] || []).includes(cat)) return; setDraftMapping(prev => ({ ...prev, [cluster]: [...(prev[cluster] || []), cat] })); };
-  const removeDraftCat = (cluster: string, cat: string) => { setDraftMapping(prev => ({ ...prev, [cluster]: (prev[cluster] || []).filter((c: string) => c !== cat) })); };
 
   useEffect(() => {
     if (simKiosk) {
@@ -773,7 +742,7 @@ export default function App() {
 
       <div className={dark ? "dark-mode" : "light-mode"} style={containerStyle}>
         {(simKiosk && (screenState === "presentation" || screenState === "home" || screenState === "kiosk_result")) && (
-          <KioskScreen dark={dark} screenState={screenState} setScreenState={setScreenState} kioskCategory={kioskCategory} setKioskCategory={setKioskCategory} kioskResult={kioskResult} setKioskResult={setKioskResult} handleKioskSelection={handleKioskSelection} topRightButtons={topRightButtons} setFullScreenMedia={setFullScreenMedia} setShowCalendar={setShowCalendar} kioskMapping={kioskMapping} setKioskMapping={setKioskMapping} allSidebarCategories={allSidebarCategories} isAdmin={currentUser?.role === 'admin' || currentUser?.role === 'superadmin'} screensaverSlides={screensaverSlides} />
+          <KioskScreen dark={dark} screenState={screenState} setScreenState={setScreenState} kioskCategory={kioskCategory} setKioskCategory={setKioskCategory} kioskResult={kioskResult} setKioskResult={setKioskResult} handleKioskSelection={handleKioskSelection} topRightButtons={topRightButtons} setFullScreenMedia={setFullScreenMedia} setShowCalendar={setShowCalendar} kioskMapping={kioskMapping} setKioskMapping={setKioskMapping} allSidebarCategories={allSidebarCategories} isAdmin={currentUser?.role === 'admin' || currentUser?.role === 'superadmin'} screensaverSlides={screensaverSlides} kioskHighlights={kioskHighlights} />
         )}
 
         {uiPrompt && (
@@ -946,7 +915,7 @@ export default function App() {
                 {viewMode === "admin" && currentUser && !simKiosk ? (
                   <div className="admin-panel-wrapper" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, paddingBottom: useMobileLayout ? 120 : 24, display: "flex", flexDirection: "column" }}>
                      <div style={{ flex: 1, overflowY: "auto", padding: "16px", WebkitOverflowScrolling: "touch" }}>
-                       <AdminPanel dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allSidebarCategories} mergedSubCategoriesMap={mergedSubCategoriesMap} setDbCategories={setDbCategories} setDbSubCategories={setDbSubCategories} fetchData={fetchGlobalKnowledge} layoutConfig={layoutConfig} saveLayoutConfig={saveLayoutConfig} syncTrigger={syncTrigger} screensaverSlides={screensaverSlides} setScreensaverSlides={setScreensaverSlides} />
+                       <AdminPanel dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allSidebarCategories} mergedSubCategoriesMap={mergedSubCategoriesMap} setDbCategories={setDbCategories} setDbSubCategories={setDbSubCategories} fetchData={fetchGlobalKnowledge} layoutConfig={layoutConfig} saveLayoutConfig={saveLayoutConfig} syncTrigger={syncTrigger} kioskMapping={kioskMapping} setKioskMapping={setKioskMapping} screensaverSlides={screensaverSlides} setScreensaverSlides={setScreensaverSlides} kioskHighlights={kioskHighlights} setKioskHighlights={setKioskHighlights} />
                      </div>
                   </div>
                 ) : directoryMode ? (
@@ -1072,32 +1041,10 @@ export default function App() {
 
       {fullScreenMedia && (
         <div onClick={() => setFullScreenMedia(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', padding: 24 }}>
-          <img onClick={(e) => { e.stopPropagation(); setFullScreenMedia(null); }} src={fullScreenMedia} alt="Fullscreen View" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)', cursor: 'zoom-out' }} />
+          <img src={fullScreenMedia} alt="Fullscreen View" onClick={(e) => { e.stopPropagation(); setFullScreenMedia(null); }} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }} />
           <button onClick={() => setFullScreenMedia(null)} style={{ position: 'absolute', top: 24, right: 24, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.2s' }}><X size={24} /></button>
         </div>
       )}
-
-      {fullScreenPdf && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-            <div style={{ width: '100%', maxWidth: 1000, height: '90vh', background: dark ? '#1c1b22' : '#fff', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: dark ? '#13141c' : '#f3f4f6', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, zIndex: 20, flexShrink: 0 }}>
-                 <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, color: dark ? '#fff' : '#000', display: 'flex', alignItems: 'center', gap: 8 }}><FileText size={20} /> Viewer</h2>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                    <button onClick={() => setPdfPage((p: number) => Math.max(1, p - 5))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage <= 1 ? 'not-allowed' : 'pointer', opacity: pdfPage <= 1 ? 0.3 : 1}} disabled={pdfPage <= 1}>-5</button>
-                    <button onClick={() => setPdfPage((p: number) => Math.max(1, p - 1))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage <= 1 ? 'not-allowed' : 'pointer', opacity: pdfPage <= 1 ? 0.3 : 1}} disabled={pdfPage <= 1}><ArrowLeft size={16}/></button>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: dark ? '#fff' : '#000', whiteSpace: 'nowrap', margin: '0 8px' }}>{pdfPage} / {totalPages}</span>
-                    <button onClick={() => setPdfPage((p: number) => Math.min(totalPages, p + 1))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage >= totalPages ? 'not-allowed' : 'pointer', opacity: pdfPage >= totalPages ? 0.3 : 1}} disabled={pdfPage >= totalPages}><ArrowRight size={16}/></button>
-                    <button onClick={() => setPdfPage((p: number) => Math.min(totalPages, p + 5))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage >= totalPages ? 'not-allowed' : 'pointer', opacity: pdfPage >= totalPages ? 0.3 : 1}} disabled={pdfPage >= totalPages}>+5</button>
-                 </div>
-                 <button onClick={() => { setFullScreenPdf(null); setPdfRef(null); }} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', color: '#ef4444', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 16 }}><X size={20} /></button>
-              </div>
-              <div className="no-scrollbar" style={{ flex: 1, width: '100%', position: 'relative', background: '#323639', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px', overflow: 'hidden' }}>
-                 {pdfLoading && (<div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}><div style={{ position: "relative", width: 60, height: 60, display: "flex", justifyContent: "center", alignItems: "center" }}><div style={{ position: "absolute", transform: 'scale(0.5)' }}><GearboxLoader /></div></div></div>)}
-                 <canvas ref={canvasRef} style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', opacity: pdfLoading ? 0.3 : 1, transition: 'opacity 0.3s', background: '#fff', borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} />
-              </div>
-            </div>
-          </div>
-      )}
-    </>
+    </div>
   );
 }
