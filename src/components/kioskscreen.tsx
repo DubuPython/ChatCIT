@@ -1,7 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { Users, GraduationCap, FileText, ChevronLeft, ChevronRight, MessageSquare, Bot, Maximize, Search, UserSquare, Briefcase, ArrowRight, ArrowLeft, Calendar as CalendarIcon, X, Folder, LayoutGrid, Building } from "lucide-react";
 import { GearboxLoader } from "./ui/helpers";
-import { API_URL } from "../config";
 
 const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
   <style>{`
@@ -150,7 +149,7 @@ const getIconForCategory = (cat: string, size = 20) => {
   return <LayoutGrid size={size} />;
 };
 
-export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, setKioskCategory, kioskResult, setKioskResult, handleKioskSelection, topRightButtons, setFullScreenMedia, setShowCalendar, kioskMapping }: any) => {
+export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, setKioskCategory, kioskResult, setKioskResult, handleKioskSelection, topRightButtons, setFullScreenMedia, setShowCalendar, kioskMapping, globalKnowledge }: any) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdfPage, setPdfPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -159,7 +158,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const [localFullScreen, setLocalFullScreen] = useState<string | null>(null);
 
   const [dbDirectoryData, setDbDirectoryData] = useState<any[]>([]);
-  const [loadingDir, setLoadingDir] = useState(false);
   const [dirMajor, setDirMajor] = useState<string | null>(null);
   const [dirPage, setDirPage] = useState(1);
   const ITEMS_PER_PAGE = 8; 
@@ -212,24 +210,23 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     }
   }, [screenState]);
 
+  // INSTANT DIRECTORY LOAD (NO GEARS!)
   useEffect(() => {
      if (kioskResult?.isPdf) setPdfPage(1);
      if (kioskResult?.isDirectory) {
          setDirMajor(kioskResult.subcategory && kioskResult.subcategory !== 'All' ? kioskResult.subcategory : null); 
          setDirPage(1);
-         setLoadingDir(true);
-         fetch(`${API_URL}/knowledge`).then(res => res.json()).then(data => {
-             const rawData = Array.isArray(data) ? data : [];
-             const targetName = (kioskResult.category || kioskResult.title || "").toLowerCase();
-             const directoryItems = rawData.filter((item: any) => {
-                 const itemCat = (item.category || "").toLowerCase();
-                 const itemSub = (item.subcategory || "").toLowerCase();
-                 return itemCat === targetName || itemSub === targetName;
-             });
-             setDbDirectoryData(directoryItems);
-           }).catch(err => console.error(err)).finally(() => setLoadingDir(false));
+         
+         const rawData = globalKnowledge || [];
+         const targetName = (kioskResult.category || kioskResult.title || "").toLowerCase();
+         const directoryItems = rawData.filter((item: any) => {
+             const itemCat = (item.category || "").toLowerCase();
+             const itemSub = (item.subcategory || "").toLowerCase();
+             return itemCat === targetName || itemSub === targetName;
+         });
+         setDbDirectoryData(directoryItems);
      }
-  }, [kioskResult?.title, kioskResult?.isDirectory]);
+  }, [kioskResult?.title, kioskResult?.isDirectory, globalKnowledge]);
 
   useEffect(() => {
     if (!kioskResult?.isPdf || !kioskResult?.pdfUrl) return;
@@ -455,33 +452,28 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                           </div>
                         </>
                      ) : (
-                        loadingDir ? ( <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ transform: 'scale(0.8)' }}><GearboxLoader /></div></div>
-                        ) : (
-                           <>
-                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 16, width: '100%' }}>
-                                {currentDirData.length > 0 ? currentDirData.map((item) => (
-                                   <div key={item.id} className="glassy-dir-card" style={{ padding: 24 }} onClick={() => handleKioskSelection(kioskResult.category || kioskResult.title, item.display_name || (item.keyword ? item.keyword.split(',')[0] : ""))}>
-                                      <div style={{ width: 80, height: 80, borderRadius: '50%', background: dark ? 'rgba(0,0,0,0.3)' : '#fff', border: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
-                                         {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={item.picture_url} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: dark ? theme.accent : theme.cardBorder }}>{getIconForCategory(kioskResult.title, 40)}</span>}
-                                      </div>
-                                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start', textAlign: 'left' }}>
-                                         <span style={{ fontSize: 22, fontWeight: 800, color: theme.text }}>{item.display_name || (item.keyword ? item.keyword.split(',')[0] : "")}</span>
-                                         {item.subcategory && item.subcategory !== "All" && (<span style={{ fontSize: 16, fontWeight: 700, color: dark ? theme.accent : theme.cardBorder }}>{item.subcategory}</span>)}
-                                         <span style={{ fontSize: 15, color: theme.textMuted, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5 }}>{item.response}</span>
-                                      </div>
-                                      <ChevronRight size={28} color={theme.textMuted} style={{ flexShrink: 0 }} />
-                                   </div>
-                                )) : (<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: theme.textMuted, fontWeight: 600, padding: 40 }}>No records found.</div>)}
-                             </div>
-                             {totalDirPages > 1 && (
-                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: 32, padding: '16px 24px', background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.8)', borderRadius: 24, border: `1px solid ${theme.border}` }}>
-                                  <button onClick={() => setDirPage(p => Math.max(1, p - 1))} disabled={dirPage <= 1} style={{ padding: '12px 24px', borderRadius: 16, border: 'none', background: theme.accent, color: dark ? '#1C1D55' : '#fff', fontSize: 16, fontWeight: 800, cursor: 'pointer', opacity: dirPage <= 1 ? 0.3 : 1, transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.95)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>Previous</button>
-                                  <span style={{ fontSize: 18, fontWeight: 800, color: theme.text }}>Page {dirPage} of {totalDirPages}</span>
-                                  <button onClick={() => setDirPage(p => Math.min(totalDirPages, p + 1))} disabled={dirPage >= totalDirPages} style={{ padding: '12px 24px', borderRadius: 16, border: 'none', background: theme.accent, color: dark ? '#1C1D55' : '#fff', fontSize: 16, fontWeight: 800, cursor: 'pointer', opacity: dirPage >= totalDirPages ? 0.3 : 1, transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.95)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>Next</button>
-                               </div>
-                             )}
-                           </>
-                        )
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 16, width: '100%' }}>
+                           {currentDirData.length > 0 ? currentDirData.map((item) => (
+                              <div key={item.id} className="glassy-dir-card" style={{ padding: 24 }} onClick={() => handleKioskSelection(kioskResult.category || kioskResult.title, item.display_name || (item.keyword ? item.keyword.split(',')[0] : ""))}>
+                                 <div style={{ width: 80, height: 80, borderRadius: '50%', background: dark ? 'rgba(0,0,0,0.3)' : '#fff', border: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                                    {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={item.picture_url} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: dark ? theme.accent : theme.cardBorder }}>{getIconForCategory(kioskResult.title, 40)}</span>}
+                                 </div>
+                                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start', textAlign: 'left' }}>
+                                    <span style={{ fontSize: 22, fontWeight: 800, color: theme.text }}>{item.display_name || (item.keyword ? item.keyword.split(',')[0] : "")}</span>
+                                    {item.subcategory && item.subcategory !== "All" && (<span style={{ fontSize: 16, fontWeight: 700, color: dark ? theme.accent : theme.cardBorder }}>{item.subcategory}</span>)}
+                                    <span style={{ fontSize: 15, color: theme.textMuted, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5 }}>{item.response}</span>
+                                 </div>
+                                 <ChevronRight size={28} color={theme.textMuted} style={{ flexShrink: 0 }} />
+                              </div>
+                           )) : (<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: theme.textMuted, fontWeight: 600, padding: 40, width: '100%' }}>No records found.</div>)}
+                        </div>
+                     )}
+                     {totalDirPages > 1 && (
+                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: 32, padding: '16px 24px', background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.8)', borderRadius: 24, border: `1px solid ${theme.border}` }}>
+                          <button onClick={() => setDirPage(p => Math.max(1, p - 1))} disabled={dirPage <= 1} style={{ padding: '12px 24px', borderRadius: 16, border: 'none', background: theme.accent, color: dark ? '#1C1D55' : '#fff', fontSize: 16, fontWeight: 800, cursor: 'pointer', opacity: dirPage <= 1 ? 0.3 : 1, transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.95)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>Previous</button>
+                          <span style={{ fontSize: 18, fontWeight: 800, color: theme.text }}>Page {dirPage} of {totalDirPages}</span>
+                          <button onClick={() => setDirPage(p => Math.min(totalDirPages, p + 1))} disabled={dirPage >= totalDirPages} style={{ padding: '12px 24px', borderRadius: 16, border: 'none', background: theme.accent, color: dark ? '#1C1D55' : '#fff', fontSize: 16, fontWeight: 800, cursor: 'pointer', opacity: dirPage >= totalDirPages ? 0.3 : 1, transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.95)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>Next</button>
+                       </div>
                      )}
                   </div>
                 </div>
