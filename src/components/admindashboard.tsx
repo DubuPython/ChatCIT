@@ -48,16 +48,21 @@ export function AdminPanel({
 
   const [modal, setModal] = useState<{ isOpen: boolean, type: 'confirm' | 'prompt', title: string, message: string, inputValue: string, onConfirm: (val?: string) => void }>({ isOpen: false, type: 'confirm', title: '', message: '', inputValue: '', onConfirm: () => {} });
 
+  // KIOSK DRAFT STATE
   const [draftMapping, setDraftMapping] = useState<Record<string, string[]>>({});
   const [draftScreensaver, setDraftScreensaver] = useState<string[]>([]);
   const [draftHighlights, setDraftHighlights] = useState<any[]>([]);
   const [isDraftingKiosk, setIsDraftingKiosk] = useState(false);
 
+  // SAFE SYNCING: Prevent backend corruption from crashing the editor
   useEffect(() => {
      if (!isDraftingKiosk) {
-         setDraftMapping(kioskMapping || {});
-         setDraftScreensaver(screensaverSlides?.map((s: any) => typeof s === 'string' ? s : s.img).filter(Boolean) || []);
-         setDraftHighlights(kioskHighlights || []);
+         setDraftMapping(kioskMapping && typeof kioskMapping === 'object' ? kioskMapping : {});
+         
+         const safeScreensavers = Array.isArray(screensaverSlides) ? screensaverSlides : [];
+         setDraftScreensaver(safeScreensavers.map((s: any) => typeof s === 'string' ? s : s.img).filter(Boolean));
+         
+         setDraftHighlights(Array.isArray(kioskHighlights) ? kioskHighlights : []);
      }
   }, [kioskMapping, screensaverSlides, kioskHighlights, isDraftingKiosk]);
 
@@ -207,6 +212,7 @@ export function AdminPanel({
     } catch (e: any) { showToast(e.message, "error"); }
   };
 
+  // KIOSK EDITOR SAFE SAVING ACTIONS
   const handleSaveKioskLayout = async () => {
      try {
         showToast("Saving Layout...", "info");
@@ -241,6 +247,17 @@ export function AdminPanel({
      } catch(e) { showToast("Failed to save screensaver.", "error"); }
   };
 
+  const addDraftCat = (cluster: string, cat: string) => { 
+      const safeCluster = Array.isArray(draftMapping[cluster]) ? draftMapping[cluster] : [];
+      if (!cat || safeCluster.includes(cat)) return; 
+      setDraftMapping(prev => ({ ...prev, [cluster]: [...safeCluster, cat] })); 
+  };
+  
+  const removeDraftCat = (cluster: string, cat: string) => { 
+      const safeCluster = Array.isArray(draftMapping[cluster]) ? draftMapping[cluster] : [];
+      setDraftMapping(prev => ({ ...prev, [cluster]: safeCluster.filter((c: string) => c !== cat) })); 
+  };
+
   const q = searchQuery.toLowerCase();
   
   const filteredData = data.filter(d => {
@@ -248,6 +265,7 @@ export function AdminPanel({
     const matchSearch = d.keyword.toLowerCase().includes(q) || d.response.toLowerCase().includes(q) || ((d as any).display_name || "").toLowerCase().includes(q);
     const dbSub = ((d as any).subcategory || "All").toLowerCase();
     const matchSub = activeDeptTab === "All" || dbSub === activeDeptTab.toLowerCase();
+    
     if (activeCategoryTab !== 'All' && activeCategoryTab !== 'General' && activeCategoryTab !== 'Handbook') { return matchCat && matchSub && matchSearch; }
     return matchCat && matchSearch;
   });
@@ -391,27 +409,29 @@ export function AdminPanel({
                  <button onClick={handleSaveKioskLayout} style={{ background: '#10b981', color: '#fff', padding: '10px 20px', borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle size={16} /> Save Layout</button>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 24 }}>
-                 {["Faculty", "Accomplishment", "Student Affairs", "Curriculum", "Extensions"].map(cluster => (
+                 {["Faculty", "Accomplishment", "Student Affairs", "Curriculum", "Extensions"].map(cluster => {
+                    const safeClusterArray = Array.isArray(draftMapping[cluster]) ? draftMapping[cluster] : [];
+                    return (
                     <div key={cluster} style={{ background: dark ? 'rgba(255,255,255,0.03)' : '#f9fafb', border: `1px solid ${border}`, borderRadius: 16, padding: 20 }}>
                        <h3 style={{ fontSize: 16, fontWeight: 700, color: textPrimary, margin: '0 0 12px' }}>{cluster}</h3>
                        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                           <select id={`select-${cluster}`} style={{ flex: 1, padding: '8px', borderRadius: 6, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: textPrimary, border: `1px solid ${border}`, outline: 'none' }}>
                              <option value="" style={{ color: '#000' }}>Add category...</option>
-                             {allCategories.filter(c => !(draftMapping[cluster] || []).includes(c)).map(c => (<option key={c} value={c} style={{ color: '#000' }}>{c}</option>))}
+                             {allCategories.filter(c => !safeClusterArray.includes(c)).map(c => (<option key={c} value={c} style={{ color: '#000' }}>{c}</option>))}
                           </select>
                           <button onClick={() => { const sel = document.getElementById(`select-${cluster}`) as HTMLSelectElement; if (sel.value) { addDraftCat(cluster, sel.value); sel.value = ""; setIsDraftingKiosk(true); } }} style={{ background: '#4285f4', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Add</button>
                        </div>
                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {(draftMapping[cluster] || []).map(cat => (
+                          {safeClusterArray.map(cat => (
                              <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: dark ? 'rgba(0,0,0,0.3)' : '#fff', borderRadius: 6, border: `1px solid ${border}` }}>
                                 <span style={{ fontSize: 13, fontWeight: 600, color: textPrimary }}>{cat.replace('Teachers', 'Professors')}</span>
                                 <button onClick={() => { removeDraftCat(cluster, cat); setIsDraftingKiosk(true); }} style={{ color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer' }}><Trash2 size={14} /></button>
                              </div>
                           ))}
-                          {!(draftMapping[cluster] || []).length && <div style={{ textAlign: 'center', color: textFaint, fontSize: 12, marginTop: 10 }}>No items assigned.</div>}
+                          {safeClusterArray.length === 0 && <div style={{ textAlign: 'center', color: textFaint, fontSize: 12, marginTop: 10 }}>No items assigned.</div>}
                        </div>
                     </div>
-                 ))}
+                 )})}
               </div>
            </div>
 
@@ -426,13 +446,13 @@ export function AdminPanel({
               </div>
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-                 {draftHighlights?.map((slide, index) => (
+                 {(Array.isArray(draftHighlights) ? draftHighlights : []).map((slide, index) => (
                     <div key={index} style={{ background: dark ? 'rgba(0,0,0,0.2)' : '#f9fafb', borderRadius: 12, border: `1px solid ${border}`, padding: 16, position: "relative", display: "flex", flexDirection: "column", gap: 8 }}>
                        <button onClick={() => {
                           const newH = draftHighlights.filter((_, i) => i !== index);
                           setDraftHighlights(newH);
                           setIsDraftingKiosk(true);
-                       }} style={{ position: "absolute", top: 8, right: 8, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={12}/></button>
+                       }} style={{ position: "absolute", top: 8, right: 8, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}><X size={12}/></button>
                        <img src={slide.img} style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8, background: '#000', border: `1px solid ${border}` }} />
                        <input value={slide.title || ""} onChange={e => { 
                            const n = [...draftHighlights]; 
@@ -459,7 +479,8 @@ export function AdminPanel({
                            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
                            const data = await res.json();
                            if (data.secure_url) {
-                              setDraftHighlights([...draftHighlights, { title: "New Highlight", date: "Date", img: data.secure_url }]);
+                              const safeHighlights = Array.isArray(draftHighlights) ? draftHighlights : [];
+                              setDraftHighlights([...safeHighlights, { title: "New Highlight", date: "Date", img: data.secure_url }]);
                               setIsDraftingKiosk(true);
                            } else { showToast(`Upload error`, "error"); }
                         } catch(err) { showToast("Upload failed", "error"); } finally { setUploadingImage(false); e.target.value = ''; }
@@ -479,14 +500,14 @@ export function AdminPanel({
               </div>
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-                 {draftScreensaver?.map((url, index) => (
+                 {(Array.isArray(draftScreensaver) ? draftScreensaver : []).map((url, index) => (
                     <div key={index} style={{ background: dark ? 'rgba(0,0,0,0.2)' : '#f9fafb', borderRadius: 12, border: `1px solid ${border}`, padding: 8, position: "relative" }}>
                        <button onClick={() => {
                           const newS = draftScreensaver.filter((_, i) => i !== index);
                           setDraftScreensaver(newS);
                           setIsDraftingKiosk(true);
-                       }} style={{ position: "absolute", top: 16, right: 16, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}><X size={14}/></button>
-                       <img src={url} style={{ width: "100%", height: 180, objectFit: "cover", borderRadius: 8, background: '#000' }} />
+                       }} style={{ position: "absolute", top: 16, right: 16, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: '0 4px 12px rgba(0,0,0,0.5)', zIndex: 10 }}><X size={14}/></button>
+                       <img src={typeof url === 'string' ? url : (url as any)?.img} style={{ width: "100%", height: 180, objectFit: "cover", borderRadius: 8, background: '#000' }} />
                     </div>
                  ))}
                  
@@ -500,7 +521,8 @@ export function AdminPanel({
                            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
                            const data = await res.json();
                            if (data.secure_url) {
-                              setDraftScreensaver([...draftScreensaver, data.secure_url]);
+                              const safeSavers = Array.isArray(draftScreensaver) ? draftScreensaver : [];
+                              setDraftScreensaver([...safeSavers, data.secure_url]);
                               setIsDraftingKiosk(true);
                            } else { showToast(`Upload error`, "error"); }
                         } catch(err) { showToast("Upload failed", "error"); } finally { setUploadingImage(false); e.target.value = ''; }
