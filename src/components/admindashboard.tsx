@@ -19,8 +19,20 @@ const getColorForCategory = (cat: string) => {
 export function AdminPanel({
   dark, showToast, currentUser, activeTab, setActiveTab, activeCategoryTab, activeDeptTab,
   allCategories, mergedSubCategoriesMap, setDbCategories, setDbSubCategories, fetchData: globalFetchData,
-  layoutConfig, saveLayoutConfig, syncTrigger, screensaverSlides, setScreensaverSlides
-}: any) {
+  layoutConfig, saveLayoutConfig, syncTrigger,
+  screensaverSlides, setScreensaverSlides
+}: {
+  dark: boolean; showToast: (msg: string, type: 'success' | 'error' | 'info') => void; currentUser: User;
+  activeTab: string; setActiveTab: (t: string) => void;
+  activeCategoryTab: string; activeDeptTab: string; allCategories: string[]; mergedSubCategoriesMap: Record<string, string[]>;
+  setDbCategories: (cats: string[]) => void; setDbSubCategories: (cats: Record<string, string[]>) => void;
+  fetchData: () => void;
+  layoutConfig: { gear1: string, gear2: string, gear3: string, quickPrompts: string[] };
+  saveLayoutConfig: (config: any) => void;
+  syncTrigger: number;
+  screensaverSlides: any[];
+  setScreensaverSlides: (val: any[]) => void;
+}) {
   
   const [data, setData] = useState<Knowledge[]>([]);
   const [unanswered, setUnanswered] = useState<Unanswered[]>([]);
@@ -43,10 +55,6 @@ export function AdminPanel({
 
   const [modal, setModal] = useState<{ isOpen: boolean, type: 'confirm' | 'prompt', title: string, message: string, inputValue: string, onConfirm: (val?: string) => void }>({ isOpen: false, type: 'confirm', title: '', message: '', inputValue: '', onConfirm: () => {} });
 
-  // SCREENSAVER STATE
-  const [newSlide, setNewSlide] = useState({ title: "", desc: "", img: "" });
-  const [uploadingSlide, setUploadingSlide] = useState(false);
-
   const CLOUD_NAME = "xjzuq0fq"; const UPLOAD_PRESET = "chatcit_preset"; 
 
   const fetchDashboardData = async () => {
@@ -54,25 +62,42 @@ export function AdminPanel({
     try {
       globalFetchData(); 
       const safeFetch = async (endpoint: string) => {
-        try { const res = await fetch(`${API_URL}${endpoint}`); if (!res.ok) return []; const text = await res.text(); if (!text) return []; const json = JSON.parse(text); return Array.isArray(json) ? json : (json.rows ? json.rows : []); } catch (e) { return []; } 
+        try {
+          const res = await fetch(`${API_URL}${endpoint}`);
+          if (!res.ok) return [];
+          const text = await res.text();
+          if (!text) return [];
+          const json = JSON.parse(text);
+          return Array.isArray(json) ? json : (json.rows ? json.rows : []);
+        } catch (e) { return []; } 
       };
-      const [kData, uData, bData, userRes, calRes] = await Promise.all([ safeFetch('/knowledge'), safeFetch('/unanswered'), safeFetch('/bugs'), safeFetch('/users'), safeFetch('/calendar') ]);
+
+      const [kData, uData, bData, userRes, calRes] = await Promise.all([ 
+        safeFetch('/knowledge'), safeFetch('/unanswered'), safeFetch('/bugs'), safeFetch('/users'), safeFetch('/calendar')
+      ]);
+
       setData(kData); setUnanswered(uData); setBugs(bData); setUsers(userRes); setCalendarData(calRes);
       
       if (kData.length > 0) {
         setDbCategories(Array.from(new Set(kData.map((d: any) => d.category || "Handbook"))));
         const groupedSubs: Record<string, string[]> = {};
-        kData.forEach((d: any) => { const cat = d.category || "Handbook"; const sub = d.subcategory; if (sub && sub !== 'All') { if (!groupedSubs[cat]) groupedSubs[cat] = []; if (!groupedSubs[cat].includes(sub)) groupedSubs[cat].push(sub); } });
+        kData.forEach((d: any) => { 
+           const cat = d.category || "Handbook"; const sub = d.subcategory; 
+           if (sub && sub !== 'All') { 
+              if (!groupedSubs[cat]) groupedSubs[cat] = []; 
+              if (!groupedSubs[cat].includes(sub)) groupedSubs[cat].push(sub); 
+           } 
+        });
         setDbSubCategories(groupedSubs);
       }
-    } catch (e) { console.error(e); showToast("Network hiccup while syncing.", "info"); } finally { setLoading(false); setIsSyncing(false); }
+    } catch (e) { console.error(e); showToast("Network hiccup while syncing.", "info"); } 
+    finally { setLoading(false); setIsSyncing(false); }
   };
   
   useEffect(() => { fetchDashboardData(); }, [syncTrigger]);
   useEffect(() => { setSearchQuery(""); }, [activeTab]);
 
-  const departmentCounts = users.reduce((acc, u) => { const dept = (u as any).department || "Others"; acc[dept] = (acc[dept] || 0) + 1; acc["Total Users"] = (acc["Total Users"] || 0) + 1; return acc; }, {} as Record<string, number>);
-  const bg = dark ? "#25242c" : "#fff"; const border = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"; const textMuted = dark ? "#9aa0a6" : "#6b7280"; const textPrimary = dark ? "#e8eaed" : "#1a1a2e";
+  const allUserDepts = ["All", ...Array.from(new Set(users.map((u: any) => u.department || 'Others')))];
 
   const keywordsList = form.keyword ? form.keyword.split(',').map(k => k.trim()).filter(Boolean) : [];
   const handleAddKeyword = (e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); const val = keywordInput.trim().replace(/,/g, ''); if (val && !keywordsList.includes(val)) setForm({ ...form, keyword: [...keywordsList, val].join(', ') }); setKeywordInput(""); } };
@@ -89,64 +114,46 @@ export function AdminPanel({
     } catch (err) { showToast("Network error. Check your connection or Cloudinary API URL.", "error"); } finally { setUploadingImage(false); }
   };
 
-  const handleSlideUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return; setUploadingSlide(true);
-    const formData = new FormData(); formData.append("file", file); formData.append("upload_preset", UPLOAD_PRESET); formData.append("cloud_name", CLOUD_NAME);
-    try {
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
-      const uploadedData = await res.json();
-      if (uploadedData.secure_url) { setNewSlide({ ...newSlide, img: uploadedData.secure_url }); showToast("Slide image uploaded!", "success"); } 
-      else { showToast("Upload failed.", "error"); }
-    } catch (err) { showToast("Network error.", "error"); } finally { setUploadingSlide(false); }
-  };
-
-  const saveScreensaverToCloud = async (slides: any[]) => {
-     try {
-       await fetch(`${API_URL}/settings/kiosk_screensaver`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: slides }) });
-       showToast("Screensaver saved to cloud!", "success");
-     } catch(e) { showToast("Failed to save screensaver.", "error"); }
-  };
-
-  const addSlide = () => {
-     if (!newSlide.img) { showToast("Image is required.", "error"); return; }
-     const updated = [...(screensaverSlides || []), newSlide];
-     setScreensaverSlides(updated);
-     saveScreensaverToCloud(updated);
-     setNewSlide({ title: "", desc: "", img: "" });
-  };
-
-  const removeSlide = (idx: number) => {
-     const updated = screensaverSlides.filter((_: any, i: number) => i !== idx);
-     setScreensaverSlides(updated);
-     saveScreensaverToCloud(updated);
-  };
-
   const handleSaveKnowledge = async (id?: number) => {
     if (!form.keyword.trim() || !form.response.trim()) { showToast("At least one Keyword and a Response are required.", "error"); return; }
     try {
       const finalResponse = form.qr_link.trim() ? `${form.response.trim()}\n\n${form.qr_link.trim()}` : form.response.trim();
       const payload = { ...form, response: finalResponse };
+
       const res = await fetch(id ? `${API_URL}/knowledge/${id}` : `${API_URL}/knowledge`, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) throw new Error((await res.json()).error || "Server failed to save record.");
       setEditingId(null); setForm({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All", display_name: "", qr_link: "" }); setKeywordInput(""); 
-      fetchDashboardData(); showToast(id ? "Record updated!" : "New record added!", "success");
+      fetchDashboardData(); 
+      showToast(id ? "Record updated!" : "New record added!", "success");
     } catch (e: any) { showToast(e.message || "Error saving record.", "error"); }
   };
 
   const handleSaveCalendar = async (id?: number) => {
     if (!calForm.date || !calForm.title) { showToast("Date and Title are required.", "error"); return; }
     try {
-      const res = await fetch(id ? `${API_URL}/calendar/${id}` : `${API_URL}/calendar`, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(calForm) });
+      const res = await fetch(id ? `${API_URL}/calendar/${id}` : `${API_URL}/calendar`, {
+        method: id ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(calForm)
+      });
       if (!res.ok) throw new Error("Failed to save calendar event.");
-      setEditingCalId(null); setCalForm({ date: "", endDate: "", title: "", description: "", type: "Special Event" });
-      fetchDashboardData(); showToast(id ? "Calendar updated!" : "New event added!", "success");
+      setEditingCalId(null);
+      setCalForm({ date: "", endDate: "", title: "", description: "", type: "Special Event" });
+      fetchDashboardData();
+      showToast(id ? "Calendar updated!" : "New event added!", "success");
     } catch (e: any) { showToast(e.message, "error"); }
   };
 
   const handleDelete = (type: 'knowledge'|'unanswered'|'bugs'|'users'|'calendar', id: number) => {
     setModal({
       isOpen: true, type: 'confirm', title: 'Confirm Deletion', message: `Are you sure you want to delete this ${type === 'users' ? 'user account' : 'entry'}? This action cannot be undone.`, inputValue: '',
-      onConfirm: async () => { try { const res = await fetch(`${API_URL}/${type}/${id}`, { method: "DELETE" }); if (!res.ok) throw new Error("Server rejected deletion"); fetchDashboardData(); showToast("Deleted successfully.", "info"); } catch (e) { showToast("Error deleting item.", "error"); } }
+      onConfirm: async () => { 
+        try { 
+          const res = await fetch(`${API_URL}/${type}/${id}`, { method: "DELETE" }); 
+          if (!res.ok) throw new Error("Server rejected deletion");
+          fetchDashboardData(); showToast("Deleted successfully.", "info"); 
+        } catch (e) { showToast("Error deleting item.", "error"); } 
+      }
     });
   };
 
@@ -155,7 +162,10 @@ export function AdminPanel({
       isOpen: true, type: 'prompt', title: 'Reset Password', message: `Enter a new temporary password for student: ${currentEmail}`, inputValue: '',
       onConfirm: async (newPassword) => {
         if (!newPassword || newPassword.trim() === "") { showToast("Password cannot be empty.", "error"); return; }
-        try { const res = await fetch(`${API_URL}/users/${userId}/reset-password`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ newPassword }) }); if (res.ok) { showToast("Password successfully reset!", "success"); } else { showToast("Failed to reset password.", "error"); } } catch (e) { showToast("Error resetting password.", "error"); }
+        try {
+          const res = await fetch(`${API_URL}/users/${userId}/reset-password`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ newPassword }) });
+          if (res.ok) { showToast("Password successfully reset!", "success"); } else { showToast("Failed to reset password.", "error"); }
+        } catch (e) { showToast("Error resetting password.", "error"); }
       }
     });
   };
@@ -163,17 +173,34 @@ export function AdminPanel({
   const handleResetFaqCounters = () => {
     setModal({
       isOpen: true, type: 'confirm', title: 'Reset FAQ Analytics', message: 'Are you sure you want to completely reset all "Times Asked" counters back to zero? This action cannot be undone.', inputValue: '',
-      onConfirm: async () => { try { const res = await fetch(`${API_URL}/faqs/reset`, { method: "PUT", headers: { "Content-Type": "application/json" } }); if (!res.ok) throw new Error("Server rejected reset"); showToast("FAQ counters have been reset to zero.", "success"); fetchDashboardData(); } catch (e) { showToast("Error resetting counters.", "error"); } }
+      onConfirm: async () => {
+        try { 
+           const res = await fetch(`${API_URL}/faqs/reset`, { method: "PUT", headers: { "Content-Type": "application/json" } }); 
+           if (!res.ok) throw new Error("Server rejected reset");
+           showToast("FAQ counters have been reset to zero.", "success"); fetchDashboardData(); 
+        } catch (e) { showToast("Error resetting counters.", "error"); }
+      }
     });
   };
 
   const convertToKnowledge = (question: string, id: number) => {
     fetch(`${API_URL}/unanswered/${id}`, { method: "DELETE" }).then(fetchDashboardData);
-    setActiveTab('knowledge'); setEditingId(0); setForm({ keyword: question, response: "", picture_url: "", qr_link: "", category: activeCategoryTab !== "All" ? activeCategoryTab : "Handbook", subcategory: activeDeptTab !== "All" ? activeDeptTab : "All", display_name: "" }); setKeywordInput(""); showToast("Moved to Knowledge Base draft.", "info");
+    setActiveTab('knowledge'); 
+    setEditingId(0); 
+    setForm({ 
+      keyword: question, response: "", picture_url: "", qr_link: "",
+      category: activeCategoryTab !== "All" ? activeCategoryTab : "Handbook", 
+      subcategory: activeDeptTab !== "All" ? activeDeptTab : "All", display_name: "" 
+    }); 
+    setKeywordInput(""); showToast("Moved to Knowledge Base draft.", "info");
   };
 
   const handleRoleChange = async (userId: number, newRole: string) => {
-    try { const res = await fetch(`${API_URL}/users/${userId}/role`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: newRole, requesterRole: currentUser?.role }) }); if (!res.ok) throw new Error((await res.json()).error || "Failed to update role"); showToast("Role updated!", "success"); fetchDashboardData(); } catch (e: any) { showToast(e.message, "error"); }
+    try {
+      const res = await fetch(`${API_URL}/users/${userId}/role`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: newRole, requesterRole: currentUser?.role }) });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to update role");
+      showToast("Role updated!", "success"); fetchDashboardData();
+    } catch (e: any) { showToast(e.message, "error"); }
   };
 
   const q = searchQuery.toLowerCase();
@@ -183,17 +210,26 @@ export function AdminPanel({
     const matchSearch = d.keyword.toLowerCase().includes(q) || d.response.toLowerCase().includes(q) || ((d as any).display_name || "").toLowerCase().includes(q);
     const dbSub = ((d as any).subcategory || "All").toLowerCase();
     const matchSub = activeDeptTab === "All" || dbSub === activeDeptTab.toLowerCase();
+    
     if (activeCategoryTab !== 'All' && activeCategoryTab !== 'General' && activeCategoryTab !== 'Handbook') { return matchCat && matchSub && matchSearch; }
     return matchCat && matchSearch;
   });
 
   const filteredUnanswered = unanswered.filter(u => u.question.toLowerCase().includes(q));
   const filteredBugs = bugs.filter(b => b.user_info.toLowerCase().includes(q) || b.description.toLowerCase().includes(q));
-  const filteredUsers = users.filter(u => { const matchesSearch = u.email.toLowerCase().includes(q) || (u.username && u.username.toLowerCase().includes(q)); const matchesDept = activeDeptTab === "All" || (u.department || "Others") === activeDeptTab; return matchesSearch && matchesDept; });
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = u.email.toLowerCase().includes(q) || (u.username && u.username.toLowerCase().includes(q));
+    const matchesDept = activeDeptTab === "All" || (u.department || "Others") === activeDeptTab;
+    return matchesSearch && matchesDept;
+  });
+
+  const departmentCounts = users.reduce((acc, u) => { const dept = (u as any).department || "Others"; acc[dept] = (acc[dept] || 0) + 1; acc["Total Users"] = (acc["Total Users"] || 0) + 1; return acc; }, {} as Record<string, number>);
+  const bg = dark ? "#25242c" : "#fff"; const border = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"; const textMuted = dark ? "#9aa0a6" : "#6b7280"; const textPrimary = dark ? "#e8eaed" : "#1a1a2e";
 
   const renderEditForm = (title: string) => (
     <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
       <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{title}</h3>
+      
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 11, color: textMuted }}>Category</span>
@@ -201,11 +237,14 @@ export function AdminPanel({
             {allCategories.map(c => (<option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c}</option>))}
           </select>
         </div>
+
         <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 11, color: textMuted }}>Sub-category (Folder)</span>
           <select value={form.subcategory || "All"} onChange={e => setForm({ ...form, subcategory: e.target.value })} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
             <option value="All" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>None (Main Folder)</option>
-            {(mergedSubCategoriesMap[form.category] || []).map(c => ( <option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c}</option> ))}
+            {(mergedSubCategoriesMap[form.category] || []).map(c => (
+              <option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -248,18 +287,22 @@ export function AdminPanel({
     <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
       <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{title}</h3>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        
         <div style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 11, color: textMuted }}>Start Date</span>
           <input type="date" value={calForm.date ? calForm.date.split('T')[0] : ""} onChange={e => setCalForm({...calForm, date: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
         </div>
+        
         <div style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 11, color: textMuted }}>End Date (Optional)</span>
           <input type="date" value={calForm.endDate ? calForm.endDate.split('T')[0] : ""} onChange={e => setCalForm({...calForm, endDate: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
         </div>
+
         <div style={{ flex: 2, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 11, color: textMuted }}>Event Title</span>
           <input type="text" value={calForm.title} onChange={e => setCalForm({...calForm, title: e.target.value})} placeholder="e.g. Midterm Examinations" style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
         </div>
+        
         <div style={{ flex: 1, minWidth: 150, display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 11, color: textMuted }}>Event Type</span>
           <select value={calForm.type} onChange={e => setCalForm({...calForm, type: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
@@ -269,6 +312,7 @@ export function AdminPanel({
           </select>
         </div>
       </div>
+
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <span style={{ fontSize: 11, color: textMuted }}>Description (Optional)</span>
         <textarea value={calForm.description} onChange={e => setCalForm({...calForm, description: e.target.value})} placeholder="Add extra details..." rows={2} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", resize: "vertical", fontSize: 13 }} />
@@ -303,18 +347,25 @@ export function AdminPanel({
               <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Device Layout Settings</h3>
               <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Customize what appears on the kiosk gears and sidebar quick prompts for this specific device. This is saved to local storage.</p>
            </div>
+
            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: textMuted }}>Top Gear (Gear 1)</label>
-                <select value={layoutConfig.gear1 || allCategories[0] || ""} onChange={(e) => {saveLayoutConfig({...layoutConfig, gear1: e.target.value}); showToast("Gear 1 Updated", "success");}} style={{ padding: "10px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: "inherit", outline: "none" }}>{allCategories.map(c => <option key={c} value={c} style={{background: bg}}>{c}</option>)}</select>
+                <select value={layoutConfig.gear1 || allCategories[0] || ""} onChange={(e) => {saveLayoutConfig({...layoutConfig, gear1: e.target.value}); showToast("Gear 1 Updated", "success");}} style={{ padding: "10px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: "inherit", outline: "none" }}>
+                  {allCategories.map(c => <option key={c} value={c} style={{background: bg}}>{c}</option>)}
+                </select>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: textMuted }}>Middle Gear (Gear 2)</label>
-                <select value={layoutConfig.gear2 || allCategories[1] || ""} onChange={(e) => {saveLayoutConfig({...layoutConfig, gear2: e.target.value}); showToast("Gear 2 Updated", "success");}} style={{ padding: "10px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: "inherit", outline: "none" }}>{allCategories.map(c => <option key={c} value={c} style={{background: bg}}>{c}</option>)}</select>
+                <select value={layoutConfig.gear2 || allCategories[1] || ""} onChange={(e) => {saveLayoutConfig({...layoutConfig, gear2: e.target.value}); showToast("Gear 2 Updated", "success");}} style={{ padding: "10px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: "inherit", outline: "none" }}>
+                  {allCategories.map(c => <option key={c} value={c} style={{background: bg}}>{c}</option>)}
+                </select>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: textMuted }}>Bottom Gear (Gear 3)</label>
-                <select value={layoutConfig.gear3 || allCategories[2] || ""} onChange={(e) => {saveLayoutConfig({...layoutConfig, gear3: e.target.value}); showToast("Gear 3 Updated", "success");}} style={{ padding: "10px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: "inherit", outline: "none" }}>{allCategories.map(c => <option key={c} value={c} style={{background: bg}}>{c}</option>)}</select>
+                <select value={layoutConfig.gear3 || allCategories[2] || ""} onChange={(e) => {saveLayoutConfig({...layoutConfig, gear3: e.target.value}); showToast("Gear 3 Updated", "success");}} style={{ padding: "10px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: "inherit", outline: "none" }}>
+                  {allCategories.map(c => <option key={c} value={c} style={{background: bg}}>{c}</option>)}
+                </select>
               </div>
            </div>
 
@@ -326,7 +377,9 @@ export function AdminPanel({
                 {allCategories.map(c => {
                   const isSelected = layoutConfig.quickPrompts.includes(c);
                   return (
-                    <button key={c} onClick={() => {
+                    <button 
+                      key={c}
+                      onClick={() => {
                         let newPrompts = [...layoutConfig.quickPrompts];
                         if (isSelected) newPrompts = newPrompts.filter(p => p !== c);
                         else if (newPrompts.length < 7) newPrompts.push(c);
@@ -334,48 +387,64 @@ export function AdminPanel({
                         saveLayoutConfig({...layoutConfig, quickPrompts: newPrompts});
                       }}
                       style={{ padding: "8px 14px", borderRadius: 20, border: `1px solid ${isSelected ? '#4285f4' : border}`, background: isSelected ? 'rgba(66, 133, 244, 0.1)' : 'transparent', color: isSelected ? '#4285f4' : textMuted, cursor: "pointer", fontWeight: 500, fontSize: 13 }}
-                    >{c}</button>
+                    >
+                      {c}
+                    </button>
                   )
                 })}
               </div>
               <span style={{ fontSize: 11, color: textMuted }}>Click to toggle. Maximum of 7 items allowed.</span>
            </div>
 
-           <hr style={{ border: "none", borderTop: `1px solid ${border}`, margin: "24px 0" }} />
-           
-           <div>
-              <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Kiosk Screensaver Images</h3>
-              <p style={{ margin: "4px 0 16px 0", fontSize: 13, color: textMuted }}>Add or remove images that cycle when the kiosk is idle. (16:9 ratio recommended)</p>
-              
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start', background: dark ? 'rgba(255,255,255,0.02)' : '#f9fafb', padding: 16, borderRadius: 12, border: `1px solid ${border}` }}>
-                   <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 8 }}>
-                      <input value={newSlide.title} onChange={e => setNewSlide({...newSlide, title: e.target.value})} placeholder="Slide Title (Optional)" style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#fff", color: "inherit", outline: "none", fontSize: 13 }} />
-                      <input value={newSlide.desc} onChange={e => setNewSlide({...newSlide, desc: e.target.value})} placeholder="Short Description (Optional)" style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#fff", color: "inherit", outline: "none", fontSize: 13 }} />
-                   </div>
-                   <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 8 }}>
-                       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                          <input value={newSlide.img} onChange={e => setNewSlide({...newSlide, img: e.target.value})} placeholder="Image URL" style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#fff", color: "inherit", outline: "none", fontSize: 13 }} />
-                          <label style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 12px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.1)" : "#e2e8f0", cursor: uploadingSlide ? "wait" : "pointer", fontWeight: 600, fontSize: 12, whiteSpace: "nowrap" }}>
-                              <UploadCloud size={14} /> {uploadingSlide ? "..." : "Upload"}
-                              <input type="file" accept="image/*" onChange={handleSlideUpload} disabled={uploadingSlide} style={{ display: "none" }} />
-                          </label>
-                       </div>
-                       <button onClick={addSlide} style={{ width: '100%', padding: '8px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>+ Add Slide</button>
-                   </div>
-              </div>
+           {/* ADDED KIOSK SCREENSAVER MANAGER */}
+           <hr style={{ border: "none", borderTop: `1px solid ${border}`, margin: "16px 0 8px 0" }} />
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginTop: 16 }}>
-                  {(screensaverSlides || []).map((slide: any, idx: number) => (
-                      <div key={idx} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: `1px solid ${border}`, aspectRatio: '16/9' }}>
-                          <img src={slide.img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '24px 12px 12px', background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)' }}>
-                              <div style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>{slide.title || 'Untitled'}</div>
-                          </div>
-                          <button onClick={() => removeSlide(idx)} style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(239,68,68,0.9)', color: '#fff', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Trash2 size={14}/></button>
-                      </div>
-                  ))}
+           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Kiosk Screensaver Settings</h3>
+              <p style={{ margin: "0", fontSize: 13, color: textMuted }}>Manage the slideshow pictures and text displayed on the Kiosk when idle.</p>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, marginTop: 12 }}>
+                 {screensaverSlides?.map((slide, index) => (
+                    <div key={index} style={{ background: dark ? 'rgba(0,0,0,0.2)' : '#f9fafb', borderRadius: 12, border: `1px solid ${border}`, padding: 16, position: "relative", display: "flex", flexDirection: "column", gap: 8 }}>
+                       <button onClick={() => {
+                          const newS = screensaverSlides.filter((_, i) => i !== index);
+                          setScreensaverSlides(newS);
+                       }} style={{ position: "absolute", top: 8, right: 8, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={12}/></button>
+                       <img src={slide.img} style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8, background: '#000' }} />
+                       <input value={slide.title} onChange={e => { const n = [...screensaverSlides]; n[index].title = e.target.value; setScreensaverSlides(n); }} placeholder="Slide Title" style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: "inherit", fontSize: 13, outline: "none" }} />
+                       <textarea value={slide.desc} onChange={e => { const n = [...screensaverSlides]; n[index].desc = e.target.value; setScreensaverSlides(n); }} placeholder="Slide Description..." rows={3} style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: "inherit", fontSize: 12, outline: "none", resize: "none" }} />
+                    </div>
+                 ))}
+                 
+                 <label style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', borderRadius: 12, border: `1px dashed ${border}`, padding: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 220, cursor: uploadingImage ? "wait" : "pointer", gap: 12 }}>
+                    <UploadCloud size={32} color={textMuted} />
+                    <span style={{ fontSize: 13, color: textMuted, fontWeight: 600 }}>{uploadingImage ? "Uploading..." : "Upload New Picture"}</span>
+                    <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingImage} onChange={async (e) => {
+                        const file = e.target.files?.[0]; if (!file) return; setUploadingImage(true);
+                        const formData = new FormData(); formData.append("file", file); formData.append("upload_preset", UPLOAD_PRESET); formData.append("cloud_name", CLOUD_NAME);
+                        try {
+                           const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
+                           const data = await res.json();
+                           if (data.secure_url) {
+                              setScreensaverSlides([...(screensaverSlides || []), { title: "New Highlight", desc: "Description here...", img: data.secure_url }]);
+                           }
+                        } catch(err) { showToast("Upload failed", "error"); } finally { setUploadingImage(false); }
+                    }} />
+                 </label>
+              </div>
+              
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+                 <button onClick={async () => {
+                     try {
+                        await fetch(`${API_URL}/settings/kiosk_screensaver`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: screensaverSlides }) });
+                        showToast("Screensaver saved to cloud!", "success");
+                     } catch(e) { showToast("Failed to save screensaver", "error"); }
+                 }} style={{ background: "#10b981", color: "#fff", padding: "10px 20px", borderRadius: 8, border: "none", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+                     <CheckCircle size={16} /> Save Screensaver
+                 </button>
               </div>
            </div>
+
         </div>
       )}
 
@@ -401,10 +470,29 @@ export function AdminPanel({
               <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} /> Sync Data
             </button>
             {activeTab === 'knowledge' && editingId !== 0 && (
-              <button onClick={() => { setEditingId(0); setForm({ keyword: "", response: "", picture_url: "", category: activeCategoryTab !== "All" ? activeCategoryTab : "Handbook", subcategory: activeDeptTab !== "All" ? activeDeptTab : "All", display_name: "", qr_link: "" }); setKeywordInput(""); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontWeight: 500, fontSize: 13, flex: 1, whiteSpace: "nowrap" }}><Plus size={14} /> Add Entry</button>
+              <button onClick={() => { 
+                setEditingId(0); 
+                setForm({ 
+                  keyword: "", 
+                  response: "", 
+                  picture_url: "", 
+                  category: activeCategoryTab !== "All" ? activeCategoryTab : "Handbook", 
+                  subcategory: activeDeptTab !== "All" ? activeDeptTab : "All", 
+                  display_name: "",
+                  qr_link: "" 
+                }); 
+                setKeywordInput(""); 
+              }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontWeight: 500, fontSize: 13, flex: 1, whiteSpace: "nowrap" }}>
+                <Plus size={14} /> Add Entry
+              </button>
             )}
             {activeTab === 'calendar' && editingCalId !== 0 && (
-              <button onClick={() => { setEditingCalId(0); setCalForm({ date: "", endDate: "", title: "", description: "", type: "Special Event" }); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontWeight: 500, fontSize: 13, flex: 1, whiteSpace: "nowrap" }}><Plus size={14} /> Add Event</button>
+              <button onClick={() => { 
+                setEditingCalId(0); 
+                setCalForm({ date: "", endDate: "", title: "", description: "", type: "Special Event" }); 
+              }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontWeight: 500, fontSize: 13, flex: 1, whiteSpace: "nowrap" }}>
+                <Plus size={14} /> Add Event
+              </button>
             )}
           </div>
         </div>
@@ -412,9 +500,15 @@ export function AdminPanel({
 
       {activeTab === 'calendar' && (
         <>
-          {editingCalId === 0 && (<div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, marginBottom: 20, overflow: 'hidden' }}>{renderCalendarForm("Add New Event")}</div>)}
+          {editingCalId === 0 && (
+            <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, marginBottom: 20, overflow: 'hidden' }}>
+              {renderCalendarForm("Add New Event")}
+            </div>
+          )}
+
           <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", width: "100%" }}>
-            {calendarData.length === 0 ? ( <div style={{ padding: 30, textAlign: "center", opacity: 0.5, fontSize: 13 }}>No events found.</div>
+            {calendarData.length === 0 ? (
+              <div style={{ padding: 30, textAlign: "center", opacity: 0.5, fontSize: 13 }}>No events found.</div>
             ) : (
               <table style={{ width: "100%", minWidth: 600, borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
                 <thead>
@@ -431,16 +525,43 @@ export function AdminPanel({
                       <tr style={{ borderBottom: editingCalId === row.id ? 'none' : `1px solid ${border}`, background: editingCalId === row.id ? (dark ? "rgba(255,255,255,0.02)" : "#f9fafb") : "transparent", transition: "background 0.2s" }}>
                         <td style={{ padding: "10px 12px", verticalAlign: "top", fontWeight: 600 }}>
                           {new Date(row.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          {row.endDate && row.endDate !== row.date && ( <><br/><span style={{ fontSize: 11, color: textMuted }}>to</span><br/>{new Date(row.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</>)}
+                          
+                          {/* SHOW END DATE IF DIFFERENT FROM START DATE */}
+                          {row.endDate && row.endDate !== row.date && (
+                             <>
+                                <br/><span style={{ fontSize: 11, color: textMuted }}>to</span><br/>
+                                {new Date(row.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                             </>
+                          )}
                         </td>
-                        <td style={{ padding: "10px 12px", verticalAlign: "top" }}><div style={{ fontWeight: 700, color: dark ? '#fff' : '#000', marginBottom: 4 }}>{row.title}</div>{row.description && <div style={{ color: textMuted, fontSize: 12 }}>{row.description}</div>}</td>
-                        <td style={{ padding: "10px 12px", verticalAlign: "top" }}><span style={{ background: row.type?.includes('Exam') ? 'rgba(239, 68, 68, 0.1)' : row.type?.includes('Holiday') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)', color: row.type?.includes('Exam') ? '#ef4444' : row.type?.includes('Holiday') ? '#10b981' : '#3b82f6', padding: "4px 10px", borderRadius: 12, fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>{row.type || 'Special Event'}</span></td>
+                        <td style={{ padding: "10px 12px", verticalAlign: "top" }}>
+                          <div style={{ fontWeight: 700, color: dark ? '#fff' : '#000', marginBottom: 4 }}>{row.title}</div>
+                          {row.description && <div style={{ color: textMuted, fontSize: 12 }}>{row.description}</div>}
+                        </td>
+                        <td style={{ padding: "10px 12px", verticalAlign: "top" }}>
+                          <span style={{ 
+                            background: row.type?.includes('Exam') ? 'rgba(239, 68, 68, 0.1)' : row.type?.includes('Holiday') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)', 
+                            color: row.type?.includes('Exam') ? '#ef4444' : row.type?.includes('Holiday') ? '#10b981' : '#3b82f6', 
+                            padding: "4px 10px", borderRadius: 12, fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" 
+                          }}>
+                            {row.type || 'Special Event'}
+                          </span>
+                        </td>
                         <td style={{ padding: "10px 12px", verticalAlign: "top", textAlign: "right", whiteSpace: "nowrap" }}>
-                          <button onClick={() => { if (editingCalId === row.id) setEditingCalId(null); else { setCalForm({ date: row.date, endDate: row.endDate || row.date, title: row.title, description: row.description || "", type: row.type || "Special Event" }); setEditingCalId(row.id); } }} style={{ background: "none", border: "none", color: editingCalId === row.id ? textMuted : "#4285f4", cursor: "pointer", padding: 4 }} title="Edit"><Edit2 size={14} /></button>
+                          <button onClick={() => { 
+                            if (editingCalId === row.id) setEditingCalId(null);
+                            else { setCalForm({ date: row.date, endDate: row.endDate || row.date, title: row.title, description: row.description || "", type: row.type || "Special Event" }); setEditingCalId(row.id); }
+                          }} style={{ background: "none", border: "none", color: editingCalId === row.id ? textMuted : "#4285f4", cursor: "pointer", padding: 4 }} title="Edit"><Edit2 size={14} /></button>
                           <button onClick={() => handleDelete('calendar', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4 }} title="Delete"><Trash2 size={14} /></button>
                         </td>
                       </tr>
-                      {editingCalId === row.id && ( <tr style={{ background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", borderBottom: `1px solid ${border}` }}><td colSpan={4} style={{ padding: 0 }}>{renderCalendarForm("Edit Event")}</td></tr>)}
+                      {editingCalId === row.id && (
+                        <tr style={{ background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", borderBottom: `1px solid ${border}` }}>
+                          <td colSpan={4} style={{ padding: 0 }}>
+                             {renderCalendarForm("Edit Event")}
+                          </td>
+                        </tr>
+                      )}
                     </React.Fragment>
                   ))}
                 </tbody>
@@ -452,9 +573,15 @@ export function AdminPanel({
 
       {activeTab === 'knowledge' && (
         <>
-          {editingId === 0 && (<div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, marginBottom: 20, overflow: 'hidden' }}>{renderEditForm("Add New Knowledge")}</div>)}
+          {editingId === 0 && (
+            <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, marginBottom: 20, overflow: 'hidden' }}>
+              {renderEditForm("Add New Knowledge")}
+            </div>
+          )}
+
           <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", width: "100%" }}>
-            {filteredData.length === 0 ? ( <div style={{ padding: 30, textAlign: "center", opacity: 0.5, fontSize: 13 }}>No results found.</div>
+            {filteredData.length === 0 ? (
+              <div style={{ padding: 30, textAlign: "center", opacity: 0.5, fontSize: 13 }}>No results found.</div>
             ) : (
               <table style={{ width: "100%", minWidth: 600, borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
                 <thead>
@@ -469,9 +596,14 @@ export function AdminPanel({
                     <React.Fragment key={row.id}>
                       <tr style={{ borderBottom: editingId === row.id ? 'none' : `1px solid ${border}`, background: editingId === row.id ? (dark ? "rgba(255,255,255,0.02)" : "#f9fafb") : "transparent", transition: "background 0.2s" }}>
                         <td style={{ padding: "10px 12px", verticalAlign: "top" }}>
-                          <div style={{ fontSize: 10, color: getColorForCategory(row.category || "Handbook"), fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>{(row.category || "Handbook").replace('Teachers', 'Professors')}{row.subcategory && row.subcategory !== 'All' && (<span style={{ color: textMuted }}> &rsaquo; {row.subcategory}</span>)}</div>
+                          <div style={{ fontSize: 10, color: getColorForCategory(row.category || "Handbook"), fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>
+                            {(row.category || "Handbook").replace('Teachers', 'Professors')}
+                            {row.subcategory && row.subcategory !== 'All' && (<span style={{ color: textMuted }}> &rsaquo; {row.subcategory}</span>)}
+                          </div>
                           <div style={{ fontSize: 14, fontWeight: 700, color: dark ? '#fff' : '#000', marginBottom: 6 }}>{row.display_name || row.keyword.split(',')[0]}</div>
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>{row.keyword.split(',').map((kw: string, idx: number) => kw.trim() ? (<span key={idx} style={{ background: dark ? "rgba(255,255,255,0.08)" : "#f1f5f9", color: dark ? "#e2e8f0" : "#334155", padding: "2px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, border: `1px solid ${border}`, whiteSpace: "nowrap" }}>{kw.trim()}</span>) : null)}</div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                            {row.keyword.split(',').map((kw: string, idx: number) => kw.trim() ? (<span key={idx} style={{ background: dark ? "rgba(255,255,255,0.08)" : "#f1f5f9", color: dark ? "#e2e8f0" : "#334155", padding: "2px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, border: `1px solid ${border}`, whiteSpace: "nowrap" }}>{kw.trim()}</span>) : null)}
+                          </div>
                         </td>
                         <td style={{ padding: "10px 12px", verticalAlign: "top", opacity: 0.9, lineHeight: 1.4 }}>
                           <div style={{ marginBottom: row.picture_url ? 6 : 0 }}>{row.response}</div>
@@ -479,13 +611,36 @@ export function AdminPanel({
                         </td>
                         <td style={{ padding: "10px 12px", verticalAlign: "top", textAlign: "right", whiteSpace: "nowrap" }}>
                           <button onClick={() => { 
-                            if (editingId === row.id) { setEditingId(null); } 
-                            else { const extractedLink = row.response.match(/(https?:\/\/[^\s]+[^.,;:"'\s])/)?.[0] || ""; const cleanResponse = extractedLink ? row.response.replace(extractedLink, '').trim() : row.response; setForm({ keyword: row.keyword, response: cleanResponse, picture_url: row.picture_url || "", category: row.category || "Handbook", subcategory: row.subcategory || "All", display_name: row.display_name || "", qr_link: extractedLink }); setKeywordInput(""); setEditingId(row.id); }
+                            if (editingId === row.id) {
+                                setEditingId(null);
+                            } else {
+                                // Extract the URL if it was embedded in the response earlier
+                                const extractedLink = row.response.match(/(https?:\/\/[^\s]+[^.,;:"'\s])/)?.[0] || "";
+                                const cleanResponse = extractedLink ? row.response.replace(extractedLink, '').trim() : row.response;
+                                
+                                setForm({ 
+                                   keyword: row.keyword, 
+                                   response: cleanResponse, 
+                                   picture_url: row.picture_url || "", 
+                                   category: row.category || "Handbook", 
+                                   subcategory: row.subcategory || "All", 
+                                   display_name: row.display_name || "",
+                                   qr_link: extractedLink 
+                                }); 
+                                setKeywordInput(""); 
+                                setEditingId(row.id); 
+                            }
                           }} style={{ background: "none", border: "none", color: editingId === row.id ? textMuted : "#4285f4", cursor: "pointer", padding: 4 }} title={editingId === row.id ? "Cancel Edit" : "Edit"}><Edit2 size={14} /></button>
                           <button onClick={() => handleDelete('knowledge', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4 }} title="Delete"><Trash2 size={14} /></button>
                         </td>
                       </tr>
-                      {editingId === row.id && ( <tr style={{ background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", borderBottom: `1px solid ${border}` }}><td colSpan={3} style={{ padding: 0 }}>{renderEditForm("Edit Entry")}</td></tr> )}
+                      {editingId === row.id && (
+                        <tr style={{ background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", borderBottom: `1px solid ${border}` }}>
+                          <td colSpan={3} style={{ padding: 0 }}>
+                             {renderEditForm("Edit Entry")}
+                          </td>
+                        </tr>
+                      )}
                     </React.Fragment>
                   ))}
                 </tbody>
@@ -497,21 +652,29 @@ export function AdminPanel({
 
       {activeTab === 'faq' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}><button onClick={handleResetFaqCounters} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 8, border: "none", background: "rgba(239, 68, 68, 0.1)", color: "#ef4444", cursor: "pointer", fontWeight: 600, fontSize: 12 }}><RotateCcw size={12} /> Reset Counters</button></div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button onClick={handleResetFaqCounters} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 8, border: "none", background: "rgba(239, 68, 68, 0.1)", color: "#ef4444", cursor: "pointer", fontWeight: 600, fontSize: 12 }}><RotateCcw size={12} /> Reset Counters</button>
+          </div>
           <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", maxHeight: "60vh" }}>
-            {data.length === 0 ? ( <div style={{ padding: 30, textAlign: "center", opacity: 0.5, fontSize: 13 }}>No data found.</div>
+            {data.length === 0 ? (
+              <div style={{ padding: 30, textAlign: "center", opacity: 0.5, fontSize: 13 }}>No data found.</div>
             ) : (
               <table style={{ width: "100%", minWidth: 500, borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
                 <thead style={{ position: "sticky", top: 0, zIndex: 10, background: dark ? "#25242c" : "#fff" }}>
                   <tr style={{ borderBottom: `1px solid ${border}` }}>
-                    <th style={{ padding: "10px 12px", fontWeight: 600, width: 50 }}>Rank</th><th style={{ padding: "10px 12px", fontWeight: 600 }}>Keywords</th><th style={{ padding: "10px 12px", fontWeight: 600 }}>Response</th><th style={{ padding: "10px 12px", fontWeight: 600, textAlign: "right" }}>Times Asked</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 600, width: 50 }}>Rank</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 600 }}>Keywords</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 600 }}>Response</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 600, textAlign: "right" }}>Times Asked</th>
                   </tr>
                 </thead>
                 <tbody>
                   {[...data].sort((a: any, b: any) => (b.usage_count || 0) - (a.usage_count || 0)).map((row: any, index) => (
                     <tr key={row.id} style={{ borderBottom: `1px solid ${border}` }}>
                       <td style={{ padding: "10px 12px", verticalAlign: "top", fontWeight: 700, color: "#4285f4" }}>#{index + 1}</td>
-                      <td style={{ padding: "10px 12px", verticalAlign: "top" }}><div style={{ fontWeight: 600, color: dark ? '#fff' : '#000' }}>{row.display_name || row.keyword.split(',')[0]}</div></td>
+                      <td style={{ padding: "10px 12px", verticalAlign: "top" }}>
+                        <div style={{ fontWeight: 600, color: dark ? '#fff' : '#000' }}>{row.display_name || row.keyword.split(',')[0]}</div>
+                      </td>
                       <td style={{ padding: "10px 12px", verticalAlign: "top", opacity: 0.9, lineHeight: 1.4 }}><div style={{ maxHeight: 36, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{row.response}</div></td>
                       <td style={{ padding: "10px 12px", verticalAlign: "top", textAlign: "right", fontWeight: 600, fontSize: 14 }}>{row.usage_count || 0}</td>
                     </tr>
@@ -525,19 +688,24 @@ export function AdminPanel({
 
       {activeTab === 'unanswered' && (
         <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", maxHeight: "60vh" }}>
-          {filteredUnanswered.length === 0 ? ( <div style={{ padding: 30, textAlign: "center", color: textMuted, fontSize: 13 }}>No unanswered queries found.</div>
+          {filteredUnanswered.length === 0 ? (
+            <div style={{ padding: 30, textAlign: "center", color: textMuted, fontSize: 13 }}>No unanswered queries found.</div>
           ) : (
             <table style={{ width: "100%", minWidth: 500, borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
               <thead style={{ position: "sticky", top: 0, zIndex: 10, background: dark ? "#25242c" : "#fff" }}>
                 <tr style={{ borderBottom: `1px solid ${border}` }}>
-                  <th style={{ padding: "10px 12px", fontWeight: 600 }}>Unanswered Question</th><th style={{ padding: "10px 12px", fontWeight: 600, width: 160, textAlign: "right" }}>Actions</th>
+                  <th style={{ padding: "10px 12px", fontWeight: 600 }}>Unanswered Question</th>
+                  <th style={{ padding: "10px 12px", fontWeight: 600, width: 160, textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredUnanswered.map((row) => (
                   <tr key={row.id} style={{ borderBottom: `1px solid ${border}` }}>
                     <td style={{ padding: "10px 12px", verticalAlign: "middle", fontWeight: 500 }}>"{row.question}"</td>
-                    <td style={{ padding: "10px 12px", verticalAlign: "middle", textAlign: "right", whiteSpace: "nowrap" }}><button onClick={() => convertToKnowledge(row.question, row.id)} style={{ background: "none", border: "none", color: "#10b981", cursor: "pointer", padding: "4px 8px", fontWeight: 600, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}><Plus size={12} /> Add DB</button><button onClick={() => handleDelete('unanswered', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4, marginLeft: 4 }} title="Delete"><Trash2 size={14} /></button></td>
+                    <td style={{ padding: "10px 12px", verticalAlign: "middle", textAlign: "right", whiteSpace: "nowrap" }}>
+                      <button onClick={() => convertToKnowledge(row.question, row.id)} style={{ background: "none", border: "none", color: "#10b981", cursor: "pointer", padding: "4px 8px", fontWeight: 600, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}><Plus size={12} /> Add DB</button>
+                      <button onClick={() => handleDelete('unanswered', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4, marginLeft: 4 }} title="Delete"><Trash2 size={14} /></button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -548,19 +716,25 @@ export function AdminPanel({
 
       {activeTab === 'bugs' && (
         <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", maxHeight: "60vh" }}>
-          {filteredBugs.length === 0 ? ( <div style={{ padding: 30, textAlign: "center", color: textMuted, fontSize: 13 }}>No bug reports found.</div>
+          {filteredBugs.length === 0 ? (
+            <div style={{ padding: 30, textAlign: "center", color: textMuted, fontSize: 13 }}>No bug reports found.</div>
           ) : (
             <table style={{ width: "100%", minWidth: 500, borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
               <thead style={{ position: "sticky", top: 0, zIndex: 10, background: dark ? "#25242c" : "#fff" }}>
                 <tr style={{ borderBottom: `1px solid ${border}` }}>
-                  <th style={{ padding: "10px 12px", fontWeight: 600, width: 120 }}>Reported By</th><th style={{ padding: "10px 12px", fontWeight: 600 }}>Description</th><th style={{ padding: "10px 12px", fontWeight: 600, width: 60, textAlign: "right" }}>Actions</th>
+                  <th style={{ padding: "10px 12px", fontWeight: 600, width: 120 }}>Reported By</th>
+                  <th style={{ padding: "10px 12px", fontWeight: 600 }}>Description</th>
+                  <th style={{ padding: "10px 12px", fontWeight: 600, width: 60, textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredBugs.map((row) => (
                   <tr key={row.id} style={{ borderBottom: `1px solid ${border}` }}>
-                    <td style={{ padding: "10px 12px", verticalAlign: "top", color: textMuted, fontSize: 12 }}>{row.user_info}</td><td style={{ padding: "10px 12px", verticalAlign: "top", opacity: 0.9, lineHeight: 1.4 }}>{row.description}</td>
-                    <td style={{ padding: "10px 12px", verticalAlign: "top", textAlign: "right" }}><button onClick={() => handleDelete('bugs', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4 }} title="Resolve"><CheckCircle size={14} /></button></td>
+                    <td style={{ padding: "10px 12px", verticalAlign: "top", color: textMuted, fontSize: 12 }}>{row.user_info}</td>
+                    <td style={{ padding: "10px 12px", verticalAlign: "top", opacity: 0.9, lineHeight: 1.4 }}>{row.description}</td>
+                    <td style={{ padding: "10px 12px", verticalAlign: "top", textAlign: "right" }}>
+                      <button onClick={() => handleDelete('bugs', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4 }} title="Resolve"><CheckCircle size={14} /></button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -571,21 +745,37 @@ export function AdminPanel({
 
       {activeTab === 'users' && (
         <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", maxHeight: "60vh" }}>
-          {filteredUsers.length === 0 ? ( <div style={{ padding: 30, textAlign: "center", color: textMuted, fontSize: 13 }}>No users found.</div>
+          {filteredUsers.length === 0 ? (
+            <div style={{ padding: 30, textAlign: "center", color: textMuted, fontSize: 13 }}>No users found.</div>
           ) : (
             <table style={{ width: "100%", minWidth: 500, borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
               <thead style={{ position: "sticky", top: 0, zIndex: 10, background: dark ? "#25242c" : "#fff" }}>
                 <tr style={{ borderBottom: `1px solid ${border}` }}>
-                  <th style={{ padding: "10px 12px", fontWeight: 600 }}>Username / Email</th><th style={{ padding: "10px 12px", fontWeight: 600 }}>Dept</th><th style={{ padding: "10px 12px", fontWeight: 600 }}>Role</th><th style={{ padding: "10px 12px", fontWeight: 600, width: 100, textAlign: "right" }}>Actions</th>
+                  <th style={{ padding: "10px 12px", fontWeight: 600 }}>Username / Email</th>
+                  <th style={{ padding: "10px 12px", fontWeight: 600 }}>Dept</th>
+                  <th style={{ padding: "10px 12px", fontWeight: 600 }}>Role</th>
+                  <th style={{ padding: "10px 12px", fontWeight: 600, width: 100, textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredUsers.map((user: any) => (
                   <tr key={user.id} style={{ borderBottom: `1px solid ${border}` }}>
-                    <td style={{ padding: "10px 12px", verticalAlign: "middle", fontWeight: 500 }}>{user.username || "—"} <br /><span style={{ fontSize: 11, color: textMuted, fontWeight: 400 }}>{user.email}</span></td>
+                    <td style={{ padding: "10px 12px", verticalAlign: "middle", fontWeight: 500 }}>
+                      {user.username || "—"} <br />
+                      <span style={{ fontSize: 11, color: textMuted, fontWeight: 400 }}>{user.email}</span>
+                    </td>
                     <td style={{ padding: "10px 12px", verticalAlign: "middle", color: dark ? "#fff" : "#000" }}>{user.department || "Others"}</td>
-                    <td style={{ padding: "10px 12px", verticalAlign: "middle" }}><select value={user.role} disabled={currentUser?.role !== 'superadmin' && user.role === 'superadmin'} onChange={(e) => handleRoleChange(user.id, e.target.value)} style={{ padding: "4px 6px", borderRadius: 6, background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', color: user.role === 'admin' || user.role === 'superadmin' ? '#4285f4' : textMuted, border: `1px solid ${border}`, outline: "none", cursor: "pointer", fontWeight: 600, fontSize: 12 }}><option value="student" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Student</option><option value="admin" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Admin</option>{(currentUser?.role === 'superadmin' || user.role === 'superadmin') && (<option value="superadmin" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Superadmin</option>)}</select></td>
-                    <td style={{ padding: "10px 12px", verticalAlign: "middle", textAlign: "right", whiteSpace: "nowrap" }}><button onClick={() => handleResetPassword(user.id, user.email)} style={{ background: "none", border: "none", color: "#f59e0b", cursor: "pointer", padding: 4 }} title="Generate Password"><Key size={14} /></button><button onClick={() => handleDelete('users', user.id)} disabled={user.role === 'admin' || user.role === 'superadmin'} style={{ background: "none", border: "none", color: (user.role === 'admin' || user.role === 'superadmin') ? textMuted : "#ef4444", cursor: (user.role === 'admin' || user.role === 'superadmin') ? "not-allowed" : "pointer", padding: 4, marginLeft: 2 }} title="Delete Account"><Trash2 size={14} /></button></td>
+                    <td style={{ padding: "10px 12px", verticalAlign: "middle" }}>
+                      <select value={user.role} disabled={currentUser?.role !== 'superadmin' && user.role === 'superadmin'} onChange={(e) => handleRoleChange(user.id, e.target.value)} style={{ padding: "4px 6px", borderRadius: 6, background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', color: user.role === 'admin' || user.role === 'superadmin' ? '#4285f4' : textMuted, border: `1px solid ${border}`, outline: "none", cursor: "pointer", fontWeight: 600, fontSize: 12 }}>
+                        <option value="student" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Student</option>
+                        <option value="admin" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Admin</option>
+                        {(currentUser?.role === 'superadmin' || user.role === 'superadmin') && (<option value="superadmin" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Superadmin</option>)}
+                      </select>
+                    </td>
+                    <td style={{ padding: "10px 12px", verticalAlign: "middle", textAlign: "right", whiteSpace: "nowrap" }}>
+                      <button onClick={() => handleResetPassword(user.id, user.email)} style={{ background: "none", border: "none", color: "#f59e0b", cursor: "pointer", padding: 4 }} title="Generate Password"><Key size={14} /></button>
+                      <button onClick={() => handleDelete('users', user.id)} disabled={user.role === 'admin' || user.role === 'superadmin'} style={{ background: "none", border: "none", color: (user.role === 'admin' || user.role === 'superadmin') ? textMuted : "#ef4444", cursor: (user.role === 'admin' || user.role === 'superadmin') ? "not-allowed" : "pointer", padding: 4, marginLeft: 2 }} title="Delete Account"><Trash2 size={14} /></button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -610,7 +800,7 @@ export function AdminPanel({
 
       {fullScreenMedia && (
         <div onClick={() => setFullScreenMedia(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', padding: 24 }}>
-          <img src={fullScreenMedia} alt="Fullscreen View" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }} />
+          <img src={fullScreenMedia} alt="Fullscreen View" onClick={(e) => { e.stopPropagation(); setFullScreenMedia(null); }} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }} />
           <button onClick={() => setFullScreenMedia(null)} style={{ position: 'absolute', top: 24, right: 24, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.2s' }}><X size={24} /></button>
         </div>
       )}
