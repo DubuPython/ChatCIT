@@ -149,7 +149,7 @@ const getIconForCategory = (cat: string, size = 20) => {
   return <LayoutGrid size={size} />;
 };
 
-export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, setKioskCategory, kioskResult, setKioskResult, handleKioskSelection, topRightButtons, setFullScreenMedia, setShowCalendar, kioskMapping, globalKnowledge }: any) => {
+export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, setKioskCategory, kioskResult, setKioskResult, handleKioskSelection, topRightButtons, setFullScreenMedia, setShowCalendar, kioskMapping }: any) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdfPage, setPdfPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -158,6 +158,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const [localFullScreen, setLocalFullScreen] = useState<string | null>(null);
 
   const [dbDirectoryData, setDbDirectoryData] = useState<any[]>([]);
+  const [loadingDir, setLoadingDir] = useState(false);
   const [dirMajor, setDirMajor] = useState<string | null>(null);
   const [dirPage, setDirPage] = useState(1);
   const ITEMS_PER_PAGE = 8; 
@@ -178,7 +179,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const formattedDate = currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const formattedTime = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-  // THE 5 MAIN KIOSK CLUSTERS (Accomplishment on top to fit, Extensions at bottom)
   const clusterItems = [
     { label: "Faculty", alias: "Faculty & Professors", icon: <UserSquare size={36} /> },
     { label: "Accomplishment", alias: "Accomplishments", icon: <Briefcase size={36} /> },
@@ -194,7 +194,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   ];
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // INFINITE HIGHLIGHTS DATA (Duplicated to allow smooth infinite flex loop)
   const baseHighlights = [
     { title: 'CIT Week 2026', img: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=400&q=80', date: 'Sept 20-25' },
     { title: 'Tech Symposium', img: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=400&q=80', date: 'Sept 28' },
@@ -210,23 +209,24 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     }
   }, [screenState]);
 
-  // INSTANT DIRECTORY LOAD (NO GEARS!)
   useEffect(() => {
      if (kioskResult?.isPdf) setPdfPage(1);
      if (kioskResult?.isDirectory) {
          setDirMajor(kioskResult.subcategory && kioskResult.subcategory !== 'All' ? kioskResult.subcategory : null); 
          setDirPage(1);
-         
-         const rawData = globalKnowledge || [];
-         const targetName = (kioskResult.category || kioskResult.title || "").toLowerCase();
-         const directoryItems = rawData.filter((item: any) => {
-             const itemCat = (item.category || "").toLowerCase();
-             const itemSub = (item.subcategory || "").toLowerCase();
-             return itemCat === targetName || itemSub === targetName;
-         });
-         setDbDirectoryData(directoryItems);
+         setLoadingDir(true);
+         fetch(`${API_URL}/knowledge`).then(res => res.json()).then(data => {
+             const rawData = Array.isArray(data) ? data : [];
+             const targetName = (kioskResult.category || kioskResult.title || "").toLowerCase();
+             const directoryItems = rawData.filter((item: any) => {
+                 const itemCat = (item.category || "").toLowerCase();
+                 const itemSub = (item.subcategory || "").toLowerCase();
+                 return itemCat === targetName || itemSub === targetName;
+             });
+             setDbDirectoryData(directoryItems);
+           }).catch(err => console.error(err)).finally(() => setLoadingDir(false));
      }
-  }, [kioskResult?.title, kioskResult?.isDirectory, globalKnowledge]);
+  }, [kioskResult?.title, kioskResult?.isDirectory]);
 
   useEffect(() => {
     if (!kioskResult?.isPdf || !kioskResult?.pdfUrl) return;
@@ -288,7 +288,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const currentDirData = filteredDirectory.slice((dirPage - 1) * ITEMS_PER_PAGE, dirPage * ITEMS_PER_PAGE);
   const subCategories = Array.from(new Set(dbDirectoryData.map((d: any) => d.subcategory))).filter(s => s && s !== 'All');
 
-  // RESOLVE ITEMS TO RENDER FOR THE CURRENT SUB-MENU FROM APP MAPPING
   let itemsToRender: string[] = [];
   if (clusterItems.some(c => c.label === kioskCategory)) {
      itemsToRender = kioskMapping[kioskCategory] || [];
@@ -452,28 +451,33 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                           </div>
                         </>
                      ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 16, width: '100%' }}>
-                           {currentDirData.length > 0 ? currentDirData.map((item) => (
-                              <div key={item.id} className="glassy-dir-card" style={{ padding: 24 }} onClick={() => handleKioskSelection(kioskResult.category || kioskResult.title, item.display_name || (item.keyword ? item.keyword.split(',')[0] : ""))}>
-                                 <div style={{ width: 80, height: 80, borderRadius: '50%', background: dark ? 'rgba(0,0,0,0.3)' : '#fff', border: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
-                                    {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={item.picture_url} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: dark ? theme.accent : theme.cardBorder }}>{getIconForCategory(kioskResult.title, 40)}</span>}
-                                 </div>
-                                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start', textAlign: 'left' }}>
-                                    <span style={{ fontSize: 22, fontWeight: 800, color: theme.text }}>{item.display_name || (item.keyword ? item.keyword.split(',')[0] : "")}</span>
-                                    {item.subcategory && item.subcategory !== "All" && (<span style={{ fontSize: 16, fontWeight: 700, color: dark ? theme.accent : theme.cardBorder }}>{item.subcategory}</span>)}
-                                    <span style={{ fontSize: 15, color: theme.textMuted, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5 }}>{item.response}</span>
-                                 </div>
-                                 <ChevronRight size={28} color={theme.textMuted} style={{ flexShrink: 0 }} />
-                              </div>
-                           )) : (<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: theme.textMuted, fontWeight: 600, padding: 40, width: '100%' }}>No records found.</div>)}
-                        </div>
-                     )}
-                     {totalDirPages > 1 && (
-                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: 32, padding: '16px 24px', background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.8)', borderRadius: 24, border: `1px solid ${theme.border}` }}>
-                          <button onClick={() => setDirPage(p => Math.max(1, p - 1))} disabled={dirPage <= 1} style={{ padding: '12px 24px', borderRadius: 16, border: 'none', background: theme.accent, color: dark ? '#1C1D55' : '#fff', fontSize: 16, fontWeight: 800, cursor: 'pointer', opacity: dirPage <= 1 ? 0.3 : 1, transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.95)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>Previous</button>
-                          <span style={{ fontSize: 18, fontWeight: 800, color: theme.text }}>Page {dirPage} of {totalDirPages}</span>
-                          <button onClick={() => setDirPage(p => Math.min(totalDirPages, p + 1))} disabled={dirPage >= totalDirPages} style={{ padding: '12px 24px', borderRadius: 16, border: 'none', background: theme.accent, color: dark ? '#1C1D55' : '#fff', fontSize: 16, fontWeight: 800, cursor: 'pointer', opacity: dirPage >= totalDirPages ? 0.3 : 1, transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.95)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>Next</button>
-                       </div>
+                        loadingDir ? ( <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ transform: 'scale(0.8)' }}><GearboxLoader /></div></div>
+                        ) : (
+                           <>
+                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 16, width: '100%' }}>
+                                {currentDirData.length > 0 ? currentDirData.map((item) => (
+                                   <div key={item.id} className="glassy-dir-card" style={{ padding: 24 }} onClick={() => handleKioskSelection(kioskResult.category || kioskResult.title, item.display_name || (item.keyword ? item.keyword.split(',')[0] : ""))}>
+                                      <div style={{ width: 80, height: 80, borderRadius: '50%', background: dark ? 'rgba(0,0,0,0.3)' : '#fff', border: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                                         {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={item.picture_url} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: dark ? theme.accent : theme.cardBorder }}>{getIconForCategory(kioskResult.title, 40)}</span>}
+                                      </div>
+                                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start', textAlign: 'left' }}>
+                                         <span style={{ fontSize: 22, fontWeight: 800, color: theme.text }}>{item.display_name || (item.keyword ? item.keyword.split(',')[0] : "")}</span>
+                                         {item.subcategory && item.subcategory !== "All" && (<span style={{ fontSize: 16, fontWeight: 700, color: dark ? theme.accent : theme.cardBorder }}>{item.subcategory}</span>)}
+                                         <span style={{ fontSize: 15, color: theme.textMuted, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5 }}>{item.response}</span>
+                                      </div>
+                                      <ChevronRight size={28} color={theme.textMuted} style={{ flexShrink: 0 }} />
+                                   </div>
+                                )) : (<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: theme.textMuted, fontWeight: 600, padding: 40 }}>No records found.</div>)}
+                             </div>
+                             {totalDirPages > 1 && (
+                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: 32, padding: '16px 24px', background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.8)', borderRadius: 24, border: `1px solid ${theme.border}` }}>
+                                  <button onClick={() => setDirPage(p => Math.max(1, p - 1))} disabled={dirPage <= 1} style={{ padding: '12px 24px', borderRadius: 16, border: 'none', background: theme.accent, color: dark ? '#1C1D55' : '#fff', fontSize: 16, fontWeight: 800, cursor: 'pointer', opacity: dirPage <= 1 ? 0.3 : 1, transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.95)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>Previous</button>
+                                  <span style={{ fontSize: 18, fontWeight: 800, color: theme.text }}>Page {dirPage} of {totalDirPages}</span>
+                                  <button onClick={() => setDirPage(p => Math.min(totalDirPages, p + 1))} disabled={dirPage >= totalDirPages} style={{ padding: '12px 24px', borderRadius: 16, border: 'none', background: theme.accent, color: dark ? '#1C1D55' : '#fff', fontSize: 16, fontWeight: 800, cursor: 'pointer', opacity: dirPage >= totalDirPages ? 0.3 : 1, transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.95)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>Next</button>
+                               </div>
+                             )}
+                           </>
+                        )
                      )}
                   </div>
                 </div>
@@ -488,7 +492,23 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                   ) : (
                     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       {kioskResult?.image && (<div style={{ background: '#fff', borderRadius: 32, padding: 24, marginBottom: 40, boxShadow: '0 12px 32px rgba(0,0,0,0.2)' }}><img src={kioskResult.image} alt={`${kioskResult.title} Logo`} style={{ width: 240, height: 240, objectFit: 'contain' }} /></div>)}
-                      <div style={{ fontSize: 20, lineHeight: 1.7, color: theme.text, width: '100%', whiteSpace: 'pre-wrap', paddingBottom: 40, fontWeight: 500 }}>{formatText(kioskResult?.content)}</div>
+                      <div style={{ fontSize: 20, lineHeight: 1.7, color: theme.text, width: '100%', whiteSpace: 'pre-wrap', paddingBottom: 20, fontWeight: 500 }}>{formatText(kioskResult?.content)}</div>
+                      
+                      {/* AUTO-GENERATED QR CODE */}
+                      {(() => {
+                         const urlMatch = kioskResult?.content?.match(/(https?:\/\/[^\s]+[^.,;:"'\s])/);
+                         if (urlMatch) {
+                             return (
+                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 20, padding: '32px 48px', background: dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, boxShadow: '0 12px 40px rgba(0,0,0,0.1)' }}>
+                                     <span style={{ fontSize: 18, fontWeight: 800, color: theme.textMuted, marginBottom: 20, textTransform: 'uppercase', letterSpacing: '1px' }}>Scan for more info</span>
+                                     <div style={{ background: '#fff', padding: 12, borderRadius: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
+                                         <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(urlMatch[0])}`} alt="QR Code" style={{ display: 'block', borderRadius: 8 }} />
+                                     </div>
+                                 </div>
+                             )
+                         }
+                         return null;
+                      })()}
                     </div>
                   )}
                 </div>
