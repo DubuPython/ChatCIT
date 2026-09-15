@@ -68,10 +68,23 @@ interface Props { input: string; setInput: (val: string) => void; onSend: () => 
 export function CosmicInput({ input, setInput, onSend, isTyping, dark }: Props) {
   const [isListening, setIsListening] = useState(false);
 
-  const handleVoice = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return alert("Voice typing is not supported in this browser.");
+  const handleVoice = async () => {
+    // 1. AWAIT PERMISSION FIRST: This forces the browser/kiosk to prompt the user to allow the microphone
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      alert("⚠️ Microphone access denied! Please allow microphone permissions in your device settings.");
+      return;
+    }
 
+    // 2. CHECK COMPATIBILITY
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("⚠️ Voice typing is not supported in this browser. Please ensure you are using Chrome.");
+      return;
+    }
+
+    // 3. START RECORDING
     const recognition = new SpeechRecognition();
     recognition.lang = 'en-US'; 
     recognition.interimResults = false;
@@ -85,10 +98,32 @@ export function CosmicInput({ input, setInput, onSend, isTyping, dark }: Props) 
       document.body.appendChild(toast);
     };
 
-    recognition.onresult = (event: any) => setInput((prev: string) => (prev + " " + event.results[0][0].transcript).trim());
-    recognition.onerror = (event: any) => console.error("Speech error:", event.error);
-    recognition.onend = () => { setIsListening(false); document.getElementById('voice-prompt-toast')?.remove(); };
-    recognition.start();
+    recognition.onresult = (event: any) => {
+       const transcript = event.results[0][0].transcript;
+       setInput((prev: string) => (prev + " " + transcript).trim());
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech error:", event.error);
+      setIsListening(false); 
+      document.getElementById('voice-prompt-toast')?.remove();
+      
+      // Provide clear feedback on why it failed
+      if (event.error === 'not-allowed') alert("⚠️ Microphone permission was blocked by the browser.");
+      else if (event.error === 'network') alert("⚠️ A network connection is required for Voice Typing.");
+    };
+
+    recognition.onend = () => { 
+       setIsListening(false); 
+       document.getElementById('voice-prompt-toast')?.remove(); 
+    };
+
+    try {
+      recognition.start();
+    } catch (e) {
+      console.error("Recognition start error", e);
+      setIsListening(false);
+    }
   };
 
   return (
