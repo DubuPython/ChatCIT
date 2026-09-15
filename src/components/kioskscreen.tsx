@@ -51,13 +51,13 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     }
     
     .glassy-cluster-card {
-      border-radius: 28px; padding: 24px; display: flex; flex-direction: column;
+      border-radius: 28px; padding: 20px; display: flex; flex-direction: column;
       background: ${dark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.7)'};
       border: 1px solid ${dark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(166, 1, 18, 0.15)'};
       box-shadow: 0 16px 40px rgba(0,0,0,0.08); 
       backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px);
       cursor: pointer; transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-      position: relative; overflow: hidden; min-height: 170px;
+      position: relative; overflow: hidden; min-height: 160px;
     }
     .glassy-cluster-card:active { transform: scale(0.95); background: ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.9)'}; }
 
@@ -91,6 +91,7 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     }
     @keyframes marquee { 0% { transform: translateX(50%); } 100% { transform: translateX(-100%); } }
     
+    /* INFINITE CAROUSEL ANIMATIONS */
     .carousel-container {
        width: 100%; overflow: hidden; position: relative;
        -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
@@ -98,7 +99,7 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     }
     .carousel-track {
        display: flex; gap: 16px; width: max-content;
-       animation: scrollCarousel 45s linear infinite;
+       animation: scrollCarousel 30s linear infinite;
     }
     .carousel-container:hover .carousel-track { animation-play-state: paused; }
     @keyframes scrollCarousel { 0% { transform: translateX(0); } 100% { transform: translateX(calc(-50% - 8px)); } }
@@ -116,7 +117,7 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     }
     .glassy-dir-card:active { transform: scale(0.97); opacity: 0.9; }
 
-    .card-arrow { width: 36px; height: 36px; border-radius: 50%; border: 2px solid; display: flex; align-items: center; justify-content: center; position: absolute; bottom: 24px; right: 24px; transition: all 0.3s ease; }
+    .card-arrow { width: 32px; height: 32px; border-radius: 50%; border: 2px solid; display: flex; align-items: center; justify-content: center; position: absolute; bottom: 16px; right: 16px; transition: all 0.3s ease; }
     .glassy-cluster-card:hover .card-arrow { background: ${dark ? theme.accent : theme.cardBorder}; color: ${dark ? '#1C1D55' : '#fff'} !important; }
 
     .back-btn-modern {
@@ -133,7 +134,6 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     }
     .kiosk-detail-card.is-pdf { height: 1050px !important; max-height: 1050px !important; min-height: 1050px !important; padding: 0 !important; flex: 0 0 1050px !important; }
     .slide-enter { animation: fadeIn 1s ease-in-out forwards; }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   `}</style>
 );
 
@@ -179,16 +179,15 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const formattedDate = currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const formattedTime = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-  // THE 5 MAIN KIOSK CLUSTERS (Swapped Accomplishment & Extensions to prevent overlap)
+  // THE 5 MAIN KIOSK CLUSTERS (Accomplishment on top to fit, Extensions at bottom)
   const clusterItems = [
     { label: "Faculty", alias: "Faculty & Professors", icon: <UserSquare size={36} /> },
-    { label: "Extensions", alias: "Extensions", icon: <FileText size={36} /> },
+    { label: "Accomplishment", alias: "Accomplishments", icon: <Briefcase size={36} /> },
     { label: "Student Affairs", alias: "Organizations", icon: <Users size={36} /> },
     { label: "Curriculum", alias: "Majors", icon: <GraduationCap size={36} /> },
-    { label: "Accomplishment", alias: "Accomplishments", icon: <Briefcase size={36} /> }
+    { label: "Extensions", alias: "Extensions", icon: <FileText size={36} /> }
   ];
 
-  // IDLE PRESENTATION SLIDES
   const presentationSlides = [
     { title: "Our Mission", desc: "Bulacan State University exists to produce highly competent, ethical and service-oriented professionals that contribute to the sustainable socio-economic growth and development of the nation.", img: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1600&q=80" },
     { title: "Our Vision", desc: "Bulacan State University is a progressive knowledge-generating institution globally recognized for excellent instruction, pioneering research, and responsive extension services.", img: "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1600&q=80" },
@@ -299,7 +298,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
 
   const goHome = () => { setScreenState("home"); setKioskCategory(null); setKioskResult(null); };
 
-  // FULL-SCREEN IDLE PRESENTATION
   if (screenState === "presentation") {
      return (
        <>
@@ -348,16 +346,16 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
             <div className="omantel-grid">
                {clusterItems.map((item, idx) => (
                   <div key={idx} onClick={() => setKioskCategory(item.label)} className="glassy-cluster-card" style={{ gridColumn: idx < 3 ? 'span 2' : 'span 3' }}>
-                     <div style={{ color: dark ? theme.accent : theme.cardBorder, marginBottom: 16 }}>{item.icon}</div>
-                     <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Browse</div>
-                     <div style={{ fontSize: 22, color: theme.text, fontWeight: 800, lineHeight: 1.2, marginTop: 4, paddingRight: 40 }}>{item.label}</div>
+                     <div style={{ color: dark ? theme.accent : theme.cardBorder, marginBottom: 12 }}>{item.icon}</div>
+                     <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Browse</div>
+                     <div style={{ fontSize: item.label.length > 12 ? 16 : 20, color: theme.text, fontWeight: 800, lineHeight: 1.2, marginTop: 4, paddingRight: 24, wordBreak: 'break-word' }}>{item.label}</div>
                      <div className="card-arrow" style={{ borderColor: dark ? theme.accent : theme.cardBorder, color: dark ? theme.accent : theme.cardBorder }}><ArrowRight size={16}/></div>
                   </div>
                ))}
             </div>
 
             {/* MARQUEE SANDWICH & HIGHLIGHTS OF THE MONTH */}
-            <div style={{ width: '100%', maxWidth: 680, marginTop: 48, marginBottom: 32, padding: '0 16px' }}>
+            <div style={{ width: '100%', maxWidth: 680, marginTop: 40, marginBottom: 32, padding: '0 16px' }}>
                
                <div className="marquee-container" style={{ background: dark ? 'rgba(166, 1, 18, 0.15)' : 'rgba(166, 1, 18, 0.05)', borderColor: dark ? '#A60112' : 'rgba(166, 1, 18, 0.2)', marginBottom: 24 }}>
                   <div className="marquee-text" style={{ color: dark ? '#fff' : '#A60112' }}>#ALABBULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #ALABBULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp;</div>
@@ -395,13 +393,11 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
           </div>
         )}
 
-        {/* SUB-MENU DIRECTORY LISTING MAPS */}
         {screenState === "home" && kioskCategory && (
             <div className="kiosk-main-scroll no-scrollbar">
               <div style={{ width: '100%', maxWidth: 720, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}><button onClick={goHome} className="back-btn-modern"><ArrowLeft size={20}/> Back</button><h2 style={{ fontSize: 32, fontWeight: 800, color: theme.text, margin: 0, textShadow: dark ? '0 4px 12px rgba(0,0,0,0.3)' : 'none' }}>{kioskCategory}</h2></div>
               </div>
-              
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20, width: '100%', maxWidth: 720 }}>
                 {itemsToRender.map((item, idx) => (
                   <div key={idx} className="glassy-dir-card" onClick={() => handleKioskSelection(kioskCategory, item)}>
@@ -415,7 +411,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
             </div>
         )}
 
-        {/* DETAILED RESULTS & DIRECTORY MODALS */}
         {screenState === "kiosk_result" && (
           <div className="kiosk-main-scroll no-scrollbar" style={{ paddingBottom: 40, paddingTop: 100 }}>
             <div className={`kiosk-detail-card ${kioskResult?.isPdf ? 'is-pdf' : ''}`}>
