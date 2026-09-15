@@ -388,8 +388,11 @@ export default function App() {
   const [showAuthPopup, setShowAuthPopup] = useState(() => {
     if (typeof window !== "undefined") {
       const savedUser = localStorage.getItem('chatcit_user');
-      if (!savedUser) return true;
-      try { const u = JSON.parse(savedUser); if (Number(u.id) === -1) return true; } catch (e) { return true; }
+      if (savedUser && savedUser !== 'undefined') {
+         try { const u = JSON.parse(savedUser); if (u && Number(u.id) === -1) return true; } catch (e) { return true; }
+      } else {
+         return true;
+      }
     }
     return false;
   });
@@ -405,13 +408,31 @@ export default function App() {
   const [adminCategory, setAdminCategory] = useState("All");
   const [adminDept, setAdminDept] = useState("All");
   
-  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  // SAFE PERSIST CUSTOM CATEGORIES
+  const [customCategories, setCustomCategories] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+       const saved = localStorage.getItem('chatcit_custom_cats');
+       if (saved && saved !== 'undefined') { try { const parsed = JSON.parse(saved); if (Array.isArray(parsed)) return parsed; } catch(e){} }
+    }
+    return [];
+  });
+
   const [dbCategories, setDbCategories] = useState<string[]>([]);
-  
   const [dbSubCategories, setDbSubCategories] = useState<Record<string, string[]>>({});
-  const [customSubCats, setCustomSubCats] = useState<{cat: string, sub: string}[]>([]);
+  
+  // SAFE PERSIST CUSTOM SUBCATEGORIES
+  const [customSubCats, setCustomSubCats] = useState<{cat: string, sub: string}[]>(() => {
+    if (typeof window !== "undefined") {
+       const saved = localStorage.getItem('chatcit_custom_subcats');
+       if (saved && saved !== 'undefined') { try { const parsed = JSON.parse(saved); if (Array.isArray(parsed)) return parsed; } catch(e){} }
+    }
+    return [];
+  });
   
   const [syncTrigger, setSyncTrigger] = useState(0);
+
+  useEffect(() => { localStorage.setItem('chatcit_custom_cats', JSON.stringify(customCategories)); }, [customCategories]);
+  useEffect(() => { localStorage.setItem('chatcit_custom_subcats', JSON.stringify(customSubCats)); }, [customSubCats]);
 
   const mergedSubCategoriesMap: Record<string, string[]> = { ...dbSubCategories };
   customSubCats.forEach(({cat, sub}) => {
@@ -436,16 +457,18 @@ export default function App() {
   const dynamicCategories = Array.from(new Set(globalKnowledge.map(d => d.category || 'General'))).filter(c => c !== 'General');
   const allSidebarCategories = Array.from(new Set([...dynamicCategories, ...customCategories]));
 
-  // COMBINED LIST FOR KIOSK MAPPING (Main Cats ONLY to prevent overlapping dropsdowns)
+  // COMBINED LIST FOR KIOSK MAPPING (Main Cats ONLY)
   const allMappableItems = useMemo(() => {
+     const subCatValues = Object.values(mergedSubCategoriesMap).reduce((acc, val) => acc.concat(val), []);
      const items = new Set([
          ...allSidebarCategories,
+         ...subCatValues,
          "Handbook", "Magna Carta", "Accomplishments"
      ]);
      items.delete("All");
      items.delete("General");
      return Array.from(items).filter(Boolean).sort();
-  }, [allSidebarCategories]);
+  }, [allSidebarCategories, mergedSubCategoriesMap]);
 
 
   // --- SMART CATEGORY RESOLVER ALIAS MATCHER ---
@@ -499,7 +522,7 @@ export default function App() {
 
   useEffect(() => {
     const savedLayout = localStorage.getItem('chatcit_layout');
-    if (savedLayout) {
+    if (savedLayout && savedLayout !== 'undefined') {
       try { setLayoutConfig(JSON.parse(savedLayout)); } catch (e) {}
     }
   }, []);
@@ -518,7 +541,24 @@ export default function App() {
   const gear2Cat = layoutConfig.gear2 || dynamicCategories[1] || 'Majors';
   const gear3Cat = layoutConfig.gear3 || dynamicCategories[2] || 'Documents';
 
-  // CLOUD STATE FOR MAPPING ADMIN KIOSK CLUSTERS
+  const getGearItems = (cat: string) => {
+      if (!cat) return ["No Data"];
+      const lowerCat = cat.toLowerCase();
+      if (lowerCat === 'handbook') return ['Handbook'];
+      if (lowerCat === 'magna carta') return ['Magna Carta'];
+
+      const items = globalKnowledge.filter(d => (d.category || '').toLowerCase() === cat.toLowerCase());
+      if (items.length === 0) return ["No Data"];
+      const subs = Array.from(new Set(items.map(d => d.subcategory))).filter(s => s && s !== 'All');
+      if (subs.length > 0) return subs as string[]; 
+      return items.map(d => d.display_name || (d.keyword ? d.keyword.split(',')[0] : "Unnamed")); 
+  };
+
+  const gear1Items = getGearItems(gear1Cat);
+  const gear2Items = getGearItems(gear2Cat);
+  const gear3Items = getGearItems(gear3Cat);
+
+  // SAFE CLOUD STATE FOR MAPPING ADMIN KIOSK CLUSTERS
   const defaultMapping = {
     "Faculty": ["Faculty & Professors"],
     "Extensions": [],
@@ -527,7 +567,19 @@ export default function App() {
     "Accomplishment": ["Industry Partners"]
   };
   
-  const [kioskMapping, setKioskMapping] = useState<Record<string, string[]>>(defaultMapping);
+  const [kioskMapping, setKioskMapping] = useState<Record<string, string[]>>(() => {
+     if (typeof window !== "undefined") {
+        const savedMap = localStorage.getItem('chatcit_kiosk_mapping');
+        if (savedMap && savedMap !== 'undefined') {
+           try { 
+              const parsed = JSON.parse(savedMap); 
+              if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Object.keys(parsed).length > 0) return parsed;
+           } catch(e){}
+        }
+     }
+     return defaultMapping;
+  });
+
   const [draftMapping, setDraftMapping] = useState<Record<string, string[]>>({});
 
   // Fetch Kiosk Layout from Postgres Cloud
@@ -536,7 +588,9 @@ export default function App() {
       const res = await fetch(`${API_URL}/settings/kiosk_mapping`);
       if (res.ok) {
         const data = await res.json();
-        if (Object.keys(data).length > 0) setKioskMapping(data);
+        if (data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length > 0) {
+           setKioskMapping(data);
+        }
       }
     } catch(e) {}
   };
@@ -563,6 +617,7 @@ export default function App() {
            body: JSON.stringify({ value: draftMapping })
         });
         setKioskMapping(draftMapping);
+        localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(draftMapping));
         showToast("Kiosk layout saved to cloud successfully!", "success");
      } catch(e) {
         showToast("Failed to save layout to cloud.", "error");
@@ -590,12 +645,22 @@ export default function App() {
 
     // Normal User Flow (If Not Kiosk)
     const savedUser = localStorage.getItem('chatcit_user');
-    const isGuest = !savedUser || Number(JSON.parse(savedUser).id) === -1;
+    let parsedUser = null;
+    if (savedUser && savedUser !== 'undefined') {
+       try { parsedUser = JSON.parse(savedUser); } catch(e) {}
+    }
+    const isGuest = !parsedUser || Number(parsedUser.id) === -1;
+    
     if (!isGuest) {
-      setCurrentUser(JSON.parse(savedUser!));
+      setCurrentUser(parsedUser);
       const savedChats = localStorage.getItem('chatcit_chats');
-      if (savedChats) {
-        try { setChats(JSON.parse(savedChats).map((c: any) => ({ ...c, timestamp: new Date(c.timestamp), messages: c.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })) }))); } catch (e) { }
+      if (savedChats && savedChats !== 'undefined') {
+        try { 
+           const parsedChats = JSON.parse(savedChats);
+           if (Array.isArray(parsedChats)) {
+              setChats(parsedChats.map((c: any) => ({ ...c, timestamp: new Date(c.timestamp), messages: c.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })) }))); 
+           }
+        } catch (e) { }
       }
     } else {
       setCurrentUser({ id: -1, email: "guest@bulsu.edu.ph", role: "student", username: "Guest User" });
@@ -1479,6 +1544,287 @@ export default function App() {
                     </div>
                   );
                 })}
+              </aside>
+            )}
+
+            {/* MAIN CHAT & ADMIN INTERFACE */}
+            <main style={{ 
+              flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "absolute",
+              top: 0, bottom: 0, 
+              left: mainLeft, 
+              right: mainRight, 
+              paddingBottom: kbOpen ? 360 : 0, 
+              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+            }}>
+              <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: useMobileLayout ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
+                
+                {/* LEFT HEADER ZONE */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
+                  {((useMobileLayout) || (!gearMode && !sidebarOpen) || isKioskChat) && (
+                    <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", zIndex: 60 }}><Menu size={22} /></button>
+                  )}
+                  
+                  {isKioskChat && (
+                    <button 
+                      onClick={() => { setScreenState("home"); setKioskCategory(null); setKioskResult(null); setActiveChatId(null); setDirectoryMode(null); setSidebarOpen(false); setRightRailOpen(false); }} 
+                      style={{ background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, color: dark ? '#fff' : '#0f172a', padding: '8px 16px', borderRadius: 24, fontSize: 15, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: "transform 0.1s", marginLeft: 12 }}
+                      onMouseEnter={e => e.currentTarget.style.transform = "scale(0.95)"}
+                      onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                    >
+                      <ArrowLeft size={18} /> Home
+                    </button>
+                  )}
+
+                  {(!isKioskChat && (useMobileLayout || (!gearMode && !sidebarOpen))) && (
+                    <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.5px' }}>
+                      <span style={{ color: dark ? '#fff' : '#0f172a' }}>Chat</span><span style={{ color: '#4285f4' }}>CIT</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* CENTER HEADER ZONE */}
+                {((isKioskChat) || (isWebMode && !useMobileLayout && gearMode)) && (
+                  <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.5px' }}>
+                      <span style={{ color: dark ? '#fff' : '#0f172a' }}>Chat</span><span style={{ color: '#4285f4' }}>CIT</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* RIGHT HEADER ZONE */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, flex: 1 }}>
+                  {(useMobileLayout || isKioskChat) ? (
+                    <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer", zIndex: 60 }}>
+                      <MoreVertical size={28} color={isKioskChat ? (dark ? "#fff" : "#0f172a") : (dark ? "#60a5fa" : "#2563eb")} />
+                    </button>
+                  ) : (
+                    (viewMode === 'admin' && !simKiosk) && (
+                       topRightButtons
+                    )
+                  )}
+                </div>
+              </header>
+
+              <div id="chat-scroll-container" className="no-scrollbar" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", WebkitOverflowScrolling: "touch", display: "flex", flexDirection: "column" }}>
+                {viewMode === "admin" && currentUser && !simKiosk ? (
+                  <div className="admin-panel-wrapper" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, paddingBottom: useMobileLayout ? 120 : 24, display: "flex", flexDirection: "column" }}>
+                    
+                    {adminTab === 'kiosk' ? (
+                       <div style={{ flex: 1, overflowY: "auto", padding: "32px", WebkitOverflowScrolling: "touch" }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
+                             <div>
+                               <h2 style={{ fontSize: 28, fontWeight: 800, color: textPrimary, marginBottom: 8 }}>Kiosk Layout Editor</h2>
+                               <p style={{ color: textMuted, margin: 0 }}>Map your databank categories and folders to the 5 main Kiosk Clusters.</p>
+                             </div>
+                             <button onClick={saveKioskMapping} style={{ background: '#10b981', color: '#fff', padding: '12px 24px', borderRadius: 12, fontWeight: 800, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)', transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.95)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>
+                                <CheckCircle size={20} /> Save Layout
+                             </button>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 24, width: '100%' }}>
+                             {["Faculty", "Extensions", "Student Affairs", "Curriculum", "Accomplishment"].map(cluster => (
+                                <div key={cluster} style={{ background: dark ? 'rgba(255,255,255,0.03)' : '#fff', border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box' }}>
+                                   <h3 style={{ fontSize: 18, fontWeight: 700, color: textPrimary, margin: '0 0 16px' }}>{cluster}</h3>
+                                   
+                                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, width: '100%' }}>
+                                      <select id={`select-${cluster}`} style={{ flex: 1, minWidth: 0, padding: '10px', borderRadius: 8, background: dark ? 'rgba(0,0,0,0.2)' : '#f1f5f9', color: textPrimary, border: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, outline: 'none', textOverflow: 'ellipsis' }}>
+                                         <option value="" style={{ color: '#000' }}>Add category...</option>
+                                         {allMappableItems.filter(c => !(draftMapping[cluster] || []).includes(c)).map(c => (
+                                            <option key={c} value={c} style={{ color: '#000' }}>{c}</option>
+                                         ))}
+                                      </select>
+                                      <button onClick={() => {
+                                         const sel = document.getElementById(`select-${cluster}`) as HTMLSelectElement;
+                                         if (sel.value) { addDraftCat(cluster, sel.value); sel.value = ""; }
+                                      }} style={{ background: '#4285f4', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>Add</button>
+                                   </div>
+
+                                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+                                      {(draftMapping[cluster] || []).map(cat => (
+                                         <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: dark ? 'rgba(0,0,0,0.3)' : '#f8fafc', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
+                                            <span style={{ fontSize: 14, fontWeight: 600, color: textPrimary }}>{cat.replace('Teachers', 'Professors')}</span>
+                                            <button onClick={() => removeDraftCat(cluster, cat)} style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', border: 'none', width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}><Trash2 size={14} /></button>
+                                         </div>
+                                      ))}
+                                      {!(draftMapping[cluster] || []).length && <div style={{ textAlign: 'center', color: textFaint, fontSize: 13, marginTop: 20 }}>No items assigned.</div>}
+                                   </div>
+                                </div>
+                             ))}
+                          </div>
+                       </div>
+                    ) : (
+                       <div style={{ flex: 1, overflowY: "auto", padding: "16px", WebkitOverflowScrolling: "touch" }}>
+                         <AdminPanel 
+                            dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allSidebarCategories} 
+                            mergedSubCategoriesMap={mergedSubCategoriesMap} 
+                            setDbCategories={setDbCategories} setDbSubCategories={setDbSubCategories} 
+                            fetchData={fetchGlobalKnowledge}
+                            layoutConfig={layoutConfig}
+                            saveLayoutConfig={saveLayoutConfig}
+                            syncTrigger={syncTrigger}
+                         />
+                       </div>
+                    )}
+                  </div>
+                ) : directoryMode ? (
+                  <ChatDirectory 
+                     dark={dark} 
+                     category={directoryMode} 
+                     onClose={() => setDirectoryMode(null)} 
+                     onCardClick={(name) => handleKioskSelection(directoryMode, name)} 
+                  />
+                ) : !activeChat || activeChat.messages.length === 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, padding: "48px 16px" }}>
+                    <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}><div style={{ position: "absolute", transform: useMobileLayout ? "scale(0.65)" : "scale(0.85)" }}><GearboxLoader /></div></div>
+                    <h1 style={{ fontSize: useMobileLayout ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{simKiosk ? "CITizen" : (currentUser && Number(currentUser.id) === -1 ? "Guest" : currentUser?.username || currentUser?.email?.split('@')[0] || "Bulsuan")}!</strong></h1>
+                    <p style={{ color: textMuted, fontSize: 15, marginBottom: 32, textAlign: "center" }}>How can I help you today?</p>
+                    
+                    {topFaqs.length > 0 && (!currentUser || Number(currentUser.id) !== -1) && (
+                      <div className="no-scrollbar" style={{ width: "100%", maxWidth: 700, display: "flex", justifyContent: "center", padding: "4px 16px" }}>
+                        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10 }}>
+                          {topFaqs.slice(0, useMobileLayout ? 5 : topFaqs.length).map((faq, idx) => {
+                            const primaryTag = faq.display_name || (faq.keyword ? faq.keyword.split(',')[0].trim() : "Question");
+                            return (
+                              <button 
+                                key={idx} 
+                                onClick={() => sendMessage(primaryTag)} 
+                                style={{ flexShrink: 0, padding: "10px 18px", borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? "rgba(255,255,255,0.03)" : "#fff", color: textPrimary, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "normal", wordBreak: "break-word", maxWidth: "100%", lineHeight: 1.4, textAlign: "center" }} 
+                                onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.08)" : "#ffffff"} 
+                                onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.03)" : "#fff"}
+                              >
+                                {primaryTag}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ maxWidth: 960, width: "100%", margin: "0 auto", padding: useMobileLayout ? "16px 12px" : "24px 16px", display: "flex", flexDirection: "column", gap: 24, flexShrink: 0 }}>
+                    {(() => {
+                      const seenPics = new Set<string>();
+                      return activeChat.messages.map((msg: Message) => {
+                        let displayPics = msg.pictures;
+                        if (msg.role === 'model' && msg.pictures) {
+                           displayPics = msg.pictures.filter(p => !seenPics.has(p));
+                           msg.pictures.forEach(p => seenPics.add(p));
+                        }
+                        return <ChatMessageBubble key={msg.id} msg={{...msg, pictures: displayPics}} dark={dark} currentUser={currentUser} isMobile={useMobileLayout} onEnlarge={setFullScreenMedia} onOpenIframe={setFullScreenPdf} onLoad={scrollToBottom} />;
+                      });
+                    })()}
+                    {isTyping && (<div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}><div style={{ flexShrink: 0, marginTop: 4, width: 28, height: 28, display: "flex", justifyContent: "center", alignItems: "center" }}><Bot color={dark ? "#60a5fa" : "#2563eb"} size={28} className="animate-pulse" /></div><div style={{ paddingTop: 3 }}><ChatLoader /></div></div>)}
+                    <div ref={messagesEndRef} />
+                  </div>
+                )}
+              </div>
+
+              {viewMode === "chat" && !directoryMode && (
+                <div style={{ flexShrink: 0, padding: useMobileLayout ? "8px 12px 12px" : "8px 16px 16px" }}>
+                  <div style={{ maxWidth: 960, width: "100%", margin: "0 auto" }}>
+                    <div onClick={scrollToBottom} onFocus={scrollToBottom}>
+                      <CosmicInput input={input} setInput={setInput} onSend={() => sendMessage()} isTyping={isTyping} dark={dark} />
+                    </div>
+                    <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, color: textFaint, letterSpacing: "0.2px" }}>ChatCIT is AI. By using it, you agree to our <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Terms</span> & <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Privacy Policy</span>.</div>
+                  </div>
+                </div>
+              )}
+            </main>
+
+            {/* RIGHT SIDEBAR (ADMIN OR GEARS) */}
+            {(viewMode === 'admin' || rightRailOpen || (!useMobileLayout && !gearMode && !isKioskChat)) && (
+              <aside style={{ width: RAIL_W, flexShrink: 0, background: (viewMode === 'admin' && !simKiosk) ? sbBg : bg, position: "absolute", top: 0, bottom: 0, right: (useMobileLayout || isKioskChat) ? (rightRailOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: (useMobileLayout || isKioskChat) && rightRailOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
+                {viewMode === 'admin' && !simKiosk ? (
+                   <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: sbBg, borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
+                         <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
+                           <Folder size={18} /> Sub-Categories
+                         </div>
+                      </div>
+                      
+                      {adminTab === 'knowledge' ? (
+                          <div style={{ padding: "12px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                             {['All', ...(mergedSubCategoriesMap[adminCategory] || [])].map(sub => (
+                                <div key={sub} style={{ display: "flex", alignItems: "center", gap: 4, width: "100%" }}>
+                                  <button onClick={() => { setAdminDept(sub); }} className={`sidebar-btn ${adminDept === sub ? 'primary' : 'is-sub'}`} style={{ flex: 1, paddingLeft: 12 }}>
+                                    {sub}
+                                  </button>
+                                  {sub !== 'All' && (
+                                    <div style={{ display: "flex", gap: 2 }}>
+                                      <button onClick={() => handleRenameSubCategory(adminCategory, sub)} style={{ background: "none", border: "none", color: sb.muted, cursor: "pointer", padding: 6, display: "flex", alignItems: "center" }} title="Rename Subcategory">
+                                        <Edit2 size={13} />
+                                      </button>
+                                      <button onClick={() => handleDeleteSubCategory(adminCategory, sub)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 6, display: "flex", alignItems: "center" }} title="Delete Subcategory">
+                                        <Trash2 size={13} />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                             ))}
+                             <button 
+                                onClick={() => setUiPrompt({ 
+                                   isOpen: true, title: "Enter new sub-category (folder):", 
+                                   onSubmit: (val) => { setCustomSubCats((prev: {cat: string, sub: string}[]) => [...prev, {cat: adminCategory, sub: val}]); setAdminDept(val); showToast(`Added sub-category: ${val}`, "success"); } 
+                                })} 
+                                className="sidebar-btn is-sub" style={{ border: `1px dashed ${sb.faint}`, marginTop: 8 }}
+                             >
+                                <Plus size={14}/> Add Sub-category
+                             </button>
+                          </div>
+                      ) : (
+                          <div style={{ padding: 24, textAlign: "center", color: sb.faint, fontSize: 13, lineHeight: 1.5 }}>
+                             Select 'Database' tab on the left to manage folders here.
+                          </div>
+                      )}
+                   </div>
+                ) : (
+                   <>
+                      {/* ONLY show gears on normal web UI or Kiosk Chat */}
+                      {(!simKiosk || screenState === 'chat') && (
+                        <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, right: 0 }}>
+                          <GearAbs id="g-right-top" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); }} />
+                          <GearAbs id="g-right-mid" side="right" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-rightAngle * RATIO + (180 / N_LG)} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); }} />
+                          <GearAbs id="g-right-bot" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); }} />
+                        </div>
+                      )}
+                      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "14px 16px 0", zIndex: 20 }}>
+                        {topRightButtons}
+                      </div>
+                      
+                      {/* ONLY show gear floating buttons on normal web UI or Kiosk Chat */}
+                      {(!simKiosk || screenState === 'chat') && [
+                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: gear1Cat, value: gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : "No Data", onPick: () => { 
+                            const item = gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : null;
+                            if(item && item !== "No Data") {
+                                requireAuth(() => { handleKioskSelection(gear1Cat, item); });
+                                if (isKioskChat) setRightRailOpen(false);
+                            }
+                        }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); } },
+                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: gear2Cat, value: gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : "No Data", onPick: () => { 
+                            const item = gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : null;
+                            if(item && item !== "No Data") {
+                                requireAuth(() => { handleKioskSelection(gear2Cat, item); });
+                                if (isKioskChat) setRightRailOpen(false);
+                            }
+                        }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); } },
+                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: gear3Cat, value: gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : "No Data", onPick: () => { 
+                            const item = gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : null;
+                            if(item && item !== "No Data") {
+                                requireAuth(() => { handleKioskSelection(gear3Cat, item); });
+                                if (isKioskChat) setRightRailOpen(false);
+                            }
+                        }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); } },
+                      ].map((p: any, i: number) => (
+                        <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "right", right: GEAR_VIS, top: p.y, zIndex: 10 }}>
+                          {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "right" }}>{p.label}</div>}
+                          <button onClick={p.onPick} className="gear-panel-btn" style={{ flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: "0", textAlign: "right" }}>
+                            <span style={{ display: "block", width: "100%", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>{p.value}</span>
+                          </button>
+                          <div style={{ fontSize: 10, color: textFaint, marginTop: 8, opacity: 0.8, fontWeight: 500, textAlign: "right" }}>click gear to cycle</div>
+                        </div>
+                      ))}
+                   </>
+                )}
               </aside>
             )}
           </>
