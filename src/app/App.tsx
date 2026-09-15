@@ -7,7 +7,6 @@ import { ProfileModal } from "../components/modals/profilemodal";
 import { BugModal } from "../components/modals/bugsmodal";
 import { ChatDirectory } from "../components/chatdirectory";
 
-import { VirtualKeyboard } from "../components/ui/virtualkeyboard";
 import { KioskScreen } from "../components/kioskscreen";
 
 import { Avatar, GearAbs, DayNightToggle, GearboxLoader, RATIO, N_SM, OR_SM, CENTER_D, TOP_H, GEAR_VIS, RAIL_W, STEP_DEG, OR_LG, PANEL_W, IR_SM, IR_LG, N_LG } from "../components/ui/helpers";
@@ -163,7 +162,7 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
   };
 
   return (
-    <div style={{ display: 'flex', width: '100%', maxWidth: 860, background: dark ? '#1e2332' : '#ffffff', borderRadius: 24, boxShadow: '0 24px 60px rgba(0,0,0,0.4)', border: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)'}`, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', width: '100%', maxWidth: 860, background: dark ? '#1C1D55' : '#ffffff', borderRadius: 24, boxShadow: '0 24px 60px rgba(0,0,0,0.4)', border: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)'}`, overflow: 'hidden' }}>
       <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
            <CalendarIcon size={24} color="#4285f4" />
@@ -184,12 +183,12 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
               const evts = eventsByDay[day] || [];
               const isSelected = selectedDate === day;
               
-              let cellBg = dark ? 'rgba(19, 20, 28, 0.6)' : '#f8fafc';
+              let cellBg = dark ? 'rgba(18, 87, 172, 0.3)' : '#f8fafc';
               let cellBorder = dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
               
               if (isSelected) {
-                  cellBg = dark ? 'rgba(66, 133, 244, 0.15)' : 'rgba(66, 133, 244, 0.1)';
-                  cellBorder = '#4285f4';
+                  cellBg = dark ? 'rgba(253, 181, 28, 0.2)' : 'rgba(166, 1, 18, 0.1)';
+                  cellBorder = dark ? '#FDB51C' : '#A60112';
               }
 
               return (
@@ -333,17 +332,38 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
 export default function App() {
   const [simKiosk, setSimKiosk] = useState(() => {
      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Escape hatch to disable kiosk mode
+        if (urlParams.get("kiosk") === "false") {
+           localStorage.removeItem("permanent_kiosk");
+           return false;
+        }
+
+        // Force enable kiosk via URL
+        if (urlParams.get("kiosk") === "true") {
+           localStorage.setItem("permanent_kiosk", "true");
+           return true;
+        }
+        
+        // Check if previously locked
         if (localStorage.getItem("permanent_kiosk") === "true") return true;
-        // Auto-detect large portrait displays (Android Kiosk profiles)
-        const isPortrait = window.innerHeight > window.innerWidth;
-        const isLargeScreen = window.innerWidth >= 600; 
-        if (isPortrait && isLargeScreen) return true;
+        
+        // Fallback Auto-detect for physical hardware
+        const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        // Check physical device screen resolution (not browser inner width)
+        const isPortrait = window.screen.height > window.screen.width;
+        const isLargeScreen = Math.max(window.screen.height, window.screen.width) >= 1000; 
+        
+        if (isTouch && isPortrait && isLargeScreen) {
+           return true;
+        }
      }
      return false;
   });
   
   const [simScale, setSimScale] = useState(1);
-  const [screenState, setScreenState] = useState<"presentation" | "home" | "kiosk_result" | "chat">(simKiosk ? "presentation" : "chat");
+  const [screenState, setScreenState] = useState<"presentation" | "home" | "kiosk_result" | "chat">("presentation");
   const [kioskCategory, setKioskCategory] = useState<string | null>(null);
   const [kioskResult, setKioskResult] = useState<any>(null);
   const [kbOpen, setKbOpen] = useState(false); 
@@ -352,7 +372,7 @@ export default function App() {
   
   const isPhysicalKiosk = useMemo(() => {
      if (typeof window === "undefined") return false;
-     return window.innerHeight >= window.innerWidth;
+     return window.screen.height >= window.screen.width;
   }, []);
 
   const [appLoading, setAppLoading] = useState(true); 
@@ -527,19 +547,17 @@ export default function App() {
     localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(kioskMapping));
   }, [kioskMapping]);
 
+  // FORCE GUEST MODE & WIPE USER DATA IF KIOSK IS ACTIVE
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const urlParams = new URLSearchParams(window.location.search);
-      const tokenFromUrl = urlParams.get("token");
-      if (tokenFromUrl) {
-        setResetToken(tokenFromUrl);
-        setShowResetModal(true);
-        window.history.replaceState({}, document.title, window.location.pathname); 
-      }
+    if (simKiosk) {
+       setCurrentUser({ id: -1, email: "guest@bulsu.edu.ph", role: "student", username: "CITizen" });
+       setChats([]);
+       setViewMode("chat");
+       setAppLoading(false);
+       return;
     }
-  }, []);
 
-  useEffect(() => {
+    // Normal User Flow (If Not Kiosk)
     const savedUser = localStorage.getItem('chatcit_user');
     const isGuest = !savedUser || Number(JSON.parse(savedUser).id) === -1;
     if (!isGuest) {
@@ -555,7 +573,7 @@ export default function App() {
     const savedMode = localStorage.getItem('chatcit_viewMode');
     if (savedMode && savedMode !== "auth") setViewMode(savedMode as "chat" | "admin");
     setTimeout(() => setAppLoading(false), 1200);
-  }, []);
+  }, [simKiosk]);
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
@@ -577,16 +595,16 @@ export default function App() {
 
   useEffect(() => {
     if (simKiosk) { 
-      setScreenState(localStorage.getItem('permanent_kiosk') === 'true' ? 'home' : 'screensaver'); 
-      setKioskCategory(null); setKioskResult(null); setGearMode(false); 
-      setSidebarOpen(false); setRightRailOpen(false);
+      setGearMode(false); 
+      setSidebarOpen(false); 
+      setRightRailOpen(false);
     } else {
       if (window.innerWidth > 1280) setSidebarOpen(true);
     }
   }, [simKiosk]);
 
   useEffect(() => {
-    if (!appLoading) {
+    if (!appLoading && !simKiosk) {
       if (currentUser && Number(currentUser.id) !== -1) {
         localStorage.setItem('chatcit_user', JSON.stringify(currentUser));
         localStorage.setItem('chatcit_chats', JSON.stringify(chats));
@@ -595,7 +613,7 @@ export default function App() {
       }
       localStorage.setItem('chatcit_viewMode', viewMode);
     }
-  }, [currentUser, viewMode, chats, appLoading]);
+  }, [currentUser, viewMode, chats, appLoading, simKiosk]);
 
   useEffect(() => { if (viewMode === 'admin') setGearMode(false); }, [viewMode]);
 
@@ -772,7 +790,7 @@ export default function App() {
 
     if (currentUser && Number(currentUser.id) === -1) {
       const newCount = guestMessageCount + 1; setGuestMessageCount(newCount);
-      if (newCount % 3 === 0) { setAuthMode("login"); setShowAuthPopup(true); }
+      if (newCount % 3 === 0 && !simKiosk) { setAuthMode("login"); setShowAuthPopup(true); }
     }
     
     const userMsg: Message = { id: `msg-${Date.now()}`, role: "user", content, timestamp: new Date() };
@@ -1050,7 +1068,7 @@ export default function App() {
   const showGearLeft = (isWebMode && gearMode && !isMobile) || (isKioskChat && gearMode);
 
   // Right Sidebar Logic
-  const showRightRail = (!useMobileLayout && isWebMode) || rightRailOpen; 
+  const showRightRail = (!useMobileLayout && isWebMode) || rightRailOpen || isKioskChat; 
 
   // Main Content Offsets
   let mainLeft = 0;
@@ -1181,7 +1199,7 @@ export default function App() {
           <>
             {/* LEFT SIDEBAR (STANDARD BLUE WEB UI) */}
             {(!gearMode) && (
-              <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: sbBg, position: "absolute", top: 0, bottom: 0, left: (isMobile || simKiosk) ? (sidebarOpen ? 0 : -SIDEBAR_W) : (sidebarOpen ? 0 : -SIDEBAR_W), zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: (isMobile || simKiosk) && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
+              <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: sbBg, position: "absolute", top: 0, bottom: 0, left: sidebarOpen ? 0 : -SIDEBAR_W, zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: useMobileLayout && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
                 <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, background: sbBg }}>
                   
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
@@ -1431,17 +1449,13 @@ export default function App() {
               top: 0, bottom: 0, 
               left: mainLeft, 
               right: mainRight, 
-              paddingBottom: kbOpen ? 360 : 0, transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
             }}>
               <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: useMobileLayout ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
                 
                 {/* LEFT HEADER ZONE */}
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-                  {((useMobileLayout) || (!gearMode && !sidebarOpen)) && (
-                    <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", zIndex: 60 }}><Menu size={22} /></button>
-                  )}
-                  
-                  {isKioskChat && (
+                  {isKioskChat ? (
                     <button 
                       onClick={() => { setScreenState("home"); setKioskCategory(null); setKioskResult(null); setActiveChatId(null); setDirectoryMode(null); setSidebarOpen(false); setRightRailOpen(false); }} 
                       style={{ background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, color: dark ? '#fff' : '#0f172a', padding: '8px 16px', borderRadius: 24, fontSize: 15, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: "transform 0.1s" }}
@@ -1450,12 +1464,18 @@ export default function App() {
                     >
                       <ArrowLeft size={18} /> Home
                     </button>
-                  )}
-
-                  {(!isKioskChat && (useMobileLayout || (!gearMode && !sidebarOpen))) && (
-                    <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.5px' }}>
-                      <span style={{ color: dark ? '#fff' : '#0f172a' }}>Chat</span><span style={{ color: '#4285f4' }}>CIT</span>
-                    </div>
+                  ) : (
+                    <>
+                      {((useMobileLayout) || (!gearMode && !sidebarOpen)) && (
+                        <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", zIndex: 60 }}><Menu size={22} /></button>
+                      )}
+                      
+                      {(!isKioskChat && (useMobileLayout || (!gearMode && !sidebarOpen))) && (
+                        <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.5px' }}>
+                          <span style={{ color: dark ? '#fff' : '#0f172a' }}>Chat</span><span style={{ color: '#4285f4' }}>CIT</span>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -1470,9 +1490,9 @@ export default function App() {
 
                 {/* RIGHT HEADER ZONE */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, flex: 1 }}>
-                  {(useMobileLayout || isKioskChat) ? (
+                  {useMobileLayout && !isKioskChat ? (
                     <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer", zIndex: 60 }}>
-                      <MoreVertical size={28} color={dark ? "#FDB51C" : "#A60112"} />
+                      <MoreVertical size={20} />
                     </button>
                   ) : (
                     (viewMode === 'admin' && !simKiosk) && (
@@ -1548,7 +1568,7 @@ export default function App() {
                 ) : !activeChat || activeChat.messages.length === 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, padding: "48px 16px" }}>
                     <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}><div style={{ position: "absolute", transform: useMobileLayout ? "scale(0.65)" : "scale(0.85)" }}><GearboxLoader /></div></div>
-                    <h1 style={{ fontSize: useMobileLayout ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{currentUser && Number(currentUser.id) === -1 ? "CITizen" : currentUser?.username || currentUser?.email?.split('@')[0] || "CITizen"}!</strong></h1>
+                    <h1 style={{ fontSize: useMobileLayout ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{simKiosk ? "CITizen" : (currentUser && Number(currentUser.id) === -1 ? "Guest" : currentUser?.username || currentUser?.email?.split('@')[0] || "Bulsuan")}!</strong></h1>
                     <p style={{ color: textMuted, fontSize: 15, marginBottom: 32, textAlign: "center" }}>How can I help you today?</p>
                     
                     {topFaqs.length > 0 && (!currentUser || Number(currentUser.id) !== -1) && (
@@ -1651,8 +1671,8 @@ export default function App() {
                    </div>
                 ) : (
                    <>
-                      {/* ONLY show gears on normal web UI */}
-                      {(!simKiosk) && (
+                      {/* ONLY show gears on normal web UI or Kiosk Chat */}
+                      {(!simKiosk || screenState === 'chat') && (
                         <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, right: 0 }}>
                           <GearAbs id="g-right-top" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); }} />
                           <GearAbs id="g-right-mid" side="right" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-rightAngle * RATIO + (180 / N_LG)} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); }} />
