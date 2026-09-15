@@ -324,18 +324,22 @@ export function AdminPanel({
     <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
       <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{title}</h3>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        
         <div style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 11, color: textMuted }}>Start Date</span>
           <input type="date" value={calForm.date ? calForm.date.split('T')[0] : ""} onChange={e => setCalForm({...calForm, date: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
         </div>
+        
         <div style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 11, color: textMuted }}>End Date (Optional)</span>
           <input type="date" value={calForm.endDate ? calForm.endDate.split('T')[0] : ""} onChange={e => setCalForm({...calForm, endDate: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
         </div>
+
         <div style={{ flex: 2, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 11, color: textMuted }}>Event Title</span>
           <input type="text" value={calForm.title} onChange={e => setCalForm({...calForm, title: e.target.value})} placeholder="e.g. Midterm Examinations" style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
         </div>
+        
         <div style={{ flex: 1, minWidth: 150, display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 11, color: textMuted }}>Event Type</span>
           <select value={calForm.type} onChange={e => setCalForm({...calForm, type: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
@@ -345,6 +349,7 @@ export function AdminPanel({
           </select>
         </div>
       </div>
+
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <span style={{ fontSize: 11, color: textMuted }}>Description (Optional)</span>
         <textarea value={calForm.description} onChange={e => setCalForm({...calForm, description: e.target.value})} placeholder="Add extra details..." rows={2} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", resize: "vertical", fontSize: 13 }} />
@@ -440,7 +445,7 @@ export function AdminPanel({
                            n[index] = { ...n[index], date: e.target.value }; 
                            setDraftHighlights(n); 
                            setIsDraftingKiosk(true); 
-                       }} placeholder="Short Date (e.g. Sept 20-25)" style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: theme.accent || "#4285f4", fontSize: 12, outline: "none", fontWeight: 600 }} />
+                       }} placeholder="Short Date (e.g. Sept 20-25)" style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: "#4285f4", fontSize: 12, outline: "none", fontWeight: 600 }} />
                     </div>
                  ))}
                  
