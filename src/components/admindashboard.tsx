@@ -20,7 +20,7 @@ export function AdminPanel({
   dark, showToast, currentUser, activeTab, setActiveTab, activeCategoryTab, activeDeptTab,
   allCategories, mergedSubCategoriesMap, setDbCategories, setDbSubCategories, fetchData: globalFetchData,
   layoutConfig, saveLayoutConfig, syncTrigger,
-  screensaverSlides, setScreensaverSlides
+  screensaverSlides = [], setScreensaverSlides
 }: {
   dark: boolean; showToast: (msg: string, type: 'success' | 'error' | 'info') => void; currentUser: User;
   activeTab: string; setActiveTab: (t: string) => void;
@@ -30,8 +30,8 @@ export function AdminPanel({
   layoutConfig: { gear1: string, gear2: string, gear3: string, quickPrompts: string[] };
   saveLayoutConfig: (config: any) => void;
   syncTrigger: number;
-  screensaverSlides: any[];
-  setScreensaverSlides: (val: any[]) => void;
+  screensaverSlides?: any[];
+  setScreensaverSlides?: (val: any[]) => void;
 }) {
   
   const CLOUD_NAME = "xjzuq0fq"; const UPLOAD_PRESET = "chatcit_preset"; 
@@ -448,7 +448,7 @@ export function AdminPanel({
                               setDraftScreensaver([...draftScreensaver, { title: "New Highlight", desc: "Description here...", img: data.secure_url }]);
                               setIsDraftingScreensaver(true);
                            } else { showToast(`Cloudinary Error: ${data.error?.message || "Unknown"}`, "error"); }
-                        } catch(err: any) { showToast(`Upload failed: ${err.message}`, "error"); } finally { setUploadingImage(false); e.target.value = ''; }
+                        } catch(err: any) { showToast(`Upload error: ${err.message}`, "error"); } finally { setUploadingImage(false); e.target.value = ''; }
                     }} />
                  </label>
               </div>
@@ -465,15 +465,15 @@ export function AdminPanel({
                         
                         if (!res.ok) {
                             const errText = await res.text();
-                            throw new Error(`Backend rejected request (${res.status}): ${errText}`);
+                            throw new Error(`Server returned ${res.status}: ${errText}`);
                         }
                         
-                        setScreensaverSlides(draftScreensaver);
+                        if (setScreensaverSlides) setScreensaverSlides(draftScreensaver);
                         setIsDraftingScreensaver(false);
                         showToast("Screensaver saved to cloud!", "success");
                      } catch(e: any) { 
                         console.error("Save Error:", e);
-                        showToast(`Save failed: ${e.message}`, "error"); 
+                        showToast(`Network or server error.`, "error"); 
                      }
                  }} style={{ background: "#10b981", color: "#fff", padding: "10px 20px", borderRadius: 8, border: "none", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
                      <CheckCircle size={16} /> Save Screensaver
@@ -835,7 +835,7 @@ export function AdminPanel({
 
       {fullScreenMedia && (
         <div onClick={() => setFullScreenMedia(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', padding: 24 }}>
-          <img src={fullScreenMedia} alt="Fullscreen View" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }} />
+          <img src={fullScreenMedia} alt="Fullscreen View" onClick={(e) => { e.stopPropagation(); setFullScreenMedia(null); }} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }} />
           <button onClick={() => setFullScreenMedia(null)} style={{ position: 'absolute', top: 24, right: 24, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.2s' }}><X size={24} /></button>
         </div>
       )}
