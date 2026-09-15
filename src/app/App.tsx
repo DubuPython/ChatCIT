@@ -458,13 +458,12 @@ export default function App() {
   const allMappableItems = useMemo(() => {
      const items = new Set([
          ...allSidebarCategories,
-         ...Object.values(mergedSubCategoriesMap).flat(),
          "Handbook", "Magna Carta", "Accomplishments"
      ]);
      items.delete("All");
      items.delete("General");
      return Array.from(items).filter(Boolean).sort();
-  }, [allSidebarCategories, mergedSubCategoriesMap]);
+  }, [allSidebarCategories]);
 
 
   // --- SMART CATEGORY RESOLVER ALIAS MATCHER ---
@@ -536,6 +535,23 @@ export default function App() {
   const gear1Cat = layoutConfig.gear1 || dynamicCategories[0] || 'Organizations';
   const gear2Cat = layoutConfig.gear2 || dynamicCategories[1] || 'Majors';
   const gear3Cat = layoutConfig.gear3 || dynamicCategories[2] || 'Documents';
+
+  const getGearItems = (cat: string) => {
+      if (!cat) return ["No Data"];
+      const lowerCat = cat.toLowerCase();
+      if (lowerCat === 'handbook') return ['Handbook'];
+      if (lowerCat === 'magna carta') return ['Magna Carta'];
+
+      const items = globalKnowledge.filter(d => (d.category || '').toLowerCase() === cat.toLowerCase());
+      if (items.length === 0) return ["No Data"];
+      const subs = Array.from(new Set(items.map(d => d.subcategory))).filter(s => s && s !== 'All');
+      if (subs.length > 0) return subs as string[]; 
+      return items.map(d => d.display_name || (d.keyword ? d.keyword.split(',')[0] : "Unnamed")); 
+  };
+
+  const gear1Items = getGearItems(gear1Cat);
+  const gear2Items = getGearItems(gear2Cat);
+  const gear3Items = getGearItems(gear3Cat);
 
   // STATE FOR MAPPING ADMIN KIOSK CLUSTERS
   const [kioskMapping, setKioskMapping] = useState<Record<string, string[]>>(() => {
@@ -614,6 +630,7 @@ export default function App() {
     const resetTimer = () => {
       if (!simKiosk) return; 
       clearTimeout(timeoutId);
+      // 5 Minute Idle -> Presentation Mode
       timeoutId = setTimeout(() => {
         setScreenState("presentation"); 
         setKioskCategory(null); setKioskResult(null); setActiveChatId(null);
@@ -1145,6 +1162,15 @@ export default function App() {
         .light-mode .sidebar-btn:hover { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.4); color: #ffffff; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .light-mode .sidebar-btn.primary:hover { background: linear-gradient(135deg, #ffffff 0%, #eef2ff 100%); border-color: rgba(66, 133, 244, 0.6); color: #1558d6; box-shadow: 0 4px 12px rgba(66, 133, 244, 0.15); }
         .sidebar-btn:active { transform: scale(0.98) !important; }
+        .gear-panel-btn { width: 100%; padding: 10px 14px; border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); backdrop-filter: blur(12px); z-index: 10; position: relative; display: flex; }
+        .dark-mode .gear-panel-btn { background: linear-gradient(135deg, rgba(30, 35, 50, 0.7) 0%, rgba(15, 18, 25, 0.7) 100%); border: 1px solid rgba(66, 133, 244, 0.2); color: #e8eaed; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.05); }
+        .dark-mode .gear-panel-btn:hover { background: linear-gradient(135deg, rgba(40, 50, 75, 0.9) 0%, rgba(20, 25, 35, 0.9) 100%); border-color: rgba(66, 133, 244, 0.9); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 20px rgba(66, 133, 244, 0.4); transform: scale(1.04) translateY(-2px); color: #fff; text-shadow: 0 0 8px rgba(255,255,255,0.3); }
+        .light-mode .gear-panel-btn { background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(230, 240, 255, 0.95) 100%); border: 1px solid rgba(66, 133, 244, 0.4); color: #0f172a; box-shadow: 0 4px 12px rgba(66, 133, 244, 0.15), inset 0 2px 4px rgba(255, 255, 255, 1); }
+        .light-mode .gear-panel-btn:hover { background: linear-gradient(135deg, #ffffff 0%, rgba(220, 235, 255, 1) 100%); border-color: rgba(66, 133, 244, 0.9); box-shadow: 0 8px 24px rgba(66, 133, 244, 0.3), 0 0 20px rgba(66, 133, 244, 0.35); transform: scale(1.04) translateY(-2px); color: #1558d6; }
+        .gear-panel-btn:active { transform: scale(0.98) !important; }
+        .gear-panel-btn.is-sub { background: transparent !important; border: 1px dashed rgba(150, 150, 150, 0.3) !important; box-shadow: none !important; padding: 8px 12px; }
+        .dark-mode .gear-panel-btn.is-sub:hover { border-color: rgba(66, 133, 244, 0.6) !important; background: rgba(66, 133, 244, 0.1) !important; }
+        .light-mode .gear-panel-btn.is-sub:hover { border-color: rgba(66, 133, 244, 0.6) !important; background: rgba(66, 133, 244, 0.05) !important; }
 
         @media (max-width: 768px) {
           .admin-panel-wrapper { overflow-x: hidden; width: 100%; }
@@ -1439,7 +1465,7 @@ export default function App() {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, flex: 1 }}>
                   {(useMobileLayout || isKioskChat) ? (
                     <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer", zIndex: 60 }}>
-                      <MoreVertical size={28} color={isKioskChat ? (dark ? "#fff" : "#0f172a") : (dark ? "#FDB51C" : "#A60112")} />
+                      <MoreVertical size={28} color={isKioskChat ? (dark ? "#fff" : "#0f172a") : (dark ? "#60a5fa" : "#2563eb")} />
                     </button>
                   ) : (
                     (viewMode === 'admin' && !simKiosk) && (
@@ -1465,13 +1491,13 @@ export default function App() {
                              </button>
                           </div>
 
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 24, width: '100%' }}>
                              {["Faculty", "Extensions", "Student Affairs", "Curriculum", "Accomplishment"].map(cluster => (
-                                <div key={cluster} style={{ background: dark ? 'rgba(255,255,255,0.03)' : '#fff', border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column' }}>
+                                <div key={cluster} style={{ background: dark ? 'rgba(255,255,255,0.03)' : '#fff', border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box' }}>
                                    <h3 style={{ fontSize: 18, fontWeight: 700, color: textPrimary, margin: '0 0 16px' }}>{cluster}</h3>
                                    
-                                   <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-                                      <select id={`select-${cluster}`} style={{ flex: 1, padding: 10, borderRadius: 8, background: dark ? 'rgba(0,0,0,0.2)' : '#f1f5f9', color: textPrimary, border: 'none', outline: 'none' }}>
+                                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, width: '100%' }}>
+                                      <select id={`select-${cluster}`} style={{ flex: 1, minWidth: 0, padding: '10px', borderRadius: 8, background: dark ? 'rgba(0,0,0,0.2)' : '#f1f5f9', color: textPrimary, border: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, outline: 'none', textOverflow: 'ellipsis' }}>
                                          <option value="" style={{ color: '#000' }}>Add category...</option>
                                          {allMappableItems.filter(c => !(draftMapping[cluster] || []).includes(c)).map(c => (
                                             <option key={c} value={c} style={{ color: '#000' }}>{c}</option>
@@ -1480,14 +1506,14 @@ export default function App() {
                                       <button onClick={() => {
                                          const sel = document.getElementById(`select-${cluster}`) as HTMLSelectElement;
                                          if (sel.value) { addDraftCat(cluster, sel.value); sel.value = ""; }
-                                      }} style={{ background: '#4285f4', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>Add</button>
+                                      }} style={{ background: '#4285f4', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>Add</button>
                                    </div>
 
                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
                                       {(draftMapping[cluster] || []).map(cat => (
                                          <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: dark ? 'rgba(0,0,0,0.3)' : '#f8fafc', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
                                             <span style={{ fontSize: 14, fontWeight: 600, color: textPrimary }}>{cat.replace('Teachers', 'Professors')}</span>
-                                            <button onClick={() => removeDraftCat(cluster, cat)} style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', border: 'none', width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Trash2 size={14} /></button>
+                                            <button onClick={() => removeDraftCat(cluster, cat)} style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', border: 'none', width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}><Trash2 size={14} /></button>
                                          </div>
                                       ))}
                                       {!(draftMapping[cluster] || []).length && <div style={{ textAlign: 'center', color: textFaint, fontSize: 13, marginTop: 20 }}>No items assigned.</div>}
