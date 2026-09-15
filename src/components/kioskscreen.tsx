@@ -9,7 +9,7 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     
     .screensaver-fullscreen {
       position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 999995;
-      background: ${theme.bg};
+      background: #000;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       animation: fadeIn 0.4s ease; border-radius: inherit; overflow: hidden;
     }
@@ -102,7 +102,6 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
        display: flex; gap: 16px; width: max-content;
        animation: scrollCarousel 30s linear infinite;
     }
-    .carousel-container:hover .carousel-track { animation-play-state: paused; }
     @keyframes scrollCarousel { 0% { transform: translateX(0); } 100% { transform: translateX(calc(-50% - 8px)); } }
 
     .glassy-option-btn {
@@ -150,7 +149,7 @@ const getIconForCategory = (cat: string, size = 20) => {
   return <LayoutGrid size={size} />;
 };
 
-export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, setKioskCategory, kioskResult, setKioskResult, handleKioskSelection, topRightButtons, setFullScreenMedia, setShowCalendar, kioskMapping, screensaverSlides }: any) => {
+export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, setKioskCategory, kioskResult, setKioskResult, handleKioskSelection, topRightButtons, setFullScreenMedia, setShowCalendar, kioskMapping, screensaverSlides, kioskHighlights }: any) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdfPage, setPdfPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -188,23 +187,22 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     { label: "Extensions", alias: "Extensions", icon: <FileText size={36} /> }
   ];
 
-  // DEFAULT PRESENTATION SLIDES IF CLOUD IS EMPTY
   const defaultSlides = [
-    { title: "Our Mission", desc: "Bulacan State University exists to produce highly competent, ethical and service-oriented professionals that contribute to the sustainable socio-economic growth and development of the nation.", img: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1600&q=80" },
-    { title: "Our Vision", desc: "Bulacan State University is a progressive knowledge-generating institution globally recognized for excellent instruction, pioneering research, and responsive extension services.", img: "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1600&q=80" },
-    { title: "Highlights & Events", desc: "Join us in our upcoming events and celebrate our recent accomplishments across the College of Industrial Technology!", img: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1600&q=80" }
+    "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1600&q=80",
+    "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1600&q=80",
+    "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1600&q=80"
   ];
-
   const activeSlides = (screensaverSlides && screensaverSlides.length > 0) ? screensaverSlides : defaultSlides;
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  const baseHighlights = [
+  const defaultHighlights = [
     { title: 'CIT Week 2026', img: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=400&q=80', date: 'Sept 20-25' },
     { title: 'Tech Symposium', img: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=400&q=80', date: 'Sept 28' },
     { title: 'Automotive Expo', img: 'https://images.unsplash.com/photo-1605810230434-7631ac76ec81?auto=format&fit=crop&w=400&q=80', date: 'Oct 5' },
     { title: 'Innovation Fair', img: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=400&q=80', date: 'Oct 12' }
   ];
-  const infiniteHighlights = [...baseHighlights, ...baseHighlights];
+  const activeHighlights = (kioskHighlights && kioskHighlights.length > 0) ? kioskHighlights : defaultHighlights;
+  const infiniteHighlights = [...activeHighlights, ...activeHighlights];
 
   useEffect(() => {
     if (screenState === 'presentation') {
@@ -305,14 +303,10 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
        <>
          <GlobalKioskStyles dark={dark} theme={theme} />
          <div className="screensaver-fullscreen" style={{ background: '#000' }}>
-            <img key={currentSlide} src={activeSlides[currentSlide]?.img} className="slide-enter" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.4, position: 'absolute' }} />
-            <div style={{ position: 'absolute', top: '25%', textAlign: 'center', padding: '0 40px', zIndex: 10 }} key={`text-${currentSlide}`} className="slide-enter">
-               <h1 style={{ fontSize: 64, fontWeight: 900, color: '#fff', textShadow: '0 4px 20px rgba(0,0,0,0.8)', margin: 0, textTransform: 'uppercase', letterSpacing: '2px' }}>{activeSlides[currentSlide]?.title}</h1>
-               <div style={{ width: 100, height: 6, background: theme.accent, margin: '24px auto', borderRadius: 4 }}></div>
-               <p style={{ fontSize: 28, color: '#f1f5f9', maxWidth: 800, margin: '0 auto', lineHeight: 1.5, textShadow: '0 4px 20px rgba(0,0,0,0.8)', fontWeight: 600 }}>{activeSlides[currentSlide]?.desc}</p>
-            </div>
+            <img key={currentSlide} src={activeSlides[currentSlide]?.img || activeSlides[currentSlide]} className="slide-enter" style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute' }} />
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 300, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)', zIndex: 10, pointerEvents: 'none' }} />
             <div style={{ position: 'absolute', bottom: 120, zIndex: 20 }}>
-               <button onClick={goHome} className="kiosk-pulse-btn" style={{ padding: '24px 64px', borderRadius: 100, fontSize: 32, fontWeight: 900, cursor: 'pointer' }}>Interact with inCITe</button>
+               <button onClick={goHome} className="kiosk-pulse-btn" style={{ padding: '24px 64px', borderRadius: 100, fontSize: 32, fontWeight: 900, cursor: 'pointer', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>Interact with inCITe</button>
             </div>
          </div>
        </>
@@ -359,8 +353,8 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
             {/* MARQUEE SANDWICH & HIGHLIGHTS OF THE MONTH */}
             <div style={{ width: '100%', maxWidth: 680, marginTop: 40, marginBottom: 32, padding: '0 16px' }}>
                
-               <div className="marquee-container" style={{ background: dark ? 'rgba(166, 1, 18, 0.15)' : 'rgba(166, 1, 18, 0.05)', borderColor: dark ? '#A60112' : 'rgba(166, 1, 18, 0.2)', marginBottom: 24 }}>
-                  <div className="marquee-text" style={{ color: dark ? '#fff' : '#A60112' }}>#ALABBULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #ALABBULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp;</div>
+               <div className="marquee-container" style={{ background: dark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(166, 1, 18, 0.05)', borderColor: dark ? '#3b82f6' : 'rgba(166, 1, 18, 0.2)', marginBottom: 24 }}>
+                  <div className="marquee-text" style={{ color: dark ? '#60a5fa' : '#A60112' }}>#ALABULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #ALABULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp;</div>
                </div>
 
                <h3 style={{ color: theme.text, fontSize: 20, fontWeight: 800, margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: 10 }}><CalendarIcon size={22} color={theme.accent} /> Highlights of the Month</h3>
