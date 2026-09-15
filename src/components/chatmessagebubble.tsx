@@ -10,19 +10,23 @@ interface Props {
   currentUser: User | null;
   isMobile: boolean;
   onEnlarge: (url: string) => void;
-  onOpenIframe: (url: string) => void; // <--- 1. ADD THIS LINE
+  onOpenIframe: (url: string) => void; 
   onLoad: () => void;
 }
 
-export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onEnlarge, onLoad }: Props) {
+export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onEnlarge, onOpenIframe, onLoad }: Props) {
   const [copied, setCopied] = useState(false);
   const textMuted = dark ? "#9aa0a6" : "#6b7280";
+  const isUser = msg.role === 'user';
 
   const handleCopy = () => {
     navigator.clipboard.writeText(msg.content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // MAGIC QR GENERATOR: Auto-extracts the first URL it finds in the response text
+  const urlMatch = !isUser && msg.content ? msg.content.match(/(https?:\/\/[^\s]+[^.,;:"'\s])/) : null;
 
   return (
     <div className="group" style={{ display: "flex", gap: 10, flexDirection: msg.role === "user" ? "row-reverse" : "row", alignItems: "flex-start" }}>
@@ -45,43 +49,30 @@ export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onEnlarge,
           <>
             <div style={{ paddingTop: 2 }}><MarkdownText text={msg.content} dark={dark} /></div>
             
-            {/* 2-Page View Implementation */}
             {msg.pictures && msg.pictures.length > 0 && (
-              <div style={{ 
-                display: "flex", 
-                flexDirection: isMobile ? "column" : "row", 
-                gap: 12, 
-                marginTop: 8, 
-                width: "100%", 
-                flexWrap: "wrap" 
-              }}>
+              <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 12, marginTop: 8, width: "100%", flexWrap: "wrap" }}>
                 {msg.pictures.map((picUrl, index) => (
-                  <div key={index} style={{ 
-                    flex: 1, 
-                    minWidth: isMobile ? "100%" : "calc(50% - 6px)", 
-                    maxWidth: msg.pictures!.length === 1 ? (isMobile ? '100%' : 380) : "100%" 
-                  }}>
+                  <div key={index} style={{ flex: 1, minWidth: isMobile ? "100%" : "calc(50% - 6px)", maxWidth: msg.pictures!.length === 1 ? (isMobile ? '100%' : 380) : "100%" }}>
                     {picUrl.toLowerCase().includes('.pdf') ? (
                       <CanvasPDFViewer fileUrl={picUrl} dark={dark} onEnlarge={onEnlarge} onLoad={onLoad} isMobile={isMobile} />
                     ) : (
-                      <img 
-                        src={picUrl} 
-                        alt={`Reference Document ${index + 1}`} 
-                        onClick={() => onEnlarge(picUrl)} 
-                        onLoad={onLoad} 
-                        style={{ width: "100%", maxHeight: 480, objectFit: 'contain', borderRadius: 8, border: `1px solid ${dark ? '#334155' : '#e2e8f0'}`, cursor: 'zoom-in' }} 
-                      />
+                      <img src={picUrl} alt={`Reference Document ${index + 1}`} onClick={() => onEnlarge(picUrl)} onLoad={onLoad} style={{ width: "100%", maxHeight: 480, objectFit: 'contain', borderRadius: 8, border: `1px solid ${dark ? '#334155' : '#e2e8f0'}`, cursor: 'zoom-in' }} />
                     )}
                   </div>
                 ))}
               </div>
             )}
             
+            {/* AUTO QR CODE RENDERER */}
+            {urlMatch && (
+               <div style={{ marginTop: 16, padding: 16, background: dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', borderRadius: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: dark ? '#94a3b8' : '#64748b', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '1px' }}>Scan Link</span>
+                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(urlMatch[0])}`} alt="QR Code" style={{ borderRadius: 8, background: '#fff', padding: 8 }} onLoad={onLoad} />
+               </div>
+            )}
+
             <div style={{ marginTop: 6, display: "flex" }}>
-              <button 
-                onClick={handleCopy}
-                style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: "none", color: textMuted, fontSize: 12, fontWeight: 500, cursor: "pointer", transition: "color 0.2s" }}
-              >
+              <button onClick={handleCopy} style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: "none", color: textMuted, fontSize: 12, fontWeight: 500, cursor: "pointer", transition: "color 0.2s" }}>
                 {copied ? <CheckCircle size={14} color="#10b981" /> : <Copy size={14} />}
                 {copied ? <span style={{ color: "#10b981" }}>Copied!</span> : "Copy"}
               </button>
