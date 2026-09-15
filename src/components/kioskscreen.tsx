@@ -94,7 +94,7 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     
     .marquee-text {
        display: inline-block;
-       animation: marquee 20s linear infinite;
+       animation: marquee 40s linear infinite; /* SLOWED DOWN ANIMATION */
        font-weight: 800; font-size: 16px;
        letter-spacing: 2px; text-transform: uppercase;
     }
@@ -187,18 +187,19 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
 
   const [currentTime, setCurrentTime] = useState(new Date());
   
+  // 60-30-10 Palette Implementation
   const theme = dark ? {
-    bg: '#1C1D55',
-    card: '#1257AC',
-    accent: '#FDB51C',
+    bg: '#1C1D55',        // 60% Background (Dark Blue)
+    card: '#1257AC',      // 30% Secondary Elements
+    accent: '#FDB51C',    // 10% Highlights (Yellow)
     text: '#ffffff',
     textMuted: 'rgba(255,255,255,0.7)',
     border: 'rgba(255,255,255,0.15)'
   } : {
-    bg: '#f8fafc',
-    card: '#ffffff',
-    cardBorder: '#A60112',
-    accent: '#F5AA2A',
+    bg: '#f8fafc',        // 60% Neutral Background
+    card: '#ffffff',      // Secondary surface
+    cardBorder: '#A60112',// 30% Primary ALAB Red
+    accent: '#F5AA2A',    // 10% Yellow Accent
     text: '#0f172a',
     textMuted: '#64748b',
     border: 'rgba(166, 1, 18, 0.2)'
@@ -212,15 +213,16 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const formattedDate = currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const formattedTime = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-  // THE 5 MAIN KIOSK CLUSTERS
+  // THE 5 MAIN KIOSK CLUSTERS (Accomplishment swapped to top row)
   const clusterItems = [
     { label: "Faculty", alias: "Faculty & Professors", icon: <UserSquare size={36} /> },
-    { label: "Extensions", alias: "Extensions", icon: <FileText size={36} /> },
+    { label: "Accomplishment", alias: "Accomplishments", icon: <Briefcase size={36} /> },
     { label: "Student Affairs", alias: "Organizations", icon: <Users size={36} /> },
     { label: "Curriculum", alias: "Majors", icon: <GraduationCap size={36} /> },
-    { label: "Accomplishment", alias: "Accomplishments", icon: <Briefcase size={36} /> }
+    { label: "Extensions", alias: "Extensions", icon: <FileText size={36} /> }
   ];
 
+  // IDLE PRESENTATION SLIDES
   const presentationSlides = [
     { title: "Our Mission", desc: "Bulacan State University exists to produce highly competent, ethical and service-oriented professionals that contribute to the sustainable socio-economic growth and development of the nation.", img: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1600&q=80" },
     { title: "Our Vision", desc: "Bulacan State University is a progressive knowledge-generating institution globally recognized for excellent instruction, pioneering research, and responsive extension services.", img: "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1600&q=80" },
@@ -315,7 +317,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const currentDirData = filteredDirectory.slice((dirPage - 1) * ITEMS_PER_PAGE, dirPage * ITEMS_PER_PAGE);
   const subCategories = Array.from(new Set(dbDirectoryData.map((d: any) => d.subcategory))).filter(s => s && s !== 'All');
 
-  // RESOLVE ITEMS TO RENDER FOR THE CURRENT SUB-MENU FROM APP MAPPING
+  // RESOLVE ITEMS TO RENDER FOR THE CURRENT SUB-MENU FROM ADMIN MAPPING
   let itemsToRender: string[] = [];
   const isClusterCategory = clusterItems.some(c => c.label === kioskCategory);
   if (isClusterCategory) {
@@ -403,45 +405,46 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                   <div key={idx} onClick={() => setKioskCategory(item.label)} className="glassy-cluster-card" style={{ gridColumn: idx < 3 ? 'span 2' : 'span 3' }}>
                      <div style={{ color: dark ? theme.accent : theme.cardBorder, marginBottom: 16 }}>{item.icon}</div>
                      <div style={{ fontSize: 13, color: theme.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Browse</div>
-                     <div style={{ fontSize: 22, color: theme.text, fontWeight: 800, lineHeight: 1.2, marginTop: 4, paddingRight: 40 }}>{item.label}</div>
+                     <div style={{ fontSize: 22, color: theme.text, fontWeight: 800, lineHeight: 1.2, marginTop: 4, paddingRight: 40, wordBreak: 'break-word' }}>{item.label}</div>
                      <div className="card-arrow" style={{ borderColor: dark ? theme.accent : theme.cardBorder, color: dark ? theme.accent : theme.cardBorder }}><ArrowRight size={16}/></div>
                   </div>
                ))}
             </div>
 
-            {/* DOUBLE MARQUEES & HIGHLIGHTS OF THE MONTH */}
-            <div style={{ width: '100%', maxWidth: 680, marginTop: 48, marginBottom: 32, padding: '0 16px' }}>
+            {/* MARQUEE SANDWICH & HIGHLIGHTS OF THE MONTH */}
+            <div style={{ width: '100%', maxWidth: 680, marginTop: 48, marginBottom: 32, padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 24 }}>
                
-               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', marginBottom: 32 }}>
-                  <div className="marquee-container" style={{ background: dark ? 'rgba(166, 1, 18, 0.15)' : 'rgba(166, 1, 18, 0.05)', borderColor: dark ? '#A60112' : 'rgba(166, 1, 18, 0.2)' }}>
-                     <div className="marquee-text" style={{ color: dark ? '#fff' : '#A60112' }}>
-                        #ALABBULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #ALABBULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; 
-                     </div>
-                  </div>
-                  <div className="marquee-container" style={{ background: dark ? 'rgba(253, 181, 28, 0.15)' : 'rgba(245, 170, 42, 0.1)', borderColor: dark ? '#FDB51C' : 'rgba(245, 170, 42, 0.3)' }}>
-                     <div className="marquee-text" style={{ animationDirection: 'reverse', color: dark ? '#FDB51C' : '#F5AA2A' }}>
-                        #AMPLIFIEDCIT &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #AMPLIFIEDCIT &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; 
-                     </div>
+               <div className="marquee-container" style={{ background: dark ? 'rgba(166, 1, 18, 0.15)' : 'rgba(166, 1, 18, 0.05)', borderColor: dark ? '#A60112' : 'rgba(166, 1, 18, 0.2)', margin: 0 }}>
+                  <div className="marquee-text" style={{ color: dark ? '#fff' : '#A60112' }}>
+                     #ALABBULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #ALABBULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; 
                   </div>
                </div>
 
-               <h3 style={{ color: theme.text, fontSize: 20, fontWeight: 800, margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <CalendarIcon size={22} color={theme.accent} /> Highlights of the Month
-               </h3>
-               <div className="no-scrollbar" style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 16, snapType: 'x mandatory' }}>
-                  {[
-                     { title: 'CIT Week 2026', img: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=400&q=80', date: 'Sept 20-25' },
-                     { title: 'Tech Symposium', img: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=400&q=80', date: 'Sept 28' },
-                     { title: 'Automotive Expo', img: 'https://images.unsplash.com/photo-1605810230434-7631ac76ec81?auto=format&fit=crop&w=400&q=80', date: 'Oct 5' },
-                  ].map((h, i) => (
-                     <div key={i} style={{ minWidth: 260, height: 160, borderRadius: 20, background: theme.card, border: `1px solid ${theme.border}`, overflow: 'hidden', position: 'relative', scrollSnapAlign: 'start', flexShrink: 0 }}>
-                        <img src={h.img} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7 }} />
-                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)' }}>
-                           <div style={{ color: '#fff', fontSize: 16, fontWeight: 800 }}>{h.title}</div>
-                           <div style={{ color: theme.accent, fontSize: 12, fontWeight: 700 }}>{h.date}</div>
-                        </div>
-                     </div>
-                  ))}
+               <div style={{ width: '100%' }}>
+                   <h3 style={{ color: theme.text, fontSize: 20, fontWeight: 800, margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <CalendarIcon size={22} color={theme.accent} /> Highlights of the Month
+                   </h3>
+                   <div className="no-scrollbar" style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 8, snapType: 'x mandatory' }}>
+                      {[
+                         { title: 'CIT Week 2026', img: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=400&q=80', date: 'Sept 20-25' },
+                         { title: 'Tech Symposium', img: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=400&q=80', date: 'Sept 28' },
+                         { title: 'Automotive Expo', img: 'https://images.unsplash.com/photo-1605810230434-7631ac76ec81?auto=format&fit=crop&w=400&q=80', date: 'Oct 5' },
+                      ].map((h, i) => (
+                         <div key={i} style={{ minWidth: 260, height: 160, borderRadius: 20, background: theme.card, border: `1px solid ${theme.border}`, overflow: 'hidden', position: 'relative', scrollSnapAlign: 'start', flexShrink: 0 }}>
+                            <img src={h.img} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7 }} />
+                            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)' }}>
+                               <div style={{ color: '#fff', fontSize: 16, fontWeight: 800 }}>{h.title}</div>
+                               <div style={{ color: theme.accent, fontSize: 12, fontWeight: 700 }}>{h.date}</div>
+                            </div>
+                         </div>
+                      ))}
+                   </div>
+               </div>
+
+               <div className="marquee-container" style={{ background: dark ? 'rgba(253, 181, 28, 0.15)' : 'rgba(245, 170, 42, 0.1)', borderColor: dark ? '#FDB51C' : 'rgba(245, 170, 42, 0.3)', margin: 0 }}>
+                  <div className="marquee-text" style={{ animationDirection: 'reverse', color: dark ? '#FDB51C' : '#F5AA2A' }}>
+                     #AMPLIFIEDCIT &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #AMPLIFIEDCIT &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; 
+                  </div>
                </div>
             </div>
 
@@ -598,13 +601,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
           </div>
         )}
       </div>
-
-      {localFullScreen && (
-        <div onClick={() => setLocalFullScreen(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', padding: 24 }}>
-          <img src={localFullScreen} alt="Fullscreen View" onClick={(e) => { e.stopPropagation(); setLocalFullScreen(null); }} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)', cursor: 'zoom-out' }} />
-          <button onClick={() => setLocalFullScreen(null)} style={{ position: 'absolute', top: 24, right: 24, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.2s' }}><X size={24} /></button>
-        </div>
-      )}
     </>
   );
 };
