@@ -34,9 +34,7 @@ export function AdminPanel({
   setScreensaverSlides: (val: any[]) => void;
 }) {
   
-  // 🚨 CHANGE THIS TO YOUR ACTUAL CLOUDINARY CLOUD NAME 🚨
-  const CLOUD_NAME = "xjzuq0fq"; 
-  const UPLOAD_PRESET = "chatcit_preset"; 
+  const CLOUD_NAME = "xjzuq0fq"; const UPLOAD_PRESET = "chatcit_preset"; 
 
   const [data, setData] = useState<Knowledge[]>([]);
   const [unanswered, setUnanswered] = useState<Unanswered[]>([]);
@@ -407,7 +405,6 @@ export function AdminPanel({
               <span style={{ fontSize: 11, color: textMuted }}>Click to toggle. Maximum of 7 items allowed.</span>
            </div>
 
-           {/* ADDED KIOSK SCREENSAVER MANAGER */}
            <hr style={{ border: "none", borderTop: `1px solid ${border}`, margin: "16px 0 8px 0" }} />
 
            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -423,8 +420,18 @@ export function AdminPanel({
                           setIsDraftingScreensaver(true);
                        }} style={{ position: "absolute", top: 8, right: 8, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={12}/></button>
                        <img src={slide.img} style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8, background: '#000' }} />
-                       <input value={slide.title} onChange={e => { const n = [...draftScreensaver]; n[index].title = e.target.value; setDraftScreensaver(n); setIsDraftingScreensaver(true); }} placeholder="Slide Title" style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: "inherit", fontSize: 13, outline: "none" }} />
-                       <textarea value={slide.desc} onChange={e => { const n = [...draftScreensaver]; n[index].desc = e.target.value; setDraftScreensaver(n); setIsDraftingScreensaver(true); }} placeholder="Slide Description..." rows={3} style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: "inherit", fontSize: 12, outline: "none", resize: "none" }} />
+                       <input value={slide.title || ""} onChange={e => { 
+                           const n = [...draftScreensaver]; 
+                           n[index] = { ...n[index], title: e.target.value }; 
+                           setDraftScreensaver(n); 
+                           setIsDraftingScreensaver(true); 
+                       }} placeholder="Slide Title" style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: "inherit", fontSize: 13, outline: "none" }} />
+                       <textarea value={slide.desc || ""} onChange={e => { 
+                           const n = [...draftScreensaver]; 
+                           n[index] = { ...n[index], desc: e.target.value }; 
+                           setDraftScreensaver(n); 
+                           setIsDraftingScreensaver(true); 
+                       }} placeholder="Slide Description..." rows={3} style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: "inherit", fontSize: 12, outline: "none", resize: "none" }} />
                     </div>
                  ))}
                  
@@ -440,8 +447,8 @@ export function AdminPanel({
                            if (data.secure_url) {
                               setDraftScreensaver([...draftScreensaver, { title: "New Highlight", desc: "Description here...", img: data.secure_url }]);
                               setIsDraftingScreensaver(true);
-                           } else { showToast(`Cloudinary Error: ${data.error?.message || "Check settings"}`, "error"); }
-                        } catch(err: any) { showToast(`Upload error: ${err.message}`, "error"); } finally { setUploadingImage(false); e.target.value = ''; }
+                           } else { showToast(`Cloudinary Error: ${data.error?.message || "Unknown"}`, "error"); }
+                        } catch(err: any) { showToast(`Upload failed: ${err.message}`, "error"); } finally { setUploadingImage(false); e.target.value = ''; }
                     }} />
                  </label>
               </div>
@@ -449,11 +456,25 @@ export function AdminPanel({
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
                  <button onClick={async () => {
                      try {
-                        await fetch(`${API_URL}/settings/kiosk_screensaver`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: draftScreensaver }) });
+                        showToast("Saving screensaver...", "info");
+                        const res = await fetch(`${API_URL}/settings/kiosk_screensaver`, { 
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json' }, 
+                            body: JSON.stringify({ value: draftScreensaver }) 
+                        });
+                        
+                        if (!res.ok) {
+                            const errText = await res.text();
+                            throw new Error(`Backend rejected request (${res.status}): ${errText}`);
+                        }
+                        
                         setScreensaverSlides(draftScreensaver);
                         setIsDraftingScreensaver(false);
                         showToast("Screensaver saved to cloud!", "success");
-                     } catch(e) { showToast("Failed to save screensaver", "error"); }
+                     } catch(e: any) { 
+                        console.error("Save Error:", e);
+                        showToast(`Save failed: ${e.message}`, "error"); 
+                     }
                  }} style={{ background: "#10b981", color: "#fff", padding: "10px 20px", borderRadius: 8, border: "none", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
                      <CheckCircle size={16} /> Save Screensaver
                  </button>
@@ -814,7 +835,7 @@ export function AdminPanel({
 
       {fullScreenMedia && (
         <div onClick={() => setFullScreenMedia(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', padding: 24 }}>
-          <img src={fullScreenMedia} alt="Fullscreen View" onClick={(e) => { e.stopPropagation(); setFullScreenMedia(null); }} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)', cursor: 'zoom-out' }} />
+          <img src={fullScreenMedia} alt="Fullscreen View" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }} />
           <button onClick={() => setFullScreenMedia(null)} style={{ position: 'absolute', top: 24, right: 24, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.2s' }}><X size={24} /></button>
         </div>
       )}
