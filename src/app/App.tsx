@@ -402,7 +402,6 @@ export default function App() {
   const gear2Items = getGearItems(gear2Cat);
   const gear3Items = getGearItems(gear3Cat);
 
-  // BULLETPROOF FETCHING LOGIC - Decrypts Database Objects/Strings safely
   const fetchKioskSettings = async () => {
     try {
       const fetchSetting = async (key: string, setter: Function, parser?: Function) => {
@@ -727,6 +726,15 @@ export default function App() {
         .light-mode .gear-panel-btn { background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(230, 240, 255, 0.95) 100%); border: 1px solid rgba(66, 133, 244, 0.4); color: #0f172a; box-shadow: 0 4px 12px rgba(66, 133, 244, 0.15), inset 0 2px 4px rgba(255, 255, 255, 1); }
         .light-mode .gear-panel-btn:hover { background: linear-gradient(135deg, #ffffff 0%, rgba(220, 235, 255, 1) 100%); border-color: rgba(66, 133, 244, 0.9); box-shadow: 0 8px 24px rgba(66, 133, 244, 0.3), 0 0 20px rgba(66, 133, 244, 0.35); transform: scale(1.04) translateY(-2px); color: #1558d6; }
         .gear-panel-btn.is-sub { background: transparent !important; border: 1px dashed rgba(150, 150, 150, 0.3) !important; box-shadow: none !important; padding: 8px 12px; }
+        .dark-mode .gear-panel-btn.is-sub:hover { border-color: rgba(66, 133, 244, 0.6) !important; background: rgba(66, 133, 244, 0.1) !important; }
+        .light-mode .gear-panel-btn.is-sub:hover { border-color: rgba(66, 133, 244, 0.6) !important; background: rgba(66, 133, 244, 0.05) !important; }
+
+        @media (max-width: 768px) {
+          .admin-panel-wrapper { overflow-x: hidden; width: 100%; }
+          .admin-panel-wrapper table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; border-collapse: collapse; }
+          .admin-panel-wrapper [class*="grid-cols-"] { grid-template-columns: 1fr !important; gap: 12px !important; }
+          .admin-panel-wrapper input, .admin-panel-wrapper textarea { max-width: 100%; }
+        }
       `}</style>
       
       {simKiosk && !isPhysicalKiosk && <div style={{ position: "fixed", inset: 0, background: "#0a0a0a", zIndex: 99998 }} />}
