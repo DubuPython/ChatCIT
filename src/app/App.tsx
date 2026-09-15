@@ -351,10 +351,11 @@ export default function App() {
   const allSidebarCategories = Array.from(new Set([...dynamicCategories, ...customCategories]));
 
   const allMappableItems = useMemo(() => {
-     const items = new Set([...allSidebarCategories, "Handbook", "Magna Carta", "Accomplishments"]);
+     const subCatValues = Object.values(mergedSubCategoriesMap).reduce((acc, val) => acc.concat(val), []);
+     const items = new Set([...allSidebarCategories, ...subCatValues, "Handbook", "Magna Carta", "Accomplishments", "Industry Partners", "Organizations", "Majors", "Faculty & Professors"]);
      items.delete("All"); items.delete("General");
      return Array.from(items).filter(Boolean).sort();
-  }, [allSidebarCategories]);
+  }, [allSidebarCategories, mergedSubCategoriesMap]);
 
   const getCategoryMatch = (name: string): string | null => {
     if (!name) return null; const lower = name.toLowerCase().trim();
@@ -602,7 +603,10 @@ export default function App() {
       setScreenState("chat"); setKioskCategory(null); setKioskResult(null); setSidebarOpen(false); setRightRailOpen(false);
     }
 
-    if (currentUser && Number(currentUser.id) === -1) { const newCount = guestMessageCount + 1; setGuestMessageCount(newCount); if (newCount % 3 === 0 && !simKiosk) { setAuthMode("login"); setShowAuthPopup(true); } }
+    if (!simKiosk && currentUser && Number(currentUser.id) === -1) { 
+       const newCount = guestMessageCount + 1; setGuestMessageCount(newCount); 
+       if (newCount % 3 === 0) { setAuthMode("login"); setShowAuthPopup(true); return; } 
+    }
     
     const userMsg: Message = { id: `msg-${Date.now()}`, role: "user", content, timestamp: new Date() };
     let chatId = activeChatId; let messagesToSend: { role: string, content: string }[] = [];
@@ -630,19 +634,25 @@ export default function App() {
   };
 
   const handleKioskSelection = async (category: string, item: string) => {
+    let prompt = item; const lowerItem = item.toLowerCase(); const lowerCat = (category || '').toLowerCase(); const isDoc = lowerItem === "handbook" || lowerItem === "magna carta" || lowerCat === "documents" || lowerItem.includes("form");
+    const matchedCat = getCategoryMatch(item);
+
     const action = async () => {
-      let prompt = item; const lowerItem = item.toLowerCase(); const lowerCat = (category || '').toLowerCase(); const isDoc = lowerItem === "handbook" || lowerItem === "magna carta" || lowerCat === "documents" || lowerItem.includes("form");
       if (simKiosk) {
-         setScreenState("kiosk_result");
          if (isDoc) {
+           setScreenState("kiosk_result");
            let safeFile = item.replace(/\s+/g, '-').toLowerCase(); if (lowerItem === "magna carta") safeFile = "magna-carta"; if (lowerItem === "handbook") safeFile = "handbook"; setKioskResult({ title: item, isPdf: true, pdfUrl: `/${safeFile}.pdf` }); return;
          }
-         const isTopCategory = allSidebarCategories.some(c => c.toLowerCase() === lowerItem);
-         const isSubFolder = globalKnowledge.some((k: any) => (k.subcategory || '').toLowerCase() === lowerItem && k.subcategory !== 'All');
-         if (isTopCategory || isSubFolder || category.includes('Faculty') || category.includes('Industry') || lowerCat.includes('facilities') || category === 'Majors') {
-            const hasLeafMatch = globalKnowledge.some((k: any) => (k.display_name === item) || (k.keyword && k.keyword.split(',').map((s: string) => s.trim().toLowerCase()).includes(lowerItem)));
-            if (!hasLeafMatch || isTopCategory || isSubFolder) { setKioskResult({ title: item, isDirectory: true, category: isTopCategory ? item : category, subcategory: isSubFolder ? item : 'All', loading: false }); return; }
+
+         if (matchedCat || lowerItem.includes('partner') || lowerItem.includes('industry') || lowerItem.includes('organ') || lowerItem.includes('major') || lowerItem.includes('facul')) {
+            setScreenState("chat");
+            setKioskCategory(null);
+            setKioskResult(null);
+            setDirectoryMode(matchedCat || item);
+            return;
          }
+
+         setScreenState("kiosk_result");
          setKioskResult({ title: item, loading: true });
          try {
             const response = await fetch(`${API_URL}/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chatId: `kiosk-${Date.now()}`, message: `Tell me about ${item} in ${category}`, history: [] }) });
@@ -652,11 +662,10 @@ export default function App() {
             if (localRecord) { setKioskResult({ title: item, loading: false, content: localRecord.response, image: localRecord.picture_url }); } else { setKioskResult({ title: item, loading: false, content: "Information retrieved successfully." }); }
          }
       } else {
-         const matchedCat = getCategoryMatch(item);
          if (matchedCat && !isDoc) { setDirectoryMode(matchedCat); } else { sendMessage(item); }
       }
     };
-    if (category === "Majors" || category.toLowerCase().includes("facilities") || kioskResult?.isDirectory || item.toLowerCase() === "handbook" || item.toLowerCase() === "magna carta") { action(); } else { requireAuth(action); }
+    if (simKiosk) { action(); } else { requireAuth(action); }
   };
 
   const handleRenameCategory = (oldCat: string) => { setUiPrompt({ isOpen: true, title: `Rename Category "${oldCat}"`, onSubmit: async (newCatName) => { if (!newCatName || newCatName.trim() === "" || newCatName === oldCat) return; const trimmed = newCatName.trim(); try { const res = await fetch(`${API_URL}/knowledge/manage/category`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ oldCategory: oldCat, newCategory: trimmed }) }); if (!res.ok) throw new Error("Server failed to rename category"); setCustomCategories(prev => prev.map(c => c === oldCat ? trimmed : c)); if (adminCategory === oldCat) setAdminCategory(trimmed); showToast(`Category renamed to "${trimmed}"`, "success"); fetchGlobalKnowledge(); setSyncTrigger(p => p + 1); } catch (e: any) { showToast("Error renaming category in database.", "error"); } } }); };
@@ -827,18 +836,18 @@ export default function App() {
                       ) : (
                         <>
                           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
-                            <button onClick={() => requireAuth(() => {setActiveChatId(null); setDirectoryMode(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false);})} className="sidebar-btn primary" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer" }}><Plus size={16} /> New chat</button>
+                            <button onClick={() => {setActiveChatId(null); setDirectoryMode(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false);}} className="sidebar-btn primary" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer" }}><Plus size={16} /> New chat</button>
                             {isWebMode && localStorage.getItem('permanent_kiosk') !== 'true' && (<button onClick={() => { setGearMode(true); if(useMobileLayout) setSidebarOpen(false); }} className="sidebar-btn" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, cursor: "pointer" }}><Settings size={15} /> Change taskbar mode</button>)}
                           </div>
                           <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Quick Prompts</span></div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 24 }}>
-                            {QUICK_PROMPTS.map((lbl: string) => (<button key={lbl} onClick={() => { if(useMobileLayout) setSidebarOpen(false); const matchedCat = getCategoryMatch(lbl); if (lbl.toLowerCase() === 'handbook' || lbl.toLowerCase() === 'magna carta') { requireAuth(() => { sendMessage(lbl); }); } else if (matchedCat) { setDirectoryMode(matchedCat); } else { requireAuth(() => { sendMessage(lbl); }); } }} className="sidebar-btn">{lbl.replace('Teachers', 'Professors')}</button>))}
+                            {QUICK_PROMPTS.map((lbl: string) => (<button key={lbl} onClick={() => { if(useMobileLayout) setSidebarOpen(false); const matchedCat = getCategoryMatch(lbl); if (lbl.toLowerCase() === 'handbook' || lbl.toLowerCase() === 'magna carta') { sendMessage(lbl); } else if (matchedCat) { setDirectoryMode(matchedCat); } else { sendMessage(lbl); } }} className="sidebar-btn">{lbl.replace('Teachers', 'Professors')}</button>))}
                           </div>
                           {currentUser && Number(currentUser.id) !== -1 && chats.length > 0 && (
                             <>
                               <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Recent</span></div>
                               <div style={{ maxHeight: 250, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
-                                {chats.slice(0, 5).map((chat: Chat) => (<div key={chat.id} className="group" style={{ display: "flex", alignItems: "center", width: "100%", gap: 4 }}><button onClick={() => requireAuth(() => { setActiveChatId(chat.id); setDirectoryMode(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); })} className={`sidebar-btn ${activeChatId === chat.id && viewMode === "chat" ? 'primary' : ''}`} style={{ flex: 1, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` }}>{chat.title}</button><button onClick={(e) => { e.stopPropagation(); requireAuth(() => deleteChat(chat.id)); }} style={{ padding: "10px", background: "transparent", border: "none", color: sb.muted, cursor: "pointer", transition: "color 0.2s" }}><Trash2 size={16} /></button></div>))}
+                                {chats.slice(0, 5).map((chat: Chat) => (<div key={chat.id} className="group" style={{ display: "flex", alignItems: "center", width: "100%", gap: 4 }}><button onClick={() => { setActiveChatId(chat.id); setDirectoryMode(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); }} className={`sidebar-btn ${activeChatId === chat.id && viewMode === "chat" ? 'primary' : ''}`} style={{ flex: 1, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` }}>{chat.title}</button><button onClick={(e) => { e.stopPropagation(); deleteChat(chat.id); }} style={{ padding: "10px", background: "transparent", border: "none", color: sb.muted, cursor: "pointer", transition: "color 0.2s" }}><Trash2 size={16} /></button></div>))}
                               </div>
                             </>
                           )}
@@ -926,7 +935,7 @@ export default function App() {
                     )}
                   </div>
                 ) : directoryMode ? (
-                  <ChatDirectory dark={dark} category={directoryMode} onClose={() => setDirectoryMode(null)} onCardClick={(name) => handleKioskSelection(directoryMode, name)} />
+                  <ChatDirectory dark={dark} category={directoryMode} onClose={() => { setDirectoryMode(null); if(simKiosk) setScreenState("home"); }} onCardClick={(name) => handleKioskSelection(directoryMode, name)} />
                 ) : !activeChat || activeChat.messages.length === 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, padding: "48px 16px" }}>
                     <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}><div style={{ position: "absolute", transform: useMobileLayout ? "scale(0.65)" : "scale(0.85)" }}><GearboxLoader /></div></div>
@@ -990,6 +999,7 @@ export default function App() {
                    </div>
                 ) : (
                    <>
+                      {/* ONLY show gears on normal web UI or Kiosk Chat */}
                       {(!simKiosk || screenState === 'chat') && (
                         <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, right: 0 }}>
                           <GearAbs id="g-right-top" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); }} />
@@ -999,9 +1009,9 @@ export default function App() {
                       )}
                       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "14px 16px 0", zIndex: 20 }}>{topRightButtons}</div>
                       {(!simKiosk || screenState === 'chat') && [
-                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: gear1Cat, value: gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : "No Data", onPick: () => { const item = gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : null; if(item && item !== "No Data") { requireAuth(() => { handleKioskSelection(gear1Cat, item); }); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); } },
-                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: gear2Cat, value: gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : "No Data", onPick: () => { const item = gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : null; if(item && item !== "No Data") { requireAuth(() => { handleKioskSelection(gear2Cat, item); }); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); } },
-                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: gear3Cat, value: gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : "No Data", onPick: () => { const item = gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : null; if(item && item !== "No Data") { requireAuth(() => { handleKioskSelection(gear3Cat, item); }); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); } },
+                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: gear1Cat, value: gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : "No Data", onPick: () => { const item = gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : null; if(item && item !== "No Data") { handleKioskSelection(gear1Cat, item); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); } },
+                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: gear2Cat, value: gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : "No Data", onPick: () => { const item = gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : null; if(item && item !== "No Data") { handleKioskSelection(gear2Cat, item); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); } },
+                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: gear3Cat, value: gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : "No Data", onPick: () => { const item = gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : null; if(item && item !== "No Data") { handleKioskSelection(gear3Cat, item); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); } },
                       ].map((p: any, i: number) => (
                         <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "right", right: GEAR_VIS, top: p.y, zIndex: 10 }}>
                           {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "right" }}>{p.label}</div>}
