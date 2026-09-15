@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
-import { Users, GraduationCap, FileText, ChevronLeft, ChevronRight, MessageSquare, Bot, Maximize, Search, UserSquare, Briefcase, ArrowRight, ArrowLeft, Calendar as CalendarIcon, X, Folder, LayoutGrid } from "lucide-react";
+import { Users, GraduationCap, FileText, ChevronLeft, ChevronRight, MessageSquare, Bot, Maximize, Search, UserSquare, Briefcase, ArrowRight, ArrowLeft, Calendar as CalendarIcon, X, Folder, LayoutGrid, Building } from "lucide-react";
 import { GearboxLoader } from "./ui/helpers";
+import { API_URL } from "../config";
 
 const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
   <style>{`
@@ -393,11 +394,13 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
           </div>
         )}
 
+        {/* SUB-MENU DIRECTORY LISTING MAPS */}
         {screenState === "home" && kioskCategory && (
             <div className="kiosk-main-scroll no-scrollbar">
               <div style={{ width: '100%', maxWidth: 720, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}><button onClick={goHome} className="back-btn-modern"><ArrowLeft size={20}/> Back</button><h2 style={{ fontSize: 32, fontWeight: 800, color: theme.text, margin: 0, textShadow: dark ? '0 4px 12px rgba(0,0,0,0.3)' : 'none' }}>{kioskCategory}</h2></div>
               </div>
+              
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20, width: '100%', maxWidth: 720 }}>
                 {itemsToRender.map((item, idx) => (
                   <div key={idx} className="glassy-dir-card" onClick={() => handleKioskSelection(kioskCategory, item)}>
@@ -411,6 +414,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
             </div>
         )}
 
+        {/* DETAILED RESULTS & DIRECTORY MODALS */}
         {screenState === "kiosk_result" && (
           <div className="kiosk-main-scroll no-scrollbar" style={{ paddingBottom: 40, paddingTop: 100 }}>
             <div className={`kiosk-detail-card ${kioskResult?.isPdf ? 'is-pdf' : ''}`}>
