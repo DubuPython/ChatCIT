@@ -20,7 +20,7 @@ import { API_URL, MID_CHOICES } from "../config";
 const SIDEBAR_W = 280;
 
 // =====================================================================
-// WEB CALENDAR MODAL (WITH FULL ADMIN EDIT/DELETE CAPABILITIES)
+// WEB CALENDAR MODAL
 // =====================================================================
 const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToast }: any) => {
   const [calendarData, setCalendarData] = useState<any[]>([]);
@@ -97,7 +97,7 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
       if (!res.ok) throw new Error("Server rejected event.");
       if (showToast) showToast("Event saved successfully!", "success");
       setIsCalFormOpen(false); fetchCalendar();
-    } catch(e: any) { if (showToast) showToast(`Save failed: ${e.message}`, "error"); }
+    } catch(e: any) { if (showToast) showToast(`Save failed: ${e.message}`, "error"); console.error(e); }
   };
 
   const handleDeleteCalEvent = async (id: any) => {
@@ -107,7 +107,7 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
       if (!res.ok) throw new Error("Failed to delete.");
       if (showToast) showToast("Event deleted.", "success");
       fetchCalendar();
-    } catch(e: any) { if (showToast) showToast(`Delete failed: ${e.message}`, "error"); }
+    } catch(e: any) { if (showToast) showToast(`Delete failed: ${e.message}`, "error"); console.error(e); }
   };
 
   return (
@@ -297,8 +297,12 @@ export default function App() {
 
   const [uiPrompt, setUiPrompt] = useState<{isOpen: boolean, title: string, onSubmit: (val: string) => void} | null>(null);
 
+  // KIOSK OVERRIDE: Suppress Auth popup strictly if Kiosk
   const [showAuthPopup, setShowAuthPopup] = useState(() => {
     if (typeof window !== "undefined") {
+      const isKioskMode = localStorage.getItem("permanent_kiosk") === "true" || new URLSearchParams(window.location.search).get("kiosk") === "true";
+      if (isKioskMode) return false;
+
       const savedUser = localStorage.getItem('chatcit_user');
       if (savedUser && savedUser !== 'undefined') { try { const u = JSON.parse(savedUser); if (u && Number(u.id) === -1) return true; } catch (e) { return true; } } 
       else { return true; }
@@ -355,10 +359,11 @@ export default function App() {
   const allSidebarCategories = Array.from(new Set([...dynamicCategories, ...customCategories]));
 
   const allMappableItems = useMemo(() => {
-     const items = new Set([...allSidebarCategories, "Handbook", "Magna Carta", "Accomplishments"]);
+     const subCatValues = Object.values(mergedSubCategoriesMap).reduce((acc, val) => acc.concat(val), []);
+     const items = new Set([...allSidebarCategories, ...subCatValues, "Handbook", "Magna Carta", "Accomplishments"]);
      items.delete("All"); items.delete("General");
      return Array.from(items).filter(Boolean).sort();
-  }, [allSidebarCategories]);
+  }, [allSidebarCategories, mergedSubCategoriesMap]);
 
   const getCategoryMatch = (name: string): string | null => {
     if (!name) return null; const lower = name.toLowerCase().trim();
@@ -434,6 +439,7 @@ export default function App() {
   const addDraftCat = (cluster: string, cat: string) => { if (!cat || (draftMapping[cluster] || []).includes(cat)) return; setDraftMapping(prev => ({ ...prev, [cluster]: [...(prev[cluster] || []), cat] })); };
   const removeDraftCat = (cluster: string, cat: string) => { setDraftMapping(prev => ({ ...prev, [cluster]: (prev[cluster] || []).filter((c: string) => c !== cat) })); };
 
+  // STRICT KIOSK GUEST ENFORCEMENT
   useEffect(() => {
     if (simKiosk) {
        setCurrentUser({ id: -1, email: "guest@bulsu.edu.ph", role: "student", username: "CITizen" });
@@ -519,8 +525,10 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activeChat = chats.find((c) => c.id === activeChatId) ?? null;
 
+  // KIOSK OVERRIDE: Suppress Auth Requirements
   const requireAuth = (action: () => void) => {
-    if (currentUser && Number(currentUser.id) === -1) { setAuthMode("login"); setShowAuthPopup(true); if (isMobile && !simKiosk) { setSidebarOpen(false); setRightRailOpen(false); } } 
+    if (simKiosk) { action(); return; }
+    if (currentUser && Number(currentUser.id) === -1) { setAuthMode("login"); setShowAuthPopup(true); if (isMobile) { setSidebarOpen(false); setRightRailOpen(false); } } 
     else { action(); }
   };
 
@@ -606,7 +614,10 @@ export default function App() {
       setScreenState("chat"); setKioskCategory(null); setKioskResult(null); setSidebarOpen(false); setRightRailOpen(false);
     }
 
-    if (currentUser && Number(currentUser.id) === -1) { const newCount = guestMessageCount + 1; setGuestMessageCount(newCount); if (newCount % 3 === 0 && !simKiosk) { setAuthMode("login"); setShowAuthPopup(true); } }
+    if (!simKiosk && currentUser && Number(currentUser.id) === -1) { 
+       const newCount = guestMessageCount + 1; setGuestMessageCount(newCount); 
+       if (newCount % 3 === 0) { setAuthMode("login"); setShowAuthPopup(true); return; } 
+    }
     
     const userMsg: Message = { id: `msg-${Date.now()}`, role: "user", content, timestamp: new Date() };
     let chatId = activeChatId; let messagesToSend: { role: string, content: string }[] = [];
@@ -675,12 +686,8 @@ export default function App() {
 
   const topRightButtons = (
     <div style={{ display: "flex", alignItems: "center", gap: trGap }}>
-      {(isAdminUser && simKiosk) && (
-         <button onClick={() => { setSimKiosk(false); localStorage.removeItem('permanent_kiosk'); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: trBtnSize, height: trBtnSize, borderRadius: trRadius, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", color: "#a855f7", cursor: "pointer", transition: "all 0.2s" }} title="Exit Kiosk Mode"><Smartphone size={trIconSize} /></button>
-      )}
-      {(!simKiosk) && (
-         <button onClick={() => { setSimKiosk(true); localStorage.setItem('permanent_kiosk', 'true'); setScreenState("presentation"); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: trBtnSize, height: trBtnSize, borderRadius: trRadius, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", color: "#a855f7", cursor: "pointer", transition: "all 0.2s" }} title="Enter Kiosk Mode"><Smartphone size={trIconSize} /></button>
-      )}
+      {(isAdminUser && simKiosk) && (<button onClick={() => { setSimKiosk(false); localStorage.removeItem('permanent_kiosk'); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: trBtnSize, height: trBtnSize, borderRadius: trRadius, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", color: "#a855f7", cursor: "pointer", transition: "all 0.2s" }} title="Exit Kiosk Mode"><Smartphone size={trIconSize} /></button>)}
+      {(!simKiosk) && (<button onClick={() => { setSimKiosk(true); localStorage.setItem('permanent_kiosk', 'true'); setScreenState("presentation"); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: trBtnSize, height: trBtnSize, borderRadius: trRadius, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", color: "#a855f7", cursor: "pointer", transition: "all 0.2s" }} title="Enter Kiosk Mode"><Smartphone size={trIconSize} /></button>)}
       <button onClick={() => requireAuth(() => setShowBugModal(true))} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: trBtnSize, height: trBtnSize, borderRadius: trRadius, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", color: "#ef4444", cursor: "pointer", transition: "all 0.2s" }} title="Report a Bug"><Bug size={trIconSize} /></button>
       <button onClick={() => requireAuth(() => setShowCalendar(true))} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: trBtnSize, height: trBtnSize, borderRadius: trRadius, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", color: "#10b981", cursor: "pointer", transition: "all 0.2s" }} title="Academic Calendar"><CalendarIcon size={trIconSize} /></button>
       <div className="theme-toggle-wrapper" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: trBtnSize, transform: simKiosk ? 'scale(1.3)' : 'scale(0.85)', transformOrigin: 'center' }}><DayNightToggle dark={dark} toggleDark={() => setDark(!dark)} /></div>
@@ -768,7 +775,7 @@ export default function App() {
           </div>
         )}
 
-        {showAuthPopup && (
+        {showAuthPopup && !simKiosk && (
           <div style={{ position: simKiosk ? 'absolute' : 'fixed', inset: 0, zIndex: 1000000, background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)", padding: 20 }}>
              <div style={{ position: "relative", width: "100%", maxWidth: 380, background: dark ? "#1e1e24" : "#ffffff", borderRadius: 20, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", border: dark ? "1px solid rgba(255,255,255,0.05)" : "1px solid rgba(0,0,0,0.05)" }}>
                 <button onClick={() => setShowAuthPopup(false)} style={{ position: "absolute", top: 16, right: 16, zIndex: 50, background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", border: "none", color: textPrimary, width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"} onMouseLeave={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}><X size={18} /></button>
@@ -847,7 +854,11 @@ export default function App() {
                   </div>
                   <div style={{ padding: "16px 12px 18px", borderTop: `1px solid ${sb.border}`, flexShrink: 0 }}>
                     {currentUser && Number(currentUser.id) === -1 ? (
-                      <div style={{ display: "flex", gap: 8, width: "100%" }}><button onClick={() => { setAuthMode("login"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "#fff", color: "#1a1a2e", fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer" }}>Log in</button><button onClick={() => { setAuthMode("signup"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 13, fontWeight: 600, border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer" }}>Sign up</button></div>
+                      !simKiosk ? (
+                         <div style={{ display: "flex", gap: 8, width: "100%" }}><button onClick={() => { setAuthMode("login"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "#fff", color: "#1a1a2e", fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer" }}>Log in</button><button onClick={() => { setAuthMode("signup"); setShowAuthPopup(true); }} style={{ flex: 1, padding: "8px 0", borderRadius: 24, background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 13, fontWeight: 600, border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer" }}>Sign up</button></div>
+                      ) : (
+                         <div style={{ display: "flex", justifyContent: "center", width: "100%", color: sb.faint, fontSize: 13, fontWeight: 600 }}>Kiosk Mode Active</div>
+                      )
                     ) : (
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}><div onClick={() => setShowProfileModal(true)} style={{ cursor: "pointer" }}><Avatar name={currentUser?.username || currentUser?.email || "User"} size={34} bg="#7c3aed" /></div><div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 600, color: sb.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentUser?.username || currentUser?.email?.split('@')[0]}</div><div style={{ fontSize: 11, color: sb.faint }}>{currentUser?.role === 'superadmin' ? 'Superadmin' : currentUser?.role === 'admin' ? 'Administrator' : 'Student'}</div></div><button onClick={() => setShowProfileModal(true)} style={{ color: sb.muted, background: "none", border: "none", cursor: "pointer", padding: 5 }}><UserCog size={15} /></button>{(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(useMobileLayout) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#fff" : sb.muted, background: "none", border: "none", cursor: "pointer", padding: 5 }}><Database size={15} /></button>}<button onClick={handleLogout} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 5 }}><LogOut size={15} /></button></div>
                     )}
