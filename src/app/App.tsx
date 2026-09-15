@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
-import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, ArrowRight, Menu, UserCog, X, MoreVertical, Bot, Calendar as CalendarIcon, Folder, Smartphone, Edit2, FileText, Maximize, ChevronLeft, ChevronRight, LayoutGrid } from "lucide-react";
+import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, ArrowRight, Menu, UserCog, X, MoreVertical, Bot, Calendar as CalendarIcon, Folder, User as UserIcon, Briefcase, Smartphone, Edit2, FileText, Maximize, ChevronLeft, ChevronRight, LayoutGrid } from "lucide-react";
 
 import { AuthScreen } from "../components/authmodal";
 import { AdminPanel } from "../components/admindashboard";
 import { ProfileModal } from "../components/modals/profilemodal";
 import { BugModal } from "../components/modals/bugsmodal";
 import { ChatDirectory } from "../components/chatdirectory";
+
 import { KioskScreen } from "../components/kioskscreen";
 
 import { Avatar, GearAbs, DayNightToggle, GearboxLoader, RATIO, N_SM, OR_SM, CENTER_D, TOP_H, GEAR_VIS, RAIL_W, STEP_DEG, OR_LG, PANEL_W, IR_SM, IR_LG, N_LG } from "../components/ui/helpers";
@@ -19,7 +20,7 @@ import { API_URL, MID_CHOICES } from "../config";
 const SIDEBAR_W = 280;
 
 // =====================================================================
-// WEB CALENDAR MODAL
+// WEB CALENDAR MODAL (WITH FULL ADMIN EDIT/DELETE CAPABILITIES)
 // =====================================================================
 const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToast }: any) => {
   const [calendarData, setCalendarData] = useState<any[]>([]);
@@ -30,7 +31,10 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
 
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
 
-  const fetchCalendar = () => fetch(`${API_URL}/calendar`).then(res => res.json()).then(data => { if (Array.isArray(data)) setCalendarData(data); }).catch(e => console.error(e));
+  const fetchCalendar = () => {
+    fetch(`${API_URL}/calendar`).then(res => res.json()).then(data => { if (Array.isArray(data)) setCalendarData(data); }).catch(e => console.error(e));
+  };
+
   useEffect(() => { fetchCalendar(); }, []);
 
   const currentYear = calendarDate.getFullYear();
@@ -411,8 +415,8 @@ export default function App() {
 
   const fetchKioskMapping = async () => {
     try {
-      const res = await fetch(`${API_URL}/settings/kiosk_mapping`);
-      if (res.ok) { const data = await res.json(); if (data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length > 0) setKioskMapping(data); }
+      const res = await fetch(`${API_URL}/settings/kiosk_mapping?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } });
+      if (res.ok) { const data = await res.json(); if (data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length > 0) { setKioskMapping(data); localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(data)); } }
     } catch(e) {}
   };
 
