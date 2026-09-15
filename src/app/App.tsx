@@ -42,53 +42,53 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
   const nextMonth = () => { setCalendarDate(new Date(currentYear, currentMonth + 1, 1)); setIsCalFormOpen(false); };
 
   const parseLocal = (dStr: string) => {
-    if (!dStr) return new Date();
-    const [y, m, d] = dStr.split('T')[0].split('-');
-    return new Date(Number(y), Number(m) - 1, Number(d));
+     if (!dStr) return new Date();
+     const [y, m, d] = dStr.split('T')[0].split('-');
+     return new Date(Number(y), Number(m) - 1, Number(d));
   };
 
   const eventsByDay = useMemo(() => {
-    const map: Record<number, any[]> = {};
-    calendarData.forEach(evt => {
-      if (!evt.date) return;
-      const start = parseLocal(evt.date);
-      const end = parseLocal(evt.endDate || evt.end_date || evt.date);
-      start.setHours(0,0,0,0); end.setHours(0,0,0,0);
-      const monthStart = new Date(currentYear, currentMonth, 1);
-      const monthEnd = new Date(currentYear, currentMonth + 1, 0);
-      
-      if (start <= monthEnd && end >= monthStart) {
-        const startDay = start < monthStart ? 1 : start.getDate();
-        const endDay = end > monthEnd ? daysInMonth : end.getDate();
-        for (let d = startDay; d <= endDay; d++) {
-          if (!map[d]) map[d] = [];
-          const eventId = evt.id || evt.event_id || evt._id || evt.title;
-          if (!map[d].find(e => (e.id || e.event_id || e._id || e.title) === eventId)) map[d].push(evt);
+     const map: Record<number, any[]> = {};
+     calendarData.forEach(evt => {
+        if (!evt.date) return;
+        const start = parseLocal(evt.date);
+        const end = parseLocal(evt.endDate || evt.end_date || evt.date);
+        start.setHours(0,0,0,0); end.setHours(0,0,0,0);
+        const monthStart = new Date(currentYear, currentMonth, 1);
+        const monthEnd = new Date(currentYear, currentMonth + 1, 0);
+        
+        if (start <= monthEnd && end >= monthStart) {
+           const startDay = start < monthStart ? 1 : start.getDate();
+           const endDay = end > monthEnd ? daysInMonth : end.getDate();
+           for (let d = startDay; d <= endDay; d++) {
+              if (!map[d]) map[d] = [];
+              const eventId = evt.id || evt.event_id || evt._id || evt.title;
+              if (!map[d].find(e => (e.id || e.event_id || e._id || e.title) === eventId)) map[d].push(evt);
+           }
         }
-      }
-    });
-    return map;
+     });
+     return map;
   }, [calendarData, currentYear, currentMonth, daysInMonth]);
 
   useEffect(() => {
-    const today = new Date();
-    if (today.getFullYear() === currentYear && today.getMonth() === currentMonth) setSelectedDate(today.getDate());
-    else setSelectedDate(1);
+      const today = new Date();
+      if (today.getFullYear() === currentYear && today.getMonth() === currentMonth) setSelectedDate(today.getDate());
+      else setSelectedDate(1);
   }, [currentYear, currentMonth]);
 
   const getEventStyleDetails = (type: string) => {
-    const t = (type || '').toLowerCase();
-    if (t.includes('exam')) return { color: '#ef4444', label: 'EXAM' };
-    if (t.includes('holiday')) return { color: '#10b981', label: 'HOLIDAY' };
-    return { color: '#3b82f6', label: 'EVENT' };
+     const t = (type || '').toLowerCase();
+     if (t.includes('exam')) return { color: '#ef4444', label: 'EXAM' };
+     if (t.includes('holiday')) return { color: '#10b981', label: 'HOLIDAY' };
+     return { color: '#3b82f6', label: 'EVENT' };
   };
 
   const handleSaveCalEvent = async () => {
     if (!calForm.title || !calForm.date) { if (showToast) showToast("Title and Start Date are required.", "error"); return; }
     try {
       const res = await fetch(calForm.id ? `${API_URL}/calendar/${calForm.id}` : `${API_URL}/calendar`, { 
-        method: calForm.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, 
-        body: JSON.stringify({ date: calForm.date, endDate: calForm.endDate || calForm.date, end_date: calForm.endDate || calForm.date, title: calForm.title, description: calForm.description, type: calForm.type, event_type: calForm.type, userId: currentUser?.id }) 
+          method: calForm.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, 
+          body: JSON.stringify({ date: calForm.date, endDate: calForm.endDate || calForm.date, end_date: calForm.endDate || calForm.date, title: calForm.title, description: calForm.description, type: calForm.type, event_type: calForm.type, userId: currentUser?.id }) 
       });
       if (!res.ok) throw new Error("Server rejected event.");
       if (showToast) showToast("Event saved successfully!", "success");
@@ -110,145 +110,145 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
     <div style={{ display: 'flex', width: '100%', maxWidth: 860, background: dark ? '#1C1D55' : '#ffffff', borderRadius: 24, boxShadow: '0 24px 60px rgba(0,0,0,0.4)', border: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)'}`, overflow: 'hidden' }}>
       <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-          <CalendarIcon size={24} color="#4285f4" />
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: dark ? '#fff' : '#0f172a' }}>Academic Calendar</h2>
+           <CalendarIcon size={24} color="#4285f4" />
+           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: dark ? '#fff' : '#0f172a' }}>Academic Calendar</h2>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, background: dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderRadius: 12, padding: '8px 16px' }}>
-          <button onClick={prevMonth} style={{ background: 'transparent', border: 'none', color: dark ? '#fff' : '#000', cursor: 'pointer', display: 'flex', padding: 4 }}><ChevronLeft size={18} /></button>
-          <span style={{ fontSize: 16, fontWeight: 800, color: dark ? '#fff' : '#0f172a' }}>{calendarDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
-          <button onClick={nextMonth} style={{ background: 'transparent', border: 'none', color: dark ? '#fff' : '#000', cursor: 'pointer', display: 'flex', padding: 4 }}><ChevronRight size={18} /></button>
+           <button onClick={prevMonth} style={{ background: 'transparent', border: 'none', color: dark ? '#fff' : '#000', cursor: 'pointer', display: 'flex', padding: 4 }}><ChevronLeft size={18} /></button>
+           <span style={{ fontSize: 16, fontWeight: 800, color: dark ? '#fff' : '#0f172a' }}>{calendarDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+           <button onClick={nextMonth} style={{ background: 'transparent', border: 'none', color: dark ? '#fff' : '#000', cursor: 'pointer', display: 'flex', padding: 4 }}><ChevronRight size={18} /></button>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8, marginBottom: 8, textAlign: 'center' }}>
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <span key={d} style={{ fontSize: 11, fontWeight: 700, color: dark ? '#94a3b8' : '#64748b' }}>{d}</span>)}
+           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <span key={d} style={{ fontSize: 11, fontWeight: 700, color: dark ? '#94a3b8' : '#64748b' }}>{d}</span>)}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
-          {Array.from({ length: firstDay }).map((_, i) => <div key={`empty-${i}`} />)}
-          {Array.from({ length: daysInMonth }).map((_, i) => {
-            const day = i + 1;
-            const evts = eventsByDay[day] || [];
-            const isSelected = selectedDate === day;
-            let cellBg = dark ? 'rgba(18, 87, 172, 0.3)' : '#f8fafc';
-            let cellBorder = dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
-            if (isSelected) { cellBg = dark ? 'rgba(253, 181, 28, 0.2)' : 'rgba(166, 1, 18, 0.1)'; cellBorder = dark ? '#FDB51C' : '#A60112'; }
+           {Array.from({ length: firstDay }).map((_, i) => <div key={`empty-${i}`} />)}
+           {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const evts = eventsByDay[day] || [];
+              const isSelected = selectedDate === day;
+              let cellBg = dark ? 'rgba(18, 87, 172, 0.3)' : '#f8fafc';
+              let cellBorder = dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+              if (isSelected) { cellBg = dark ? 'rgba(253, 181, 28, 0.2)' : 'rgba(166, 1, 18, 0.1)'; cellBorder = dark ? '#FDB51C' : '#A60112'; }
 
-            return (
-              <div key={day} onClick={() => { setSelectedDate(day); setIsCalFormOpen(false); }} style={{ height: 48, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: cellBg, border: `1px solid ${cellBorder}`, borderRadius: 12, position: 'relative', cursor: 'pointer', transition: 'all 0.2s' }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: dark ? '#fff' : '#0f172a' }}>{day}</span>
-                {evts.length > 0 && (
-                  <div style={{ display: 'flex', gap: 4, position: 'absolute', bottom: 6 }}>
-                    {evts.slice(0,3).map((e: any, j: number) => <div key={j} style={{ width: 5, height: 5, borderRadius: '50%', background: getEventStyleDetails(e.type || e.title).color }} />)}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+              return (
+                 <div key={day} onClick={() => { setSelectedDate(day); setIsCalFormOpen(false); }} style={{ height: 48, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: cellBg, border: `1px solid ${cellBorder}`, borderRadius: 12, position: 'relative', cursor: 'pointer', transition: 'all 0.2s' }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: dark ? '#fff' : '#0f172a' }}>{day}</span>
+                    {evts.length > 0 && (
+                       <div style={{ display: 'flex', gap: 4, position: 'absolute', bottom: 6 }}>
+                          {evts.slice(0,3).map((e: any, j: number) => <div key={j} style={{ width: 5, height: 5, borderRadius: '50%', background: getEventStyleDetails(e.type || e.title).color }} />)}
+                       </div>
+                    )}
+                 </div>
+              )
+           })}
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 16, padding: '12px', background: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderRadius: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6' }} /><span style={{ fontSize: 12, color: dark ? '#94a3b8' : '#64748b', fontWeight: 600 }}>Special Event</span></div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }} /><span style={{ fontSize: 12, color: dark ? '#94a3b8' : '#64748b', fontWeight: 600 }}>Examination</span></div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }} /><span style={{ fontSize: 12, color: dark ? '#94a3b8' : '#64748b', fontWeight: 600 }}>Holiday</span></div>
+           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6' }} /><span style={{ fontSize: 12, color: dark ? '#94a3b8' : '#64748b', fontWeight: 600 }}>Special Event</span></div>
+           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }} /><span style={{ fontSize: 12, color: dark ? '#94a3b8' : '#64748b', fontWeight: 600 }}>Examination</span></div>
+           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }} /><span style={{ fontSize: 12, color: dark ? '#94a3b8' : '#64748b', fontWeight: 600 }}>Holiday</span></div>
         </div>
-      </div>
+     </div>
 
-      <div style={{ width: 320, background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)', borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, padding: 24, display: 'flex', flexDirection: 'column' }}>
+     <div style={{ width: 320, background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)', borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, padding: 24, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: dark ? '#fff' : '#0f172a' }}>
-            {selectedDate ? new Date(currentYear, currentMonth, selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : 'Select a date'}
-          </h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {isAdmin && selectedDate && !isCalFormOpen && (
-              <button onClick={() => {
-                const dateStr = new Date(currentYear, currentMonth, selectedDate).toLocaleDateString('en-CA');
-                setCalForm({ id: null, date: dateStr, endDate: dateStr, title: "", description: "", type: "Special Event" });
-                setIsCalFormOpen(true);
-              }} style={{ background: 'rgba(66, 133, 244, 0.1)', border: '1px solid rgba(66, 133, 244, 0.3)', color: '#4285f4', cursor: 'pointer', borderRadius: 6, display: 'flex', padding: '4px 10px', fontWeight: 800 }}>+ ADD</button>
-            )}
-            <button onClick={() => setShowCalendar(false)} style={{ background: 'transparent', border: 'none', color: dark ? '#94a3b8' : '#64748b', cursor: 'pointer', display: 'flex', padding: 4, fontWeight: 800 }}><X size={18}/></button>
-          </div>
+           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: dark ? '#fff' : '#0f172a' }}>
+              {selectedDate ? new Date(currentYear, currentMonth, selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : 'Select a date'}
+           </h3>
+           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {isAdmin && selectedDate && !isCalFormOpen && (
+                 <button onClick={() => {
+                    const dateStr = new Date(currentYear, currentMonth, selectedDate).toLocaleDateString('en-CA');
+                    setCalForm({ id: null, date: dateStr, endDate: dateStr, title: "", description: "", type: "Special Event" });
+                    setIsCalFormOpen(true);
+                 }} style={{ background: 'rgba(66, 133, 244, 0.1)', border: '1px solid rgba(66, 133, 244, 0.3)', color: '#4285f4', cursor: 'pointer', borderRadius: 6, display: 'flex', padding: '4px 10px', fontWeight: 800 }}>+ ADD</button>
+              )}
+              <button onClick={() => setShowCalendar(false)} style={{ background: 'transparent', border: 'none', color: dark ? '#94a3b8' : '#64748b', cursor: 'pointer', display: 'flex', padding: 4, fontWeight: 800 }}><X size={18}/></button>
+           </div>
         </div>
         
         {selectedDate ? (
-          isCalFormOpen ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#4285f4' }}>{calForm.id ? 'EDIT EVENT' : 'ADD NEW EVENT'}</span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span style={{ fontSize: 11, color: dark ? '#94a3b8' : '#64748b' }}>Start Date</span>
-                  <input type="date" value={calForm.date} onChange={e => {
-                    const newStart = e.target.value; let newEnd = calForm.endDate;
-                    if (newStart && newEnd && newStart > newEnd) newEnd = newStart;
-                    setCalForm({...calForm, date: newStart, endDate: newEnd});
-                  }} style={{ width: '100%', padding: '8px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 12, outline: 'none' }} />
-                </div>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span style={{ fontSize: 11, color: dark ? '#94a3b8' : '#64748b' }}>End Date</span>
-                  <input type="date" value={calForm.endDate} onChange={e => setCalForm({...calForm, endDate: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 12, outline: 'none' }} />
-                </div>
-              </div>
-              <input type="text" placeholder="Event Title" value={calForm.title} onChange={e => setCalForm({...calForm, title: e.target.value})} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 14, outline: 'none' }} />
-              <select value={calForm.type} onChange={e => setCalForm({...calForm, type: e.target.value})} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 14, outline: 'none' }}>
-                <option value="Special Event" style={{ background: dark ? '#1e1e24' : '#fff' }}>Special Event (Blue)</option>
-                <option value="Examination" style={{ background: dark ? '#1e1e24' : '#fff' }}>Examination (Red)</option>
-                <option value="Holiday" style={{ background: dark ? '#1e1e24' : '#fff' }}>Holiday (Green)</option>
-              </select>
-              <textarea placeholder="Description" value={calForm.description} onChange={e => setCalForm({...calForm, description: e.target.value})} rows={3} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 14, outline: 'none', resize: 'vertical' }} />
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
-                <button onClick={() => setIsCalFormOpen(false)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'transparent', color: dark ? '#94a3b8' : '#64748b', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-                <button onClick={handleSaveCalEvent} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#4285f4', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Save</button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ flex: 1, overflowY: 'auto' }} className="no-scrollbar">
-              {eventsByDay[selectedDate] && eventsByDay[selectedDate].length > 0 ? (
-                eventsByDay[selectedDate].map((evt: any, idx: number) => {
-                  const style = getEventStyleDetails(evt.type || evt.event_type || evt.title);
-                  const eventId = evt.id || evt.event_id || evt._id;
-
-                  return (
-                    <div 
-                      key={idx} 
-                      onClick={() => {
-                        const startDt = parseLocal(evt.date);
-                        setCalendarDate(new Date(startDt.getFullYear(), startDt.getMonth(), 1));
-                        setSelectedDate(startDt.getDate());
-                      }}
-                      style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#fff', borderLeft: `4px solid ${style.color}`, borderRadius: 8, padding: '12px 16px', marginBottom: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'transform 0.2s' }}
-                    >
-                      <div style={{ fontSize: 10, fontWeight: 800, color: style.color, textTransform: 'uppercase', marginBottom: 4 }}>{style.label}</div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: dark ? '#fff' : '#0f172a', lineHeight: 1.3 }}>{evt.title}</div>
-                      
-                      {(evt.endDate || evt.end_date) && (evt.endDate || evt.end_date) !== evt.date && (
-                        <div style={{ fontSize: 11, color: style.color, marginTop: 6, fontWeight: 600 }}>
-                          {parseLocal(evt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric'})} - {parseLocal(evt.endDate || evt.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric'})}
-                        </div>
-                      )}
-
-                      {evt.description && <div style={{ fontSize: 12, color: dark ? '#94a3b8' : '#64748b', marginTop: 6, lineHeight: 1.4 }}>{evt.description}</div>}
-                      
-                      {isAdmin && (
-                        <div style={{ display: 'flex', gap: 8, marginTop: 12, borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, paddingTop: 12 }}>
-                          <button onClick={(e) => { 
-                            e.stopPropagation();
-                            const startDt = parseLocal(evt.date);
-                            setCalendarDate(new Date(startDt.getFullYear(), startDt.getMonth(), 1));
-                            setSelectedDate(startDt.getDate());
-                            setCalForm({ id: eventId, date: evt.date.split('T')[0], endDate: (evt.endDate || evt.end_date || evt.date).split('T')[0], title: evt.title, description: evt.description || "", type: evt.type || evt.event_type || "Special Event" }); 
-                            setIsCalFormOpen(true); 
-                          }} style={{ flex: 1, background: dark ? 'rgba(255,255,255,0.1)' : '#f1f5f9', border: 'none', padding: '6px', borderRadius: 6, cursor: 'pointer', color: dark ? '#cbd5e1' : '#475569', fontSize: 12, fontWeight: 600 }}>Edit</button>
-                          <button onClick={(e) => { e.stopPropagation(); handleDeleteCalEvent(eventId); }} style={{ flex: 1, background: 'rgba(239, 68, 68, 0.1)', border: 'none', padding: '6px', borderRadius: 6, cursor: 'pointer', color: '#ef4444', fontSize: 12, fontWeight: 600 }}>Delete</button>
-                        </div>
-                      )}
+           isCalFormOpen ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                 <span style={{ fontSize: 12, fontWeight: 700, color: '#4285f4' }}>{calForm.id ? 'EDIT EVENT' : 'ADD NEW EVENT'}</span>
+                 <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <span style={{ fontSize: 11, color: dark ? '#94a3b8' : '#64748b' }}>Start Date</span>
+                      <input type="date" value={calForm.date} onChange={e => {
+                         const newStart = e.target.value; let newEnd = calForm.endDate;
+                         if (newStart && newEnd && newStart > newEnd) newEnd = newStart;
+                         setCalForm({...calForm, date: newStart, endDate: newEnd});
+                      }} style={{ width: '100%', padding: '8px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 12, outline: 'none' }} />
                     </div>
-                  );
-                })
-              ) : (
-                <div style={{ color: dark ? '#94a3b8' : '#64748b', fontSize: 14, textAlign: 'center', marginTop: 40, fontWeight: 500 }}>No events scheduled for this date.</div>
-              )}
-            </div>
-          )
-        ) : (
-          <div style={{ color: dark ? '#94a3b8' : '#64748b', fontSize: 14, textAlign: 'center', marginTop: 40, fontWeight: 500 }}>Select a date to view events.</div>
-        )}
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <span style={{ fontSize: 11, color: dark ? '#94a3b8' : '#64748b' }}>End Date</span>
+                      <input type="date" value={calForm.endDate} onChange={e => setCalForm({...calForm, endDate: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 12, outline: 'none' }} />
+                    </div>
+                 </div>
+                 <input type="text" placeholder="Event Title" value={calForm.title} onChange={e => setCalForm({...calForm, title: e.target.value})} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 14, outline: 'none' }} />
+                 <select value={calForm.type} onChange={e => setCalForm({...calForm, type: e.target.value})} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 14, outline: 'none' }}>
+                    <option value="Special Event" style={{ background: dark ? '#1e1e24' : '#fff' }}>Special Event (Blue)</option>
+                    <option value="Examination" style={{ background: dark ? '#1e1e24' : '#fff' }}>Examination (Red)</option>
+                    <option value="Holiday" style={{ background: dark ? '#1e1e24' : '#fff' }}>Holiday (Green)</option>
+                 </select>
+                 <textarea placeholder="Description" value={calForm.description} onChange={e => setCalForm({...calForm, description: e.target.value})} rows={3} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 14, outline: 'none', resize: 'vertical' }} />
+                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+                    <button onClick={() => setIsCalFormOpen(false)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'transparent', color: dark ? '#94a3b8' : '#64748b', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                    <button onClick={handleSaveCalEvent} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#4285f4', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Save</button>
+                 </div>
+              </div>
+           ) : (
+              <div style={{ flex: 1, overflowY: 'auto' }} className="no-scrollbar">
+                 {eventsByDay[selectedDate] && eventsByDay[selectedDate].length > 0 ? (
+                    eventsByDay[selectedDate].map((evt: any, idx: number) => {
+                       const style = getEventStyleDetails(evt.type || evt.event_type || evt.title);
+                       const eventId = evt.id || evt.event_id || evt._id;
+
+                       return (
+                          <div 
+                             key={idx} 
+                             onClick={() => {
+                                const startDt = parseLocal(evt.date);
+                                setCalendarDate(new Date(startDt.getFullYear(), startDt.getMonth(), 1));
+                                setSelectedDate(startDt.getDate());
+                             }}
+                             style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#fff', borderLeft: `4px solid ${style.color}`, borderRadius: 8, padding: '12px 16px', marginBottom: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'transform 0.2s' }}
+                          >
+                             <div style={{ fontSize: 10, fontWeight: 800, color: style.color, textTransform: 'uppercase', marginBottom: 4 }}>{style.label}</div>
+                             <div style={{ fontSize: 14, fontWeight: 700, color: dark ? '#fff' : '#0f172a', lineHeight: 1.3 }}>{evt.title}</div>
+                             
+                             {(evt.endDate || evt.end_date) && (evt.endDate || evt.end_date) !== evt.date && (
+                                <div style={{ fontSize: 11, color: style.color, marginTop: 6, fontWeight: 600 }}>
+                                   {parseLocal(evt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric'})} - {parseLocal(evt.endDate || evt.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric'})}
+                                </div>
+                             )}
+
+                             {evt.description && <div style={{ fontSize: 12, color: dark ? '#94a3b8' : '#64748b', marginTop: 6, lineHeight: 1.4 }}>{evt.description}</div>}
+                             
+                             {isAdmin && (
+                                <div style={{ display: 'flex', gap: 8, marginTop: 12, borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, paddingTop: 12 }}>
+                                   <button onClick={(e) => { 
+                                       e.stopPropagation();
+                                       const startDt = parseLocal(evt.date);
+                                       setCalendarDate(new Date(startDt.getFullYear(), startDt.getMonth(), 1));
+                                       setSelectedDate(startDt.getDate());
+                                       setCalForm({ id: eventId, date: evt.date.split('T')[0], endDate: (evt.endDate || evt.end_date || evt.date).split('T')[0], title: evt.title, description: evt.description || "", type: evt.type || evt.event_type || "Special Event" }); 
+                                       setIsCalFormOpen(true); 
+                                   }} style={{ flex: 1, background: dark ? 'rgba(255,255,255,0.1)' : '#f1f5f9', border: 'none', padding: '6px', borderRadius: 6, cursor: 'pointer', color: dark ? '#cbd5e1' : '#475569', fontSize: 12, fontWeight: 600 }}>Edit</button>
+                                   <button onClick={(e) => { e.stopPropagation(); handleDeleteCalEvent(eventId); }} style={{ flex: 1, background: 'rgba(239, 68, 68, 0.1)', border: 'none', padding: '6px', borderRadius: 6, cursor: 'pointer', color: '#ef4444', fontSize: 12, fontWeight: 600 }}>Delete</button>
+                                </div>
+                             )}
+                          </div>
+                       )
+                    })
+                 ) : (
+                    <div style={{ color: dark ? '#94a3b8' : '#64748b', fontSize: 14, textAlign: 'center', marginTop: 40, fontWeight: 500 }}>No events scheduled for this date.</div>
+                 )}
+              </div>
+           )
+         ) : (
+           <div style={{ color: dark ? '#94a3b8' : '#64748b', fontSize: 14, textAlign: 'center', marginTop: 40, fontWeight: 500 }}>Select a date to view events.</div>
+         )}
       </div>
     </div>
   );
@@ -259,18 +259,18 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
 // =====================================================================
 export default function App() {
   const [simKiosk, setSimKiosk] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get("kiosk") === "false") { localStorage.removeItem("permanent_kiosk"); return false; }
-      if (urlParams.get("kiosk") === "true") { localStorage.setItem("permanent_kiosk", "true"); return true; }
-      if (localStorage.getItem("permanent_kiosk") === "true") return true;
-      
-      const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      const screenW = window.screen.width;
-      const screenH = window.screen.height;
-      if (isTouch && screenH > screenW && Math.max(screenW, screenH) >= 1000) return true;
-    }
-    return false;
+     if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get("kiosk") === "false") { localStorage.removeItem("permanent_kiosk"); return false; }
+        if (urlParams.get("kiosk") === "true") { localStorage.setItem("permanent_kiosk", "true"); return true; }
+        if (localStorage.getItem("permanent_kiosk") === "true") return true;
+        
+        const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const screenW = window.screen.width;
+        const screenH = window.screen.height;
+        if (isTouch && screenH > screenW && Math.max(screenW, screenH) >= 1000) return true;
+     }
+     return false;
   });
   
   const [simScale, setSimScale] = useState(1);
@@ -329,15 +329,14 @@ export default function App() {
   });
   
   const [syncTrigger, setSyncTrigger] = useState(0);
-  const [screensaverSlides, setScreensaverSlides] = useState<any[]>([]);
 
   useEffect(() => { localStorage.setItem('chatcit_custom_cats', JSON.stringify(customCategories)); }, [customCategories]);
   useEffect(() => { localStorage.setItem('chatcit_custom_subcats', JSON.stringify(customSubCats)); }, [customSubCats]);
 
   const mergedSubCategoriesMap: Record<string, string[]> = { ...dbSubCategories };
   customSubCats.forEach(({cat, sub}) => {
-    if (!mergedSubCategoriesMap[cat]) mergedSubCategoriesMap[cat] = [];
-    if (!mergedSubCategoriesMap[cat].includes(sub)) mergedSubCategoriesMap[cat].push(sub);
+     if (!mergedSubCategoriesMap[cat]) mergedSubCategoriesMap[cat] = [];
+     if (!mergedSubCategoriesMap[cat].includes(sub)) mergedSubCategoriesMap[cat].push(sub);
   });
 
   const [globalKnowledge, setGlobalKnowledge] = useState<any[]>([]);
@@ -355,10 +354,10 @@ export default function App() {
   const allSidebarCategories = Array.from(new Set([...dynamicCategories, ...customCategories]));
 
   const allMappableItems = useMemo(() => {
-    const subCatValues = Object.values(mergedSubCategoriesMap).reduce((acc, val) => acc.concat(val), []);
-    const items = new Set([...allSidebarCategories, ...subCatValues, "Handbook", "Magna Carta", "Accomplishments", "Industry Partners", "Organizations", "Majors", "Faculty & Professors"]);
-    items.delete("All"); items.delete("General");
-    return Array.from(items).filter(Boolean).sort();
+     const subCatValues = Object.values(mergedSubCategoriesMap).reduce((acc, val) => acc.concat(val), []);
+     const items = new Set([...allSidebarCategories, ...subCatValues, "Handbook", "Magna Carta", "Accomplishments", "Industry Partners", "Organizations", "Majors", "Faculty & Professors"]);
+     items.delete("All"); items.delete("General");
+     return Array.from(items).filter(Boolean).sort();
   }, [allSidebarCategories, mergedSubCategoriesMap]);
 
   const getCategoryMatch = (name: string): string | null => {
@@ -385,13 +384,13 @@ export default function App() {
   const gear3Cat = layoutConfig.gear3 || dynamicCategories[2] || 'Documents';
 
   const getGearItems = (cat: string) => {
-    if (!cat) return ["No Data"]; const lowerCat = cat.toLowerCase();
-    if (lowerCat === 'handbook') return ['Handbook']; if (lowerCat === 'magna carta') return ['Magna Carta'];
-    const items = globalKnowledge.filter(d => (d.category || '').toLowerCase() === cat.toLowerCase());
-    if (items.length === 0) return ["No Data"];
-    const subs = Array.from(new Set(items.map(d => d.subcategory))).filter(s => s && s !== 'All');
-    if (subs.length > 0) return subs as string[]; 
-    return items.map(d => d.display_name || (d.keyword ? d.keyword.split(',')[0] : "Unnamed")); 
+      if (!cat) return ["No Data"]; const lowerCat = cat.toLowerCase();
+      if (lowerCat === 'handbook') return ['Handbook']; if (lowerCat === 'magna carta') return ['Magna Carta'];
+      const items = globalKnowledge.filter(d => (d.category || '').toLowerCase() === cat.toLowerCase());
+      if (items.length === 0) return ["No Data"];
+      const subs = Array.from(new Set(items.map(d => d.subcategory))).filter(s => s && s !== 'All');
+      if (subs.length > 0) return subs as string[]; 
+      return items.map(d => d.display_name || (d.keyword ? d.keyword.split(',')[0] : "Unnamed")); 
   };
 
   const gear1Items = getGearItems(gear1Cat);
@@ -403,36 +402,33 @@ export default function App() {
   };
   
   const [kioskMapping, setKioskMapping] = useState<Record<string, string[]>>(() => {
-    if (typeof window !== "undefined") {
-      const savedMap = localStorage.getItem('chatcit_kiosk_mapping');
-      if (savedMap && savedMap !== 'undefined') {
-        try { const parsed = JSON.parse(savedMap); if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Object.keys(parsed).length > 0) return parsed; } catch(e){}
-      }
-    }
-    return defaultMapping;
+     if (typeof window !== "undefined") {
+        const savedMap = localStorage.getItem('chatcit_kiosk_mapping');
+        if (savedMap && savedMap !== 'undefined') {
+           try { const parsed = JSON.parse(savedMap); if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Object.keys(parsed).length > 0) return parsed; } catch(e){}
+        }
+     }
+     return defaultMapping;
   });
 
   const [draftMapping, setDraftMapping] = useState<Record<string, string[]>>({});
 
-  const fetchKioskSettings = async () => {
+  const fetchKioskMapping = async () => {
     try {
-      const resMap = await fetch(`${API_URL}/settings/kiosk_mapping?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } });
-      if (resMap.ok) { const data = await resMap.json(); if (data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length > 0) { setKioskMapping(data); localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(data)); } }
-      
-      const resSaver = await fetch(`${API_URL}/settings/kiosk_screensaver?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } });
-      if (resSaver.ok) { const data = await resSaver.json(); if (Array.isArray(data)) setScreensaverSlides(data); }
+      const res = await fetch(`${API_URL}/settings/kiosk_mapping?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } });
+      if (res.ok) { const data = await res.json(); if (data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length > 0) { setKioskMapping(data); localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(data)); } }
     } catch(e) {}
   };
 
-  useEffect(() => { fetchKioskSettings(); const interval = setInterval(fetchKioskSettings, 30000); return () => clearInterval(interval); }, []);
+  useEffect(() => { fetchKioskMapping(); const interval = setInterval(fetchKioskMapping, 30000); return () => clearInterval(interval); }, []);
   useEffect(() => { if (adminTab === 'kiosk') { setDraftMapping(kioskMapping); } }, [adminTab, kioskMapping]);
 
   const saveKioskMapping = async () => {
-    try {
-      await fetch(`${API_URL}/settings/kiosk_mapping`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: draftMapping }) });
-      setKioskMapping(draftMapping); localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(draftMapping));
-      showToast("Kiosk layout saved to cloud successfully!", "success");
-    } catch(e) { showToast("Failed to save layout to cloud.", "error"); }
+     try {
+        await fetch(`${API_URL}/settings/kiosk_mapping`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: draftMapping }) });
+        setKioskMapping(draftMapping); localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(draftMapping));
+        showToast("Kiosk layout saved to cloud successfully!", "success");
+     } catch(e) { showToast("Failed to save layout to cloud.", "error"); }
   };
 
   const addDraftCat = (cluster: string, cat: string) => { if (!cat || (draftMapping[cluster] || []).includes(cat)) return; setDraftMapping(prev => ({ ...prev, [cluster]: [...(prev[cluster] || []), cat] })); };
@@ -440,8 +436,8 @@ export default function App() {
 
   useEffect(() => {
     if (simKiosk) {
-      setCurrentUser({ id: -1, email: "guest@bulsu.edu.ph", role: "student", username: "CITizen" });
-      setChats([]); setViewMode("chat"); setAppLoading(false); return;
+       setCurrentUser({ id: -1, email: "guest@bulsu.edu.ph", role: "student", username: "CITizen" });
+       setChats([]); setViewMode("chat"); setAppLoading(false); return;
     }
     const savedUser = localStorage.getItem('chatcit_user'); let parsedUser = null;
     if (savedUser && savedUser !== 'undefined') { try { parsedUser = JSON.parse(savedUser); } catch(e) {} }
@@ -525,7 +521,7 @@ export default function App() {
 
   const requireAuth = (action: () => void) => {
     if (simKiosk) { action(); return; }
-    if (currentUser && Number(currentUser.id) === -1) { setAuthMode("login"); setShowAuthPopup(true); if (isMobile) { setSidebarOpen(false); setRightRailOpen(false); } } 
+    if (currentUser && Number(currentUser.id) === -1) { setAuthMode("login"); setShowAuthPopup(true); if (isMobile && !simKiosk) { setSidebarOpen(false); setRightRailOpen(false); } } 
     else { action(); }
   };
 
@@ -549,13 +545,13 @@ export default function App() {
   }, [fullScreenPdf]);
 
   useEffect(() => {
-    const renderPage = async () => {
-      if (!pdfRef || !canvasRef.current) return;
-      setPdfLoading(true);
-      try { const canvas = canvasRef.current; const ctx = canvas.getContext('2d'); const page = await pdfRef.getPage(pdfPage); const viewport = page.getViewport({ scale: 2.0 }); canvas.height = viewport.height; canvas.width = viewport.width; await page.render({ canvasContext: ctx, viewport: viewport }).promise; } catch(e) { console.error("Failed to render canvas page", e); }
-      setPdfLoading(false);
-    };
-    renderPage();
+     const renderPage = async () => {
+        if (!pdfRef || !canvasRef.current) return;
+        setPdfLoading(true);
+        try { const canvas = canvasRef.current; const ctx = canvas.getContext('2d'); const page = await pdfRef.getPage(pdfPage); const viewport = page.getViewport({ scale: 2.0 }); canvas.height = viewport.height; canvas.width = viewport.width; await page.render({ canvasContext: ctx, viewport: viewport }).promise; } catch(e) { console.error("Failed to render canvas page", e); }
+        setPdfLoading(false);
+     };
+     renderPage();
   }, [pdfRef, pdfPage]);
 
   const handleVirtualKeyPress = (key: string, e: React.MouseEvent) => {
@@ -612,8 +608,8 @@ export default function App() {
     }
 
     if (!simKiosk && currentUser && Number(currentUser.id) === -1) { 
-      const newCount = guestMessageCount + 1; setGuestMessageCount(newCount); 
-      if (newCount % 3 === 0) { setAuthMode("login"); setShowAuthPopup(true); return; } 
+       const newCount = guestMessageCount + 1; setGuestMessageCount(newCount); 
+       if (newCount % 3 === 0) { setAuthMode("login"); setShowAuthPopup(true); return; } 
     }
     
     const userMsg: Message = { id: `msg-${Date.now()}`, role: "user", content, timestamp: new Date() };
@@ -647,30 +643,30 @@ export default function App() {
 
     const action = async () => {
       if (simKiosk) {
-        if (isDoc) {
-          setScreenState("kiosk_result");
-          let safeFile = item.replace(/\s+/g, '-').toLowerCase(); if (lowerItem === "magna carta") safeFile = "magna-carta"; if (lowerItem === "handbook") safeFile = "handbook"; setKioskResult({ title: item, isPdf: true, pdfUrl: `/${safeFile}.pdf` }); return;
-        }
+         if (isDoc) {
+           setScreenState("kiosk_result");
+           let safeFile = item.replace(/\s+/g, '-').toLowerCase(); if (lowerItem === "magna carta") safeFile = "magna-carta"; if (lowerItem === "handbook") safeFile = "handbook"; setKioskResult({ title: item, isPdf: true, pdfUrl: `/${safeFile}.pdf` }); return;
+         }
 
-        if (matchedCat || lowerItem.includes('partner') || lowerItem.includes('industry') || lowerItem.includes('organ') || lowerItem.includes('major') || lowerItem.includes('facul')) {
-          setScreenState("chat");
-          setKioskCategory(null);
-          setKioskResult(null);
-          setDirectoryMode(matchedCat || item);
-          return;
-        }
+         if (matchedCat || lowerItem.includes('partner') || lowerItem.includes('industry') || lowerItem.includes('organ') || lowerItem.includes('major') || lowerItem.includes('facul')) {
+            setScreenState("chat");
+            setKioskCategory(null);
+            setKioskResult(null);
+            setDirectoryMode(matchedCat || item);
+            return;
+         }
 
-        setScreenState("kiosk_result");
-        setKioskResult({ title: item, loading: true });
-        try {
-          const response = await fetch(`${API_URL}/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chatId: `kiosk-${Date.now()}`, message: `Tell me about ${item} in ${category}`, history: [] }) });
-          const data = await response.json(); if (data.error) throw new Error(data.error); const imageUrl = (data.pictures && data.pictures.length > 0) ? data.pictures[0] : null; setKioskResult({ title: item, loading: false, content: data.reply, image: imageUrl });
-        } catch (e) {
-          const localRecord = globalKnowledge.find((k: any) => (k.display_name === item) || (k.keyword && k.keyword.split(',').map((s: string) => s.trim().toLowerCase()).includes(lowerItem)));
-          if (localRecord) { setKioskResult({ title: item, loading: false, content: localRecord.response, image: localRecord.picture_url }); } else { setKioskResult({ title: item, loading: false, content: "Information retrieved successfully." }); }
-        }
+         setScreenState("kiosk_result");
+         setKioskResult({ title: item, loading: true });
+         try {
+            const response = await fetch(`${API_URL}/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chatId: `kiosk-${Date.now()}`, message: `Tell me about ${item} in ${category}`, history: [] }) });
+            const data = await response.json(); if (data.error) throw new Error(data.error); const imageUrl = (data.pictures && data.pictures.length > 0) ? data.pictures[0] : null; setKioskResult({ title: item, loading: false, content: data.reply, image: imageUrl });
+         } catch (e) {
+            const localRecord = globalKnowledge.find((k: any) => (k.display_name === item) || (k.keyword && k.keyword.split(',').map((s: string) => s.trim().toLowerCase()).includes(lowerItem)));
+            if (localRecord) { setKioskResult({ title: item, loading: false, content: localRecord.response, image: localRecord.picture_url }); } else { setKioskResult({ title: item, loading: false, content: "Information retrieved successfully." }); }
+         }
       } else {
-        if (matchedCat && !isDoc) { setDirectoryMode(matchedCat); } else { sendMessage(item); }
+         if (matchedCat && !isDoc) { setDirectoryMode(matchedCat); } else { sendMessage(item); }
       }
     };
     if (simKiosk) { action(); } else { requireAuth(action); }
@@ -741,13 +737,22 @@ export default function App() {
         .light-mode .gear-panel-btn { background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(230, 240, 255, 0.95) 100%); border: 1px solid rgba(66, 133, 244, 0.4); color: #0f172a; box-shadow: 0 4px 12px rgba(66, 133, 244, 0.15), inset 0 2px 4px rgba(255, 255, 255, 1); }
         .light-mode .gear-panel-btn:hover { background: linear-gradient(135deg, #ffffff 0%, rgba(220, 235, 255, 1) 100%); border-color: rgba(66, 133, 244, 0.9); box-shadow: 0 8px 24px rgba(66, 133, 244, 0.3), 0 0 20px rgba(66, 133, 244, 0.35); transform: scale(1.04) translateY(-2px); color: #1558d6; }
         .gear-panel-btn.is-sub { background: transparent !important; border: 1px dashed rgba(150, 150, 150, 0.3) !important; box-shadow: none !important; padding: 8px 12px; }
+        .dark-mode .gear-panel-btn.is-sub:hover { border-color: rgba(66, 133, 244, 0.6) !important; background: rgba(66, 133, 244, 0.1) !important; }
+        .light-mode .gear-panel-btn.is-sub:hover { border-color: rgba(66, 133, 244, 0.6) !important; background: rgba(66, 133, 244, 0.05) !important; }
+
+        @media (max-width: 768px) {
+          .admin-panel-wrapper { overflow-x: hidden; width: 100%; }
+          .admin-panel-wrapper table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; border-collapse: collapse; }
+          .admin-panel-wrapper [class*="grid-cols-"] { grid-template-columns: 1fr !important; gap: 12px !important; }
+          .admin-panel-wrapper input, .admin-panel-wrapper textarea { max-width: 100%; }
+        }
       `}</style>
       
       {simKiosk && !isPhysicalKiosk && <div style={{ position: "fixed", inset: 0, background: "#0a0a0a", zIndex: 99998 }} />}
 
       <div className={dark ? "dark-mode" : "light-mode"} style={containerStyle}>
         {(simKiosk && (screenState === "presentation" || screenState === "home" || screenState === "kiosk_result")) && (
-          <KioskScreen dark={dark} screenState={screenState} setScreenState={setScreenState} kioskCategory={kioskCategory} setKioskCategory={setKioskCategory} kioskResult={kioskResult} setKioskResult={setKioskResult} handleKioskSelection={handleKioskSelection} topRightButtons={topRightButtons} setFullScreenMedia={setFullScreenMedia} setShowCalendar={setShowCalendar} kioskMapping={kioskMapping} setKioskMapping={setKioskMapping} allSidebarCategories={allSidebarCategories} isAdmin={currentUser?.role === 'admin' || currentUser?.role === 'superadmin'} screensaverSlides={screensaverSlides} />
+          <KioskScreen dark={dark} screenState={screenState} setScreenState={setScreenState} kioskCategory={kioskCategory} setKioskCategory={setKioskCategory} kioskResult={kioskResult} setKioskResult={setKioskResult} handleKioskSelection={handleKioskSelection} topRightButtons={topRightButtons} setFullScreenMedia={setFullScreenMedia} setShowCalendar={setShowCalendar} kioskMapping={kioskMapping} setKioskMapping={setKioskMapping} allSidebarCategories={allSidebarCategories} isAdmin={currentUser?.role === 'admin' || currentUser?.role === 'superadmin'} />
         )}
 
         {uiPrompt && (
@@ -919,9 +924,9 @@ export default function App() {
               <div id="chat-scroll-container" className="no-scrollbar" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", WebkitOverflowScrolling: "touch", display: "flex", flexDirection: "column" }}>
                 {viewMode === "admin" && currentUser && !simKiosk ? (
                   <div className="admin-panel-wrapper" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, paddingBottom: useMobileLayout ? 120 : 24, display: "flex", flexDirection: "column" }}>
-                    <div style={{ flex: 1, overflowY: "auto", padding: "16px", WebkitOverflowScrolling: "touch" }}>
-                      <AdminPanel dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allSidebarCategories} mergedSubCategoriesMap={mergedSubCategoriesMap} setDbCategories={setDbCategories} setDbSubCategories={setDbSubCategories} fetchData={fetchGlobalKnowledge} layoutConfig={layoutConfig} saveLayoutConfig={saveLayoutConfig} syncTrigger={syncTrigger} screensaverSlides={screensaverSlides} setScreensaverSlides={setScreensaverSlides} />
-                    </div>
+                     <div style={{ flex: 1, overflowY: "auto", padding: "16px", WebkitOverflowScrolling: "touch" }}>
+                       <AdminPanel dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allSidebarCategories} mergedSubCategoriesMap={mergedSubCategoriesMap} setDbCategories={setDbCategories} setDbSubCategories={setDbSubCategories} fetchData={fetchGlobalKnowledge} layoutConfig={layoutConfig} saveLayoutConfig={saveLayoutConfig} syncTrigger={syncTrigger} />
+                     </div>
                   </div>
                 ) : directoryMode ? (
                   <ChatDirectory dark={dark} category={directoryMode} onClose={() => { setDirectoryMode(null); if(simKiosk) setScreenState("home"); }} onCardClick={(name) => handleKioskSelection(directoryMode, name)} />
@@ -970,51 +975,45 @@ export default function App() {
             {(viewMode === 'admin' || rightRailOpen || (!useMobileLayout && !gearMode && !isKioskChat)) && (
               <aside style={{ width: RAIL_W, flexShrink: 0, background: (viewMode === 'admin' && !simKiosk) ? sbBg : bg, position: "absolute", top: 0, bottom: 0, right: (useMobileLayout || isKioskChat) ? (rightRailOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: (useMobileLayout || isKioskChat) && rightRailOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
                 {viewMode === 'admin' && !simKiosk ? (
-                  <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: sbBg, borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}><Folder size={18} /> Sub-Categories</div>
-                    </div>
-                    {adminTab === 'knowledge' ? (
-                      <div style={{ padding: "12px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-                        {['All', ...(mergedSubCategoriesMap[adminCategory] || [])].map(sub => (
-                          <div key={sub} style={{ display: "flex", alignItems: "center", gap: 4, width: "100%" }}>
-                            <button onClick={() => setAdminDept(sub)} className={`sidebar-btn ${adminDept === sub ? 'primary' : 'is-sub'}`} style={{ flex: 1, paddingLeft: 12 }}>{sub}</button>
-                            {sub !== 'All' && (
-                              <div style={{ display: "flex", gap: 2 }}>
-                                <button onClick={() => handleRenameSubCategory(adminCategory, sub)} style={{ background: "none", border: "none", color: sb.muted, cursor: "pointer", padding: 6, display: "flex", alignItems: "center" }}><Edit2 size={13} /></button>
-                                <button onClick={() => handleDeleteSubCategory(adminCategory, sub)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 6, display: "flex", alignItems: "center" }}><Trash2 size={13} /></button>
-                              </div>
-                            )}
+                   <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: sbBg, borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
+                         <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}><Folder size={18} /> Sub-Categories</div>
+                      </div>
+                      {adminTab === 'knowledge' ? (
+                          <div style={{ padding: "12px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                             {['All', ...(mergedSubCategoriesMap[adminCategory] || [])].map(sub => (
+                                <div key={sub} style={{ display: "flex", alignItems: "center", gap: 4, width: "100%" }}>
+                                  <button onClick={() => { setAdminDept(sub); }} className={`sidebar-btn ${adminDept === sub ? 'primary' : 'is-sub'}`} style={{ flex: 1, paddingLeft: 12 }}>{sub}</button>
+                                  {sub !== 'All' && (<div style={{ display: "flex", gap: 2 }}><button onClick={() => handleRenameSubCategory(adminCategory, sub)} style={{ background: "none", border: "none", color: sb.muted, cursor: "pointer", padding: 6, display: "flex", alignItems: "center" }}><Edit2 size={13} /></button><button onClick={() => handleDeleteSubCategory(adminCategory, sub)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 6, display: "flex", alignItems: "center" }}><Trash2 size={13} /></button></div>)}
+                                </div>
+                             ))}
+                             <button onClick={() => setUiPrompt({ isOpen: true, title: "Enter new sub-category (folder):", onSubmit: (val) => { setCustomSubCats((prev: {cat: string, sub: string}[]) => [...prev, {cat: adminCategory, sub: val}]); setAdminDept(val); showToast(`Added sub-category: ${val}`, "success"); } })} className="sidebar-btn is-sub" style={{ border: `1px dashed ${sb.faint}`, marginTop: 8 }}><Plus size={14}/> Add Sub-category</button>
                           </div>
-                        ))}
-                        <button onClick={() => setUiPrompt({ isOpen: true, title: "Enter new sub-category (folder):", onSubmit: (val) => { setCustomSubCats((prev: {cat: string, sub: string}[]) => [...prev, {cat: adminCategory, sub: val}]); setAdminDept(val); showToast(`Added sub-category: ${val}`, "success"); } })} className="sidebar-btn is-sub" style={{ border: `1px dashed ${sb.faint}`, marginTop: 8 }}><Plus size={14}/> Add Sub-category</button>
-                      </div>
-                    ) : (
-                      <div style={{ padding: 24, textAlign: "center", color: sb.faint, fontSize: 13, lineHeight: 1.5 }}>Select 'Database' tab on the left to manage folders here.</div>
-                    )}
-                  </div>
+                      ) : (<div style={{ padding: 24, textAlign: "center", color: sb.faint, fontSize: 13, lineHeight: 1.5 }}>Select 'Database' tab on the left to manage folders here.</div>)}
+                   </div>
                 ) : (
-                  <>
-                    {(!simKiosk || screenState === 'chat') && (
-                      <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, right: 0 }}>
-                        <GearAbs id="g-right-top" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); }} />
-                        <GearAbs id="g-right-mid" side="right" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-rightAngle * RATIO + (180 / N_LG)} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); }} />
-                        <GearAbs id="g-right-bot" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); }} />
-                      </div>
-                    )}
-                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "14px 16px 0", zIndex: 20 }}>{topRightButtons}</div>
-                    {(!simKiosk || screenState === 'chat') && [
-                      { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: gear1Cat, value: gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : "No Data", onPick: () => { const item = gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : null; if(item && item !== "No Data") { handleKioskSelection(gear1Cat, item); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); } },
-                      { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: gear2Cat, value: gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : "No Data", onPick: () => { const item = gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : null; if(item && item !== "No Data") { handleKioskSelection(gear2Cat, item); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); } },
-                      { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: gear3Cat, value: gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : "No Data", onPick: () => { const item = gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : null; if(item && item !== "No Data") { handleKioskSelection(gear3Cat, item); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); } },
-                    ].map((p: any, i: number) => (
-                      <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "right", right: GEAR_VIS, top: p.y, zIndex: 10 }}>
-                        {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "right" }}>{p.label}</div>}
-                        <button onClick={p.onPick} className="gear-panel-btn" style={{ flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: "0", textAlign: "right" }}><span style={{ display: "block", width: "100%", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>{p.value}</span></button>
-                        <div style={{ fontSize: 10, color: textFaint, marginTop: 8, opacity: 0.8, fontWeight: 500, textAlign: "right" }}>click gear to cycle</div>
-                      </div>
-                    ))}
-                  </>
+                   <>
+                      {/* ONLY show gears on normal web UI or Kiosk Chat */}
+                      {(!simKiosk || screenState === 'chat') && (
+                        <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, right: 0 }}>
+                          <GearAbs id="g-right-top" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); }} />
+                          <GearAbs id="g-right-mid" side="right" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-rightAngle * RATIO + (180 / N_LG)} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); }} />
+                          <GearAbs id="g-right-bot" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); }} />
+                        </div>
+                      )}
+                      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "14px 16px 0", zIndex: 20 }}>{topRightButtons}</div>
+                      {(!simKiosk || screenState === 'chat') && [
+                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: gear1Cat, value: gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : "No Data", onPick: () => { const item = gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : null; if(item && item !== "No Data") { handleKioskSelection(gear1Cat, item); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); } },
+                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: gear2Cat, value: gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : "No Data", onPick: () => { const item = gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : null; if(item && item !== "No Data") { handleKioskSelection(gear2Cat, item); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); } },
+                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: gear3Cat, value: gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : "No Data", onPick: () => { const item = gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : null; if(item && item !== "No Data") { handleKioskSelection(gear3Cat, item); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); } },
+                      ].map((p: any, i: number) => (
+                        <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "right", right: GEAR_VIS, top: p.y, zIndex: 10 }}>
+                          {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "right" }}>{p.label}</div>}
+                          <button onClick={p.onPick} className="gear-panel-btn" style={{ flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: "0", textAlign: "right" }}><span style={{ display: "block", width: "100%", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>{p.value}</span></button>
+                          <div style={{ fontSize: 10, color: textFaint, marginTop: 8, opacity: 0.8, fontWeight: 500, textAlign: "right" }}>click gear to cycle</div>
+                        </div>
+                      ))}
+                   </>
                 )}
               </aside>
             )}
@@ -1052,25 +1051,25 @@ export default function App() {
       )}
 
       {fullScreenPdf && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ width: '100%', maxWidth: 1000, height: '90vh', background: dark ? '#1c1b22' : '#fff', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: dark ? '#13141c' : '#f3f4f6', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, zIndex: 20, flexShrink: 0 }}>
-              <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, color: dark ? '#fff' : '#000', display: 'flex', alignItems: 'center', gap: 8 }}><FileText size={20} /> Viewer</h2>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                <button onClick={() => setPdfPage((p: number) => Math.max(1, p - 5))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage <= 1 ? 'not-allowed' : 'pointer', opacity: pdfPage <= 1 ? 0.3 : 1}} disabled={pdfPage <= 1}>-5</button>
-                <button onClick={() => setPdfPage((p: number) => Math.max(1, p - 1))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage <= 1 ? 'not-allowed' : 'pointer', opacity: pdfPage <= 1 ? 0.3 : 1}} disabled={pdfPage <= 1}><ArrowLeft size={16}/></button>
-                <span style={{ fontSize: 14, fontWeight: 700, color: dark ? '#fff' : '#000', whiteSpace: 'nowrap', margin: '0 8px' }}>{pdfPage} / {totalPages}</span>
-                <button onClick={() => setPdfPage((p: number) => Math.min(totalPages, p + 1))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage >= totalPages ? 'not-allowed' : 'pointer', opacity: pdfPage >= totalPages ? 0.3 : 1}} disabled={pdfPage >= totalPages}><ArrowRight size={16}/></button>
-                <button onClick={() => setPdfPage((p: number) => Math.min(totalPages, p + 5))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage >= totalPages ? 'not-allowed' : 'pointer', opacity: pdfPage >= totalPages ? 0.3 : 1}} disabled={pdfPage >= totalPages}>+5</button>
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div style={{ width: '100%', maxWidth: 1000, height: '90vh', background: dark ? '#1c1b22' : '#fff', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: dark ? '#13141c' : '#f3f4f6', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, zIndex: 20, flexShrink: 0 }}>
+                 <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, color: dark ? '#fff' : '#000', display: 'flex', alignItems: 'center', gap: 8 }}><FileText size={20} /> Viewer</h2>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    <button onClick={() => setPdfPage((p: number) => Math.max(1, p - 5))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage <= 1 ? 'not-allowed' : 'pointer', opacity: pdfPage <= 1 ? 0.3 : 1}} disabled={pdfPage <= 1}>-5</button>
+                    <button onClick={() => setPdfPage((p: number) => Math.max(1, p - 1))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage <= 1 ? 'not-allowed' : 'pointer', opacity: pdfPage <= 1 ? 0.3 : 1}} disabled={pdfPage <= 1}><ArrowLeft size={16}/></button>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: dark ? '#fff' : '#000', whiteSpace: 'nowrap', margin: '0 8px' }}>{pdfPage} / {totalPages}</span>
+                    <button onClick={() => setPdfPage((p: number) => Math.min(totalPages, p + 1))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage >= totalPages ? 'not-allowed' : 'pointer', opacity: pdfPage >= totalPages ? 0.3 : 1}} disabled={pdfPage >= totalPages}><ArrowRight size={16}/></button>
+                    <button onClick={() => setPdfPage((p: number) => Math.min(totalPages, p + 5))} style={{background: dark ? '#1e1e28' : 'rgba(0,0,0,0.05)', border: 'none', color: dark ? '#cbd5e1' : '#000', padding: '6px 12px', borderRadius: 8, fontWeight: 700, cursor: pdfPage >= totalPages ? 'not-allowed' : 'pointer', opacity: pdfPage >= totalPages ? 0.3 : 1}} disabled={pdfPage >= totalPages}>+5</button>
+                 </div>
+                 <button onClick={() => { setFullScreenPdf(null); setPdfRef(null); }} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', color: '#ef4444', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 16 }}><X size={20} /></button>
               </div>
-              <button onClick={() => { setFullScreenPdf(null); setPdfRef(null); }} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', color: '#ef4444', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 16 }}><X size={20} /></button>
-            </div>
-            <div className="no-scrollbar" style={{ flex: 1, width: '100%', position: 'relative', background: '#323639', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px', overflow: 'hidden' }}>
-              {pdfLoading && (<div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}><div style={{ position: "relative", width: 60, height: 60, display: "flex", justifyContent: "center", alignItems: "center" }}><div style={{ position: "absolute", transform: 'scale(0.5)' }}><GearboxLoader /></div></div></div>)}
-              <canvas ref={canvasRef} style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', opacity: pdfLoading ? 0.3 : 1, transition: 'opacity 0.3s', background: '#fff', borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} />
+              <div className="no-scrollbar" style={{ flex: 1, width: '100%', position: 'relative', background: '#323639', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px', overflow: 'hidden' }}>
+                 {pdfLoading && (<div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}><div style={{ position: "relative", width: 60, height: 60, display: "flex", justifyContent: "center", alignItems: "center" }}><div style={{ position: "absolute", transform: 'scale(0.5)' }}><GearboxLoader /></div></div></div>)}
+                 <canvas ref={canvasRef} style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', opacity: pdfLoading ? 0.3 : 1, transition: 'opacity 0.3s', background: '#fff', borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} />
+              </div>
             </div>
           </div>
-        </div>
       )}
     </>
   );
