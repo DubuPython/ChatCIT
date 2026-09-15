@@ -352,7 +352,7 @@ export default function App() {
 
   const allMappableItems = useMemo(() => {
      const subCatValues = Object.values(mergedSubCategoriesMap).reduce((acc, val) => acc.concat(val), []);
-     const items = new Set([...allSidebarCategories, ...subCatValues, "Handbook", "Magna Carta", "Accomplishments", "Industry Partners", "Organizations", "Majors", "Faculty & Professors"]);
+     const items = new Set([...allSidebarCategories, ...subCatValues, "Handbook", "Magna Carta", "Accomplishments"]);
      items.delete("All"); items.delete("General");
      return Array.from(items).filter(Boolean).sort();
   }, [allSidebarCategories, mergedSubCategoriesMap]);
@@ -517,7 +517,8 @@ export default function App() {
   const activeChat = chats.find((c) => c.id === activeChatId) ?? null;
 
   const requireAuth = (action: () => void) => {
-    if (currentUser && Number(currentUser.id) === -1) { setAuthMode("login"); setShowAuthPopup(true); if (isMobile && !simKiosk) { setSidebarOpen(false); setRightRailOpen(false); } } 
+    if (simKiosk) { action(); return; }
+    if (currentUser && Number(currentUser.id) === -1) { setAuthMode("login"); setShowAuthPopup(true); if (isMobile) { setSidebarOpen(false); setRightRailOpen(false); } } 
     else { action(); }
   };
 
@@ -644,6 +645,7 @@ export default function App() {
            let safeFile = item.replace(/\s+/g, '-').toLowerCase(); if (lowerItem === "magna carta") safeFile = "magna-carta"; if (lowerItem === "handbook") safeFile = "handbook"; setKioskResult({ title: item, isPdf: true, pdfUrl: `/${safeFile}.pdf` }); return;
          }
 
+         // FORCE ROUTE TO WEB DIRECTORY SEARCH ENGINE
          if (matchedCat || lowerItem.includes('partner') || lowerItem.includes('industry') || lowerItem.includes('organ') || lowerItem.includes('major') || lowerItem.includes('facul')) {
             setScreenState("chat");
             setKioskCategory(null);
@@ -836,18 +838,18 @@ export default function App() {
                       ) : (
                         <>
                           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, marginTop: 12 }}>
-                            <button onClick={() => {setActiveChatId(null); setDirectoryMode(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false);}} className="sidebar-btn primary" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer" }}><Plus size={16} /> New chat</button>
+                            <button onClick={() => requireAuth(() => {setActiveChatId(null); setDirectoryMode(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false);})} className="sidebar-btn primary" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: "none", cursor: "pointer" }}><Plus size={16} /> New chat</button>
                             {isWebMode && localStorage.getItem('permanent_kiosk') !== 'true' && (<button onClick={() => { setGearMode(true); if(useMobileLayout) setSidebarOpen(false); }} className="sidebar-btn" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 12, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, cursor: "pointer" }}><Settings size={15} /> Change taskbar mode</button>)}
                           </div>
                           <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Quick Prompts</span></div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 24 }}>
-                            {QUICK_PROMPTS.map((lbl: string) => (<button key={lbl} onClick={() => { if(useMobileLayout) setSidebarOpen(false); const matchedCat = getCategoryMatch(lbl); if (lbl.toLowerCase() === 'handbook' || lbl.toLowerCase() === 'magna carta') { sendMessage(lbl); } else if (matchedCat) { setDirectoryMode(matchedCat); } else { sendMessage(lbl); } }} className="sidebar-btn">{lbl.replace('Teachers', 'Professors')}</button>))}
+                            {QUICK_PROMPTS.map((lbl: string) => (<button key={lbl} onClick={() => { if(useMobileLayout) setSidebarOpen(false); const matchedCat = getCategoryMatch(lbl); if (lbl.toLowerCase() === 'handbook' || lbl.toLowerCase() === 'magna carta') { requireAuth(() => { sendMessage(lbl); }); } else if (matchedCat) { setDirectoryMode(matchedCat); } else { requireAuth(() => { sendMessage(lbl); }); } }} className="sidebar-btn">{lbl.replace('Teachers', 'Professors')}</button>))}
                           </div>
                           {currentUser && Number(currentUser.id) !== -1 && chats.length > 0 && (
                             <>
                               <div style={{ padding: "0 4px 8px" }}><span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sb.faint }}>Recent</span></div>
                               <div style={{ maxHeight: 250, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
-                                {chats.slice(0, 5).map((chat: Chat) => (<div key={chat.id} className="group" style={{ display: "flex", alignItems: "center", width: "100%", gap: 4 }}><button onClick={() => { setActiveChatId(chat.id); setDirectoryMode(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); }} className={`sidebar-btn ${activeChatId === chat.id && viewMode === "chat" ? 'primary' : ''}`} style={{ flex: 1, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` }}>{chat.title}</button><button onClick={(e) => { e.stopPropagation(); deleteChat(chat.id); }} style={{ padding: "10px", background: "transparent", border: "none", color: sb.muted, cursor: "pointer", transition: "color 0.2s" }}><Trash2 size={16} /></button></div>))}
+                                {chats.slice(0, 5).map((chat: Chat) => (<div key={chat.id} className="group" style={{ display: "flex", alignItems: "center", width: "100%", gap: 4 }}><button onClick={() => requireAuth(() => { setActiveChatId(chat.id); setDirectoryMode(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); })} className={`sidebar-btn ${activeChatId === chat.id && viewMode === "chat" ? 'primary' : ''}`} style={{ flex: 1, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` }}>{chat.title}</button><button onClick={(e) => { e.stopPropagation(); requireAuth(() => deleteChat(chat.id)); }} style={{ padding: "10px", background: "transparent", border: "none", color: sb.muted, cursor: "pointer", transition: "color 0.2s" }}><Trash2 size={16} /></button></div>))}
                               </div>
                             </>
                           )}
