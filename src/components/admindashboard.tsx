@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Database, HelpCircle, Bug, Plus, Save, Edit2, Trash2, CheckCircle, UploadCloud, Users, Key, Search, X, TrendingUp, RotateCcw, RefreshCw, Monitor, Calendar } from "lucide-react";
+import { Database, HelpCircle, Bug, Plus, Save, Edit2, Trash2, CheckCircle, UploadCloud, Users, Key, Search, X, TrendingUp, RotateCcw, RefreshCw, Monitor, Calendar, LayoutGrid } from "lucide-react";
 import { GearboxLoader } from "./ui/helpers";
 import { Knowledge, Unanswered, BugReport, User } from "../types";
 import { API_URL } from "../config";
@@ -20,19 +20,10 @@ export function AdminPanel({
   dark, showToast, currentUser, activeTab, setActiveTab, activeCategoryTab, activeDeptTab,
   allCategories, mergedSubCategoriesMap, setDbCategories, setDbSubCategories, fetchData: globalFetchData,
   layoutConfig, saveLayoutConfig, syncTrigger,
-  screensaverSlides, setScreensaverSlides
-}: {
-  dark: boolean; showToast: (msg: string, type: 'success' | 'error' | 'info') => void; currentUser: User;
-  activeTab: string; setActiveTab: (t: string) => void;
-  activeCategoryTab: string; activeDeptTab: string; allCategories: string[]; mergedSubCategoriesMap: Record<string, string[]>;
-  setDbCategories: (cats: string[]) => void; setDbSubCategories: (cats: Record<string, string[]>) => void;
-  fetchData: () => void;
-  layoutConfig: { gear1: string, gear2: string, gear3: string, quickPrompts: string[] };
-  saveLayoutConfig: (config: any) => void;
-  syncTrigger: number;
-  screensaverSlides?: any[];
-  setScreensaverSlides?: (val: any[]) => void;
-}) {
+  kioskMapping = {}, setKioskMapping,
+  screensaverSlides = [], setScreensaverSlides,
+  kioskHighlights = [], setKioskHighlights
+}: any) {
   
   const CLOUD_NAME = "xjzuq0fq"; const UPLOAD_PRESET = "chatcit_preset"; 
 
@@ -57,14 +48,18 @@ export function AdminPanel({
 
   const [modal, setModal] = useState<{ isOpen: boolean, type: 'confirm' | 'prompt', title: string, message: string, inputValue: string, onConfirm: (val?: string) => void }>({ isOpen: false, type: 'confirm', title: '', message: '', inputValue: '', onConfirm: () => {} });
 
-  const [draftScreensaver, setDraftScreensaver] = useState<any[]>([]);
-  const [isDraftingScreensaver, setIsDraftingScreensaver] = useState(false);
+  const [draftMapping, setDraftMapping] = useState<Record<string, string[]>>({});
+  const [draftScreensaver, setDraftScreensaver] = useState<string[]>([]);
+  const [draftHighlights, setDraftHighlights] = useState<any[]>([]);
+  const [isDraftingKiosk, setIsDraftingKiosk] = useState(false);
 
   useEffect(() => {
-     if (!isDraftingScreensaver && screensaverSlides) {
-         setDraftScreensaver(screensaverSlides);
+     if (!isDraftingKiosk) {
+         setDraftMapping(kioskMapping || {});
+         setDraftScreensaver(screensaverSlides?.map((s: any) => typeof s === 'string' ? s : s.img).filter(Boolean) || []);
+         setDraftHighlights(kioskHighlights || []);
      }
-  }, [screensaverSlides, isDraftingScreensaver]);
+  }, [kioskMapping, screensaverSlides, kioskHighlights, isDraftingKiosk]);
 
   const fetchDashboardData = async () => {
     setIsSyncing(true);
@@ -212,6 +207,40 @@ export function AdminPanel({
     } catch (e: any) { showToast(e.message, "error"); }
   };
 
+  const handleSaveKioskLayout = async () => {
+     try {
+        showToast("Saving Layout...", "info");
+        const res = await fetch(`${API_URL}/settings/kiosk_mapping`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: JSON.stringify(draftMapping) }) });
+        if (!res.ok) throw new Error("Server error");
+        if (setKioskMapping) setKioskMapping(draftMapping);
+        localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(draftMapping));
+        setIsDraftingKiosk(false);
+        showToast("Layout saved to cloud!", "success");
+     } catch(e) { showToast("Failed to save layout.", "error"); }
+  };
+
+  const handleSaveHighlights = async () => {
+     try {
+        showToast("Saving Highlights...", "info");
+        const res = await fetch(`${API_URL}/settings/kiosk_highlights`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: JSON.stringify(draftHighlights) }) });
+        if (!res.ok) throw new Error("Server error");
+        if (setKioskHighlights) setKioskHighlights(draftHighlights);
+        setIsDraftingKiosk(false);
+        showToast("Highlights saved to cloud!", "success");
+     } catch(e) { showToast("Failed to save highlights.", "error"); }
+  };
+
+  const handleSaveScreensaver = async () => {
+     try {
+        showToast("Saving Screensaver...", "info");
+        const res = await fetch(`${API_URL}/settings/kiosk_screensaver`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: JSON.stringify(draftScreensaver) }) });
+        if (!res.ok) throw new Error("Server error");
+        if (setScreensaverSlides) setScreensaverSlides(draftScreensaver);
+        setIsDraftingKiosk(false);
+        showToast("Screensaver saved to cloud!", "success");
+     } catch(e) { showToast("Failed to save screensaver.", "error"); }
+  };
+
   const q = searchQuery.toLowerCase();
   
   const filteredData = data.filter(d => {
@@ -219,7 +248,6 @@ export function AdminPanel({
     const matchSearch = d.keyword.toLowerCase().includes(q) || d.response.toLowerCase().includes(q) || ((d as any).display_name || "").toLowerCase().includes(q);
     const dbSub = ((d as any).subcategory || "All").toLowerCase();
     const matchSub = activeDeptTab === "All" || dbSub === activeDeptTab.toLowerCase();
-    
     if (activeCategoryTab !== 'All' && activeCategoryTab !== 'General' && activeCategoryTab !== 'Handbook') { return matchCat && matchSub && matchSearch; }
     return matchCat && matchSearch;
   });
@@ -296,22 +324,18 @@ export function AdminPanel({
     <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
       <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{title}</h3>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-        
         <div style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 11, color: textMuted }}>Start Date</span>
           <input type="date" value={calForm.date ? calForm.date.split('T')[0] : ""} onChange={e => setCalForm({...calForm, date: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
         </div>
-        
         <div style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 11, color: textMuted }}>End Date (Optional)</span>
           <input type="date" value={calForm.endDate ? calForm.endDate.split('T')[0] : ""} onChange={e => setCalForm({...calForm, endDate: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
         </div>
-
         <div style={{ flex: 2, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 11, color: textMuted }}>Event Title</span>
           <input type="text" value={calForm.title} onChange={e => setCalForm({...calForm, title: e.target.value})} placeholder="e.g. Midterm Examinations" style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
         </div>
-        
         <div style={{ flex: 1, minWidth: 150, display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 11, color: textMuted }}>Event Type</span>
           <select value={calForm.type} onChange={e => setCalForm({...calForm, type: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
@@ -321,7 +345,6 @@ export function AdminPanel({
           </select>
         </div>
       </div>
-
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <span style={{ fontSize: 11, color: textMuted }}>Description (Optional)</span>
         <textarea value={calForm.description} onChange={e => setCalForm({...calForm, description: e.target.value})} placeholder="Add extra details..." rows={2} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", resize: "vertical", fontSize: 13 }} />
@@ -335,35 +358,6 @@ export function AdminPanel({
 
   if (loading) return (<div style={{ display: "flex", height: "80vh", width: "100%", alignItems: "center", justifyContent: "center" }}><div style={{ transform: "scale(0.8)" }}><GearboxLoader /></div></div>);
 
-  const handleSaveScreensaver = async () => {
-    try {
-       showToast("Saving screensaver...", "info");
-       
-       // Serialize the array before sending so PostgreSQL accepts it as a safe string
-       const payload = { value: JSON.stringify(draftScreensaver) };
-       
-       const res = await fetch(`${API_URL}/settings/kiosk_screensaver`, { 
-           method: 'POST', 
-           headers: { 'Content-Type': 'application/json' }, 
-           body: JSON.stringify(payload) 
-       });
-       
-       if (!res.ok) {
-           throw new Error(`Server returned ${res.status}`);
-       }
-       
-       if (setScreensaverSlides) {
-           setScreensaverSlides(draftScreensaver);
-       }
-       
-       setIsDraftingScreensaver(false);
-       showToast("Screensaver saved to cloud!", "success");
-    } catch(e: any) { 
-       console.error("Save Error:", e);
-       showToast(`Network or server error.`, "error"); 
-    }
-  };
-
   return (
     <div style={{ maxWidth: 1400, width: "100%", margin: "0 auto", padding: "16px 12px", boxSizing: "border-box" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
@@ -376,8 +370,141 @@ export function AdminPanel({
           <button onClick={() => setActiveTab('bugs')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'bugs' ? "#4285f4" : "transparent", color: activeTab === 'bugs' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Bug size={14} /> Bugs <span style={{ background: activeTab === 'bugs' ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.1)", padding: "2px 6px", borderRadius: 12, fontSize: 10 }}>{bugs.length}</span></button>
           <button onClick={() => setActiveTab('users')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'users' ? "#4285f4" : "transparent", color: activeTab === 'users' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Users size={14} /> Users</button>
           <button onClick={() => setActiveTab('display')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'display' ? "#4285f4" : "transparent", color: activeTab === 'display' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Monitor size={14} /> Display</button>
+          <button onClick={() => setActiveTab('kiosk')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'kiosk' ? "#4285f4" : "transparent", color: activeTab === 'kiosk' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><LayoutGrid size={14} /> Kiosk Editor</button>
         </div>
       </div>
+
+      {activeTab === 'kiosk' && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+           {/* 1. KIOSK CLUSTER LAYOUT EDITOR */}
+           <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, padding: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+                 <div>
+                    <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Kiosk Cluster Layout</h3>
+                    <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Map your databank categories to the 5 main Kiosk buttons.</p>
+                 </div>
+                 <button onClick={handleSaveKioskLayout} style={{ background: '#10b981', color: '#fff', padding: '10px 20px', borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle size={16} /> Save Layout</button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 24 }}>
+                 {["Faculty", "Accomplishment", "Student Affairs", "Curriculum", "Extensions"].map(cluster => (
+                    <div key={cluster} style={{ background: dark ? 'rgba(255,255,255,0.03)' : '#f9fafb', border: `1px solid ${border}`, borderRadius: 16, padding: 20 }}>
+                       <h3 style={{ fontSize: 16, fontWeight: 700, color: textPrimary, margin: '0 0 12px' }}>{cluster}</h3>
+                       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                          <select id={`select-${cluster}`} style={{ flex: 1, padding: '8px', borderRadius: 6, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: textPrimary, border: `1px solid ${border}`, outline: 'none' }}>
+                             <option value="" style={{ color: '#000' }}>Add category...</option>
+                             {allCategories.filter(c => !(draftMapping[cluster] || []).includes(c)).map(c => (<option key={c} value={c} style={{ color: '#000' }}>{c}</option>))}
+                          </select>
+                          <button onClick={() => { const sel = document.getElementById(`select-${cluster}`) as HTMLSelectElement; if (sel.value) { addDraftCat(cluster, sel.value); sel.value = ""; setIsDraftingKiosk(true); } }} style={{ background: '#4285f4', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Add</button>
+                       </div>
+                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {(draftMapping[cluster] || []).map(cat => (
+                             <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: dark ? 'rgba(0,0,0,0.3)' : '#fff', borderRadius: 6, border: `1px solid ${border}` }}>
+                                <span style={{ fontSize: 13, fontWeight: 600, color: textPrimary }}>{cat.replace('Teachers', 'Professors')}</span>
+                                <button onClick={() => { removeDraftCat(cluster, cat); setIsDraftingKiosk(true); }} style={{ color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer' }}><Trash2 size={14} /></button>
+                             </div>
+                          ))}
+                          {!(draftMapping[cluster] || []).length && <div style={{ textAlign: 'center', color: textFaint, fontSize: 12, marginTop: 10 }}>No items assigned.</div>}
+                       </div>
+                    </div>
+                 ))}
+              </div>
+           </div>
+
+           {/* 2. HIGHLIGHTS OF THE MONTH EDITOR */}
+           <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, padding: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+                 <div>
+                    <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Highlights of the Month</h3>
+                    <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Manage the infinite carousel highlights shown on the Kiosk home screen.</p>
+                 </div>
+                 <button onClick={handleSaveHighlights} style={{ background: '#10b981', color: '#fff', padding: '10px 20px', borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle size={16} /> Save Highlights</button>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+                 {draftHighlights?.map((slide, index) => (
+                    <div key={index} style={{ background: dark ? 'rgba(0,0,0,0.2)' : '#f9fafb', borderRadius: 12, border: `1px solid ${border}`, padding: 16, position: "relative", display: "flex", flexDirection: "column", gap: 8 }}>
+                       <button onClick={() => {
+                          const newH = draftHighlights.filter((_, i) => i !== index);
+                          setDraftHighlights(newH);
+                          setIsDraftingKiosk(true);
+                       }} style={{ position: "absolute", top: 8, right: 8, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={12}/></button>
+                       <img src={slide.img} style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8, background: '#000', border: `1px solid ${border}` }} />
+                       <input value={slide.title || ""} onChange={e => { 
+                           const n = [...draftHighlights]; 
+                           n[index] = { ...n[index], title: e.target.value }; 
+                           setDraftHighlights(n); 
+                           setIsDraftingKiosk(true); 
+                       }} placeholder="Highlight Title (e.g. CIT Week 2026)" style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: "inherit", fontSize: 13, outline: "none", fontWeight: 600 }} />
+                       <input value={slide.date || ""} onChange={e => { 
+                           const n = [...draftHighlights]; 
+                           n[index] = { ...n[index], date: e.target.value }; 
+                           setDraftHighlights(n); 
+                           setIsDraftingKiosk(true); 
+                       }} placeholder="Short Date (e.g. Sept 20-25)" style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: theme.accent || "#4285f4", fontSize: 12, outline: "none", fontWeight: 600 }} />
+                    </div>
+                 ))}
+                 
+                 <label style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', borderRadius: 12, border: `1px dashed ${border}`, padding: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 220, cursor: uploadingImage ? "wait" : "pointer", gap: 12 }}>
+                    <UploadCloud size={32} color={textMuted} />
+                    <span style={{ fontSize: 13, color: textMuted, fontWeight: 600 }}>{uploadingImage ? "Uploading..." : "Add Highlight"}</span>
+                    <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingImage} onChange={async (e) => {
+                        const file = e.target.files?.[0]; if (!file) return; setUploadingImage(true);
+                        const formData = new FormData(); formData.append("file", file); formData.append("upload_preset", UPLOAD_PRESET); formData.append("cloud_name", CLOUD_NAME);
+                        try {
+                           const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
+                           const data = await res.json();
+                           if (data.secure_url) {
+                              setDraftHighlights([...draftHighlights, { title: "New Highlight", date: "Date", img: data.secure_url }]);
+                              setIsDraftingKiosk(true);
+                           } else { showToast(`Upload error`, "error"); }
+                        } catch(err) { showToast("Upload failed", "error"); } finally { setUploadingImage(false); e.target.value = ''; }
+                    }} />
+                 </label>
+              </div>
+           </div>
+
+           {/* 3. SCREENSAVER PICTURES EDITOR */}
+           <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, padding: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+                 <div>
+                    <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Idle Screensaver Pictures</h3>
+                    <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Manage the full-screen pictures displayed on the Kiosk when idle.</p>
+                 </div>
+                 <button onClick={handleSaveScreensaver} style={{ background: '#10b981', color: '#fff', padding: '10px 20px', borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle size={16} /> Save Screensavers</button>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+                 {draftScreensaver?.map((url, index) => (
+                    <div key={index} style={{ background: dark ? 'rgba(0,0,0,0.2)' : '#f9fafb', borderRadius: 12, border: `1px solid ${border}`, padding: 8, position: "relative" }}>
+                       <button onClick={() => {
+                          const newS = draftScreensaver.filter((_, i) => i !== index);
+                          setDraftScreensaver(newS);
+                          setIsDraftingKiosk(true);
+                       }} style={{ position: "absolute", top: 16, right: 16, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}><X size={14}/></button>
+                       <img src={url} style={{ width: "100%", height: 180, objectFit: "cover", borderRadius: 8, background: '#000' }} />
+                    </div>
+                 ))}
+                 
+                 <label style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', borderRadius: 12, border: `1px dashed ${border}`, padding: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 180, cursor: uploadingImage ? "wait" : "pointer", gap: 12 }}>
+                    <UploadCloud size={32} color={textMuted} />
+                    <span style={{ fontSize: 13, color: textMuted, fontWeight: 600 }}>{uploadingImage ? "Uploading..." : "Upload Screensaver"}</span>
+                    <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingImage} onChange={async (e) => {
+                        const file = e.target.files?.[0]; if (!file) return; setUploadingImage(true);
+                        const formData = new FormData(); formData.append("file", file); formData.append("upload_preset", UPLOAD_PRESET); formData.append("cloud_name", CLOUD_NAME);
+                        try {
+                           const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
+                           const data = await res.json();
+                           if (data.secure_url) {
+                              setDraftScreensaver([...draftScreensaver, data.secure_url]);
+                              setIsDraftingKiosk(true);
+                           } else { showToast(`Upload error`, "error"); }
+                        } catch(err) { showToast("Upload failed", "error"); } finally { setUploadingImage(false); e.target.value = ''; }
+                    }} />
+                 </label>
+              </div>
+           </div>
+        </div>
+      )}
 
       {activeTab === 'display' && (
         <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, padding: 24, display: "flex", flexDirection: "column", gap: 24 }}>
@@ -433,62 +560,6 @@ export function AdminPanel({
               </div>
               <span style={{ fontSize: 11, color: textMuted }}>Click to toggle. Maximum of 7 items allowed.</span>
            </div>
-
-           <hr style={{ border: "none", borderTop: `1px solid ${border}`, margin: "16px 0 8px 0" }} />
-
-           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Kiosk Screensaver Settings</h3>
-              <p style={{ margin: "0", fontSize: 13, color: textMuted }}>Manage the slideshow pictures and text displayed on the Kiosk when idle.</p>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, marginTop: 12 }}>
-                 {draftScreensaver?.map((slide, index) => (
-                    <div key={index} style={{ background: dark ? 'rgba(0,0,0,0.2)' : '#f9fafb', borderRadius: 12, border: `1px solid ${border}`, padding: 16, position: "relative", display: "flex", flexDirection: "column", gap: 8 }}>
-                       <button onClick={() => {
-                          const newS = draftScreensaver.filter((_, i) => i !== index);
-                          setDraftScreensaver(newS);
-                          setIsDraftingScreensaver(true);
-                       }} style={{ position: "absolute", top: 8, right: 8, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={12}/></button>
-                       <img src={slide.img} style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8, background: '#000' }} />
-                       <input value={slide.title || ""} onChange={e => { 
-                           const n = [...draftScreensaver]; 
-                           n[index] = { ...n[index], title: e.target.value }; 
-                           setDraftScreensaver(n); 
-                           setIsDraftingScreensaver(true); 
-                       }} placeholder="Slide Title" style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: "inherit", fontSize: 13, outline: "none" }} />
-                       <textarea value={slide.desc || ""} onChange={e => { 
-                           const n = [...draftScreensaver]; 
-                           n[index] = { ...n[index], desc: e.target.value }; 
-                           setDraftScreensaver(n); 
-                           setIsDraftingScreensaver(true); 
-                       }} placeholder="Slide Description..." rows={3} style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: "inherit", fontSize: 12, outline: "none", resize: "none" }} />
-                    </div>
-                 ))}
-                 
-                 <label style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', borderRadius: 12, border: `1px dashed ${border}`, padding: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 220, cursor: uploadingImage ? "wait" : "pointer", gap: 12 }}>
-                    <UploadCloud size={32} color={textMuted} />
-                    <span style={{ fontSize: 13, color: textMuted, fontWeight: 600 }}>{uploadingImage ? "Uploading..." : "Upload New Picture"}</span>
-                    <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingImage} onChange={async (e) => {
-                        const file = e.target.files?.[0]; if (!file) return; setUploadingImage(true);
-                        const formData = new FormData(); formData.append("file", file); formData.append("upload_preset", UPLOAD_PRESET); formData.append("cloud_name", CLOUD_NAME);
-                        try {
-                           const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
-                           const data = await res.json();
-                           if (data.secure_url) {
-                              setDraftScreensaver([...draftScreensaver, { title: "New Highlight", desc: "Description here...", img: data.secure_url }]);
-                              setIsDraftingScreensaver(true);
-                           } else { showToast(`Cloudinary Error: ${data.error?.message || "Unknown"}`, "error"); }
-                        } catch(err: any) { showToast(`Upload failed: ${err.message}`, "error"); } finally { setUploadingImage(false); e.target.value = ''; }
-                    }} />
-                 </label>
-              </div>
-              
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
-                 <button onClick={handleSaveScreensaver} style={{ background: "#10b981", color: "#fff", padding: "10px 20px", borderRadius: 8, border: "none", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-                     <CheckCircle size={16} /> Save Screensaver
-                 </button>
-              </div>
-           </div>
-
         </div>
       )}
 
@@ -503,7 +574,7 @@ export function AdminPanel({
         </div>
       )}
 
-      {activeTab !== 'display' && (
+      {activeTab !== 'display' && activeTab !== 'kiosk' && (
         <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, background: bg, border: `1px solid ${border}`, padding: "8px 12px", borderRadius: 8, flex: 1, minWidth: 200 }}>
             <Search size={16} color={textMuted} />
@@ -777,47 +848,6 @@ export function AdminPanel({
                     <td style={{ padding: "10px 12px", verticalAlign: "top", opacity: 0.9, lineHeight: 1.4 }}>{row.description}</td>
                     <td style={{ padding: "10px 12px", verticalAlign: "top", textAlign: "right" }}>
                       <button onClick={() => handleDelete('bugs', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4 }} title="Resolve"><CheckCircle size={14} /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'users' && (
-        <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", maxHeight: "60vh" }}>
-          {filteredUsers.length === 0 ? (
-            <div style={{ padding: 30, textAlign: "center", color: textMuted, fontSize: 13 }}>No users found.</div>
-          ) : (
-            <table style={{ width: "100%", minWidth: 500, borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
-              <thead style={{ position: "sticky", top: 0, zIndex: 10, background: dark ? "#25242c" : "#fff" }}>
-                <tr style={{ borderBottom: `1px solid ${border}` }}>
-                  <th style={{ padding: "10px 12px", fontWeight: 600 }}>Username / Email</th>
-                  <th style={{ padding: "10px 12px", fontWeight: 600 }}>Dept</th>
-                  <th style={{ padding: "10px 12px", fontWeight: 600 }}>Role</th>
-                  <th style={{ padding: "10px 12px", fontWeight: 600, width: 100, textAlign: "right" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((user: any) => (
-                  <tr key={user.id} style={{ borderBottom: `1px solid ${border}` }}>
-                    <td style={{ padding: "10px 12px", verticalAlign: "middle", fontWeight: 500 }}>
-                      {user.username || "—"} <br />
-                      <span style={{ fontSize: 11, color: textMuted, fontWeight: 400 }}>{user.email}</span>
-                    </td>
-                    <td style={{ padding: "10px 12px", verticalAlign: "middle", color: dark ? "#fff" : "#000" }}>{user.department || "Others"}</td>
-                    <td style={{ padding: "10px 12px", verticalAlign: "middle" }}>
-                      <select value={user.role} disabled={currentUser?.role !== 'superadmin' && user.role === 'superadmin'} onChange={(e) => handleRoleChange(user.id, e.target.value)} style={{ padding: "4px 6px", borderRadius: 6, background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', color: user.role === 'admin' || user.role === 'superadmin' ? '#4285f4' : textMuted, border: `1px solid ${border}`, outline: "none", cursor: "pointer", fontWeight: 600, fontSize: 12 }}>
-                        <option value="student" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Student</option>
-                        <option value="admin" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Admin</option>
-                        {(currentUser?.role === 'superadmin' || user.role === 'superadmin') && (<option value="superadmin" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Superadmin</option>)}
-                      </select>
-                    </td>
-                    <td style={{ padding: "10px 12px", verticalAlign: "middle", textAlign: "right", whiteSpace: "nowrap" }}>
-                      <button onClick={() => handleResetPassword(user.id, user.email)} style={{ background: "none", border: "none", color: "#f59e0b", cursor: "pointer", padding: 4 }} title="Generate Password"><Key size={14} /></button>
-                      <button onClick={() => handleDelete('users', user.id)} disabled={user.role === 'admin' || user.role === 'superadmin'} style={{ background: "none", border: "none", color: (user.role === 'admin' || user.role === 'superadmin') ? textMuted : "#ef4444", cursor: (user.role === 'admin' || user.role === 'superadmin') ? "not-allowed" : "pointer", padding: 4, marginLeft: 2 }} title="Delete Account"><Trash2 size={14} /></button>
                     </td>
                   </tr>
                 ))}
