@@ -362,7 +362,7 @@ export default function App() {
   });
   
   const [simScale, setSimScale] = useState(1);
-  const [screenState, setScreenState] = useState<"presentation" | "home" | "kiosk_result" | "chat">("presentation");
+  const [screenState, setScreenState] = useState<"presentation" | "home" | "kiosk_result" | "chat">(simKiosk ? "presentation" : "chat");
   const [kioskCategory, setKioskCategory] = useState<string | null>(null);
   const [kioskResult, setKioskResult] = useState<any>(null);
   const [kbOpen, setKbOpen] = useState(false); 
@@ -1231,7 +1231,7 @@ export default function App() {
           <>
             {/* LEFT SIDEBAR (STANDARD BLUE WEB UI) */}
             {(!gearMode) && (
-              <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: sbBg, position: "absolute", top: 0, bottom: 0, left: sidebarOpen ? 0 : -SIDEBAR_W, zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: useMobileLayout && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
+              <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: sbBg, position: "absolute", top: 0, bottom: 0, left: (isMobile || simKiosk) ? (sidebarOpen ? 0 : -SIDEBAR_W) : (sidebarOpen ? 0 : -SIDEBAR_W), zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: (isMobile || simKiosk) && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "hidden" }}>
                 <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, background: sbBg }}>
                   
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
@@ -1481,13 +1481,18 @@ export default function App() {
               top: 0, bottom: 0, 
               left: mainLeft, 
               right: mainRight, 
+              paddingBottom: kbOpen ? 360 : 0, 
               transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
             }}>
               <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: useMobileLayout ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
                 
                 {/* LEFT HEADER ZONE */}
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-                  {isKioskChat ? (
+                  {((useMobileLayout) || (!gearMode && !sidebarOpen) || isKioskChat) && (
+                    <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", zIndex: 60 }}><Menu size={22} /></button>
+                  )}
+                  
+                  {isKioskChat && (
                     <button 
                       onClick={() => { setScreenState("home"); setKioskCategory(null); setKioskResult(null); setActiveChatId(null); setDirectoryMode(null); setSidebarOpen(false); setRightRailOpen(false); }} 
                       style={{ background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, color: dark ? '#fff' : '#0f172a', padding: '8px 16px', borderRadius: 24, fontSize: 15, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: "transform 0.1s" }}
@@ -1496,18 +1501,12 @@ export default function App() {
                     >
                       <ArrowLeft size={18} /> Home
                     </button>
-                  ) : (
-                    <>
-                      {((useMobileLayout) || (!gearMode && !sidebarOpen)) && (
-                        <button onClick={() => setSidebarOpen(true)} style={{ padding: '8px 8px 8px 0', color: textMuted, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", zIndex: 60 }}><Menu size={22} /></button>
-                      )}
-                      
-                      {(!isKioskChat && (useMobileLayout || (!gearMode && !sidebarOpen))) && (
-                        <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.5px' }}>
-                          <span style={{ color: dark ? '#fff' : '#0f172a' }}>Chat</span><span style={{ color: '#4285f4' }}>CIT</span>
-                        </div>
-                      )}
-                    </>
+                  )}
+
+                  {(!isKioskChat && (useMobileLayout || (!gearMode && !sidebarOpen))) && (
+                    <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.5px' }}>
+                      <span style={{ color: dark ? '#fff' : '#0f172a' }}>Chat</span><span style={{ color: '#4285f4' }}>CIT</span>
+                    </div>
                   )}
                 </div>
 
@@ -1522,9 +1521,9 @@ export default function App() {
 
                 {/* RIGHT HEADER ZONE */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, flex: 1 }}>
-                  {useMobileLayout && !isKioskChat ? (
+                  {(useMobileLayout || isKioskChat) ? (
                     <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer", zIndex: 60 }}>
-                      <MoreVertical size={28} color={dark ? "#FDB51C" : "#A60112"} />
+                      <MoreVertical size={28} color={dark ? "#60a5fa" : "#2563eb"} />
                     </button>
                   ) : (
                     (viewMode === 'admin' && !simKiosk) && (
@@ -1779,7 +1778,7 @@ export default function App() {
 
         {/* CUSTOM VIRTUAL KEYBOARD */}
         {simKiosk && kbOpen && (
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "16px 8px 32px", background: dark ? "rgba(28, 27, 34, 0.98)" : "rgba(229, 231, 235, 0.98)", backdropFilter: "blur(20px)", borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, zIndex: 999999, display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 -10px 40px rgba(0,0,0,0.5)", animation: "slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }}>
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 360, padding: "16px 8px 32px", background: dark ? "rgba(28, 27, 34, 0.98)" : "rgba(229, 231, 235, 0.98)", backdropFilter: "blur(20px)", borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, zIndex: 999999, display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 -10px 40px rgba(0,0,0,0.5)", animation: "slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }}>
             {virtualKeyRows.map((row, i) => (
               <div key={i} style={{ display: "flex", justifyContent: "center", gap: 8 }}>
                 {row.map(k => (
