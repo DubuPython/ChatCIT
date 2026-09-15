@@ -713,7 +713,47 @@ export default function App() {
      renderPage();
   }, [pdfRef, pdfPage]);
 
-  // VIRTUAL KEYBOARD & ANDROID NATIVE BLOCKER
+  // VIRTUAL KEYBOARD INJECTION WITH EVENT HANDLER RE-ADDED
+  const handleVirtualKeyPress = (key: string, e: React.MouseEvent) => {
+    e.preventDefault(); 
+    const el = document.activeElement as HTMLInputElement | HTMLTextAreaElement;
+    if (!el || !['INPUT', 'TEXTAREA'].includes(el.tagName)) return;
+    
+    let newValue = el.value;
+    if (key === 'BACK') { 
+       newValue = newValue.slice(0, -1); 
+    } else if (key === 'ENTER') { 
+       const form = el.closest('form'); 
+       if (form) { 
+          const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement; 
+          if (submitBtn && !submitBtn.disabled) submitBtn.click(); 
+       } else { 
+          el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true })); 
+       } 
+       return; 
+    } else if (key === 'CLOSE') { 
+       setKbOpen(false); 
+       el.blur(); 
+       return; 
+    } else if (key === 'SPACE') { 
+       newValue += ' '; 
+    } else { 
+       newValue += key; 
+    }
+    
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+    const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+    
+    if (el.tagName === 'INPUT' && nativeInputValueSetter) { 
+       nativeInputValueSetter.call(el, newValue); 
+    } else if (el.tagName === 'TEXTAREA' && nativeTextAreaValueSetter) { 
+       nativeTextAreaValueSetter.call(el, newValue); 
+    } else { 
+       el.value = newValue; 
+    }
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
   useEffect(() => {
     if (!simKiosk) { setKbOpen(false); return; }
     
@@ -987,23 +1027,6 @@ export default function App() {
   const deleteChat = (idToDelete: string) => { setChats(prev => prev.filter(c => c.id !== idToDelete)); if (activeChatId === idToDelete) { setActiveChatId(null); setViewMode("chat"); } showToast("Chat deleted successfully.", "success"); };
   const handleLogout = () => { setCurrentUser({ id: -1, email: "guest@bulsu.edu.ph", role: "student", username: "Guest User" }); setChats([]); setActiveChatId(null); setViewMode("chat"); localStorage.removeItem('chatcit_user'); localStorage.removeItem('chatcit_chats'); showToast("Logged out successfully.", "info"); setAuthMode("login"); setShowAuthPopup(true); };
 
-  const handleVirtualKeyPress = (key: string, e: React.MouseEvent) => {
-    e.preventDefault(); const el = document.activeElement as HTMLInputElement | HTMLTextAreaElement;
-    if (!el || !['INPUT', 'TEXTAREA'].includes(el.tagName)) return;
-    let newValue = el.value;
-    if (key === 'BACK') { newValue = newValue.slice(0, -1); } 
-    else if (key === 'ENTER') { const form = el.closest('form'); if (form) { const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement; if (submitBtn && !submitBtn.disabled) submitBtn.click(); } else { el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true })); } return; } 
-    else if (key === 'CLOSE') { setKbOpen(false); el.blur(); return; } 
-    else if (key === 'SPACE') { newValue += ' '; } 
-    else { newValue += key; }
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
-    const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-    if (el.tagName === 'INPUT' && nativeInputValueSetter) { nativeInputValueSetter.call(el, newValue); } 
-    else if (el.tagName === 'TEXTAREA' && nativeTextAreaValueSetter) { nativeTextAreaValueSetter.call(el, newValue); } 
-    else { el.value = newValue; }
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  };
-
   const trBtnSize = simKiosk ? 64 : 40; const trIconSize = simKiosk ? 32 : 20; const trRadius = simKiosk ? 20 : 12; const trGap = simKiosk ? 20 : 12;
   
   const isAdminUser = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
@@ -1084,6 +1107,14 @@ export default function App() {
       mainRight = showRightRail ? RAIL_W : 0; 
     }
   }
+
+  const virtualKeyRows = [
+    ['1','2','3','4','5','6','7','8','9','0'],
+    ['q','w','e','r','t','y','u','i','o','p'],
+    ['a','s','d','f','g','h','j','k','l'],
+    ['z','x','c','v','b','n','m', 'BACK'],
+    ['SPACE', 'ENTER', 'CLOSE']
+  ];
 
   return (
     <>
@@ -1360,13 +1391,97 @@ export default function App() {
               </aside>
             )}
 
+            {/* LEFT SIDEBAR (GEAR TASKBAR MODE) */}
+            {showGearLeft && (
+              <aside style={{ width: RAIL_W, flexShrink: 0, background: bg, position: "absolute", top: 0, bottom: 0, left: sidebarOpen ? 0 : -RAIL_W, zIndex: 60, transition: "left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: (isMobile || simKiosk) && sidebarOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
+                <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, left: 0 }}>
+                  <GearAbs id="g-left-top" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => i + 1); }} />
+                  <GearAbs id="g-left-mid" side="left" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-leftAngle * RATIO + (180 / N_LG)} onClick={() => { setLeftAngle(a => a + STEP_DEG); setMidIdx(i => (i + 1) % MID_CHOICES.length); }} />
+                  <GearAbs id="g-left-bot" side="left" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={leftAngle} onClick={() => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => i + 1); }} />
+                </div>
+                
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-start", padding: "14px 16px 0", zIndex: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                    {currentUser && Number(currentUser.id) !== -1 ? (
+                      <>
+                        <Avatar name={currentUser?.username || currentUser?.email || "User"} size={30} bg="#7c3aed" />
+                        <div style={{ fontSize: 13, fontWeight: 600, color: textPrimary, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentUser?.username || currentUser?.email.split('@')[0]}</div>
+                        {!simKiosk && <button onClick={() => setShowProfileModal(true)} style={{ color: textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Edit Profile"><UserCog size={15} /></button>}
+                        {!simKiosk && (currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && <button onClick={() => { setViewMode(viewMode === 'admin' ? 'chat' : 'admin'); if(useMobileLayout) setSidebarOpen(false); }} style={{ color: viewMode === "admin" ? "#4285f4" : textMuted, background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Admin Panel"><Database size={15} /></button>}
+                        {!simKiosk && <button onClick={handleLogout} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Logout"><LogOut size={15} /></button>}
+                      </>
+                    ) : (
+                      <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+                        <button onClick={() => { setAuthMode("login"); setShowAuthPopup(true); }} style={{ padding: "6px 16px", borderRadius: 20, background: dark ? "#fff" : "#1a1a2e", color: dark ? "#1a1a2e" : "#fff", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}>Log in to Save Chats</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {[
+                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: "Quick Prompts", value: QUICK_PROMPTS.length > 0 ? QUICK_PROMPTS[quickIdx % QUICK_PROMPTS.length] : "No Data", onPick: () => { 
+                    const lbl = QUICK_PROMPTS.length > 0 ? QUICK_PROMPTS[quickIdx % QUICK_PROMPTS.length] : null;
+                    if (!lbl || lbl === "No Data") return;
+                    
+                    if(useMobileLayout) setSidebarOpen(false);
+                    const lower = lbl.toLowerCase();
+                    const isDoc = lower === 'handbook' || lower === 'magna carta' || lower.includes('form');
+                    const matchedCat = getCategoryMatch(lbl);
+
+                    if (isDoc) {
+                       requireAuth(() => { sendMessage(lbl); });
+                    } else if (matchedCat) {
+                       setDirectoryMode(matchedCat); 
+                    } else {
+                       requireAuth(() => { sendMessage(lbl); }); 
+                    }
+                  }, onGear: () => { setLeftAngle(a => a + STEP_DEG); setQuickIdx(i => i + 1); } },
+                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: "", value: MID_CHOICES[midIdx], onPick: () => { if (midIdx === 0) { requireAuth(() => { setActiveChatId(null); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); }); } else { setGearMode(false); if(useMobileLayout) setSidebarOpen(false); } }, mid: true },
+                  { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: "Recent", value: chats.length > 0 ? chats[recentsIdx % chats.length].title : "No chats", onPick: () => requireAuth(() => { if(chats.length) { setActiveChatId(chats[recentsIdx % chats.length].id); setViewMode("chat"); if(useMobileLayout) setSidebarOpen(false); } }), onGear: () => { setLeftAngle(a => a + STEP_DEG); if(chats.length) setRecentsIdx(i => i + 1); }, sub: chats.length > 0 ? "Past Conversation" : "" },
+                ].map((p: any, i: number) => {
+                  const isMidBtn = p.mid;
+                  return (
+                    <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "left", left: GEAR_VIS, top: p.y, zIndex: 10 }}>
+                      {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "left" }}>{p.label}</div>}
+                      
+                      <button 
+                        onClick={p.onPick} 
+                        className={`gear-panel-btn ${p.sub ? 'is-sub' : ''}`}
+                        style={{
+                          flexDirection: isMidBtn ? "row" : "column",
+                          alignItems: isMidBtn ? "center" : "flex-start",
+                          justifyContent: isMidBtn ? "flex-start" : "center",
+                          gap: isMidBtn ? "8px" : "0",
+                          textAlign: "left"
+                        }}
+                      >
+                        {isMidBtn && (midIdx === 0 ? <Plus size={16} style={{ flexShrink: 0 }} /> : <Settings size={16} style={{ flexShrink: 0 }} />)}
+                        
+                        {p.sub ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', width: '100%', alignItems: 'flex-start' }}>
+                            <div style={{ width: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.value}</div>
+                            <div style={{ fontSize: 10, color: textFaint, marginTop: 4, fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase" }}>{p.sub}</div>
+                          </div>
+                        ) : (
+                          <span style={{ display: "block", width: "100%", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>
+                            {isMidBtn && midIdx === 0 ? p.value.replace(/^\+\s*/, '') : p.value.replace('Teachers', 'Professors')}
+                          </span>
+                        )}
+                      </button>
+                      <div style={{ fontSize: 10, color: textFaint, marginTop: 8, opacity: 0.8, fontWeight: 500, textAlign: "left" }}>click gear to cycle</div>
+                    </div>
+                  );
+                })}
+              </aside>
+            )}
+
             {/* MAIN CHAT & ADMIN INTERFACE */}
             <main style={{ 
               flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "absolute",
               top: 0, bottom: 0, 
               left: mainLeft, 
               right: mainRight, 
-              paddingBottom: kbOpen ? 360 : 0, transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
             }}>
               <header style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: TOP_H, padding: "0 16px", flexShrink: 0, borderBottom: useMobileLayout ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` : "none", background: bg, zIndex: 50 }}>
                 
@@ -1407,9 +1522,9 @@ export default function App() {
 
                 {/* RIGHT HEADER ZONE */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, flex: 1 }}>
-                  {(useMobileLayout || isKioskChat) ? (
+                  {useMobileLayout && !isKioskChat ? (
                     <button onClick={() => setRightRailOpen(true)} style={{ padding: 8, color: textMuted, background: "none", border: "none", cursor: "pointer", zIndex: 60 }}>
-                      <MoreVertical size={28} color={dark ? "#60a5fa" : "#2563eb"} />
+                      <MoreVertical size={28} color={dark ? "#FDB51C" : "#A60112"} />
                     </button>
                   ) : (
                     (viewMode === 'admin' && !simKiosk) && (
