@@ -1,12 +1,11 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
-import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, ArrowRight, Menu, UserCog, X, MoreVertical, Bot, Calendar as CalendarIcon, Folder, User as UserIcon, Briefcase, Smartphone, Edit2, FileText, Maximize, ChevronLeft, ChevronRight, LayoutGrid, Image as ImageIcon } from "lucide-react";
+import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, ArrowRight, Menu, UserCog, X, MoreVertical, Bot, Calendar as CalendarIcon, Folder, User as UserIcon, Briefcase, Smartphone, Edit2, FileText, Maximize, ChevronLeft, ChevronRight, LayoutGrid } from "lucide-react";
 
 import { AuthScreen } from "../components/authmodal";
 import { AdminPanel } from "../components/admindashboard";
 import { ProfileModal } from "../components/modals/profilemodal";
 import { BugModal } from "../components/modals/bugsmodal";
 import { ChatDirectory } from "../components/chatdirectory";
-
 import { KioskScreen } from "../components/kioskscreen";
 
 import { Avatar, GearAbs, DayNightToggle, GearboxLoader, RATIO, N_SM, OR_SM, CENTER_D, TOP_H, GEAR_VIS, RAIL_W, STEP_DEG, OR_LG, PANEL_W, IR_SM, IR_LG, N_LG } from "../components/ui/helpers";
@@ -296,9 +295,6 @@ export default function App() {
 
   const [showAuthPopup, setShowAuthPopup] = useState(() => {
     if (typeof window !== "undefined") {
-      const isKioskMode = localStorage.getItem("permanent_kiosk") === "true" || new URLSearchParams(window.location.search).get("kiosk") === "true";
-      if (isKioskMode) return false;
-
       const savedUser = localStorage.getItem('chatcit_user');
       if (savedUser && savedUser !== 'undefined') { try { const u = JSON.parse(savedUser); if (u && Number(u.id) === -1) return true; } catch (e) { return true; } } 
       else { return true; }
@@ -355,7 +351,7 @@ export default function App() {
   const allSidebarCategories = Array.from(new Set([...dynamicCategories, ...customCategories]));
 
   const allMappableItems = useMemo(() => {
-     const items = new Set([...allSidebarCategories, "Handbook", "Magna Carta", "Accomplishments", "Extensions"]);
+     const items = new Set([...allSidebarCategories, "Handbook", "Magna Carta", "Accomplishments"]);
      items.delete("All"); items.delete("General");
      return Array.from(items).filter(Boolean).sort();
   }, [allSidebarCategories]);
@@ -367,8 +363,7 @@ export default function App() {
     if (lower.includes("partner") || lower.includes("industry") || lower.includes("accomp")) { const match = allMappableItems.find(c => { const cl = c.toLowerCase(); return cl.includes("partner") || cl.includes("industry") || cl.includes("accomp"); }); if (match) return match; }
     if (lower.includes("facilit")) { const match = allMappableItems.find(c => c.toLowerCase().includes("facilit")); if (match) return match; }
     if (lower.includes("organ") || lower.includes("org") || lower.includes("affair")) { const match = allMappableItems.find(c => c.toLowerCase().includes("organ") || c.toLowerCase().includes("org")); if (match) return match; }
-    if (lower.includes("major") || lower.includes("curriculum")) { const match = allMappableItems.find(c => c.toLowerCase().includes("major") || c.toLowerCase().includes("curriculum")); if (match) return match; }
-    if (lower.includes("exten")) { const match = allMappableItems.find(c => c.toLowerCase().includes("exten")); if (match) return match; }
+    if (lower.includes("major") || lower.includes("curriculum") || lower.includes("exten")) { const match = allMappableItems.find(c => c.toLowerCase().includes("major")); if (match) return match; }
     const subMatch = globalKnowledge.find((k: any) => (k.subcategory || '').toLowerCase() === lower && k.subcategory !== 'All'); if (subMatch) return subMatch.subcategory;
     return null;
   };
@@ -384,8 +379,22 @@ export default function App() {
   const gear2Cat = layoutConfig.gear2 || dynamicCategories[1] || 'Majors';
   const gear3Cat = layoutConfig.gear3 || dynamicCategories[2] || 'Documents';
 
+  const getGearItems = (cat: string) => {
+      if (!cat) return ["No Data"]; const lowerCat = cat.toLowerCase();
+      if (lowerCat === 'handbook') return ['Handbook']; if (lowerCat === 'magna carta') return ['Magna Carta'];
+      const items = globalKnowledge.filter(d => (d.category || '').toLowerCase() === cat.toLowerCase());
+      if (items.length === 0) return ["No Data"];
+      const subs = Array.from(new Set(items.map(d => d.subcategory))).filter(s => s && s !== 'All');
+      if (subs.length > 0) return subs as string[]; 
+      return items.map(d => d.display_name || (d.keyword ? d.keyword.split(',')[0] : "Unnamed")); 
+  };
+
+  const gear1Items = getGearItems(gear1Cat);
+  const gear2Items = getGearItems(gear2Cat);
+  const gear3Items = getGearItems(gear3Cat);
+
   const defaultMapping = {
-    "Faculty": ["Faculty & Professors"], "Extensions": ["Extensions"], "Student Affairs": ["Organizations", "Handbook", "Magna Carta"], "Curriculum": ["Majors"], "Accomplishment": ["Industry Partners"]
+    "Faculty": ["Faculty & Professors"], "Extensions": [], "Student Affairs": ["Organizations", "Handbook", "Magna Carta"], "Curriculum": ["Majors"], "Accomplishment": ["Industry Partners"]
   };
   
   const [kioskMapping, setKioskMapping] = useState<Record<string, string[]>>(() => {
@@ -484,6 +493,15 @@ export default function App() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showBugModal, setShowBugModal] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  
+  const [leftAngle, setLeftAngle] = useState(0);
+  const [rightAngle, setRightAngle] = useState(0);
+  const [quickIdx, setQuickIdx] = useState(0);
+  const [midIdx, setMidIdx] = useState(1);
+  const [recentsIdx, setRecentsIdx] = useState(0);
+  const [gear1Idx, setGear1Idx] = useState(0);
+  const [gear2Idx, setGear2Idx] = useState(0);
+  const [gear3Idx, setGear3Idx] = useState(0);
 
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const [topFaqs, setTopFaqs] = useState<{keyword: string, display_name?: string}[]>([]);
@@ -619,12 +637,6 @@ export default function App() {
     const action = async () => {
       let prompt = item; const lowerItem = item.toLowerCase(); const lowerCat = (category || '').toLowerCase(); const isDoc = lowerItem === "handbook" || lowerItem === "magna carta" || lowerCat === "documents" || lowerItem.includes("form");
       if (simKiosk) {
-         if (category === 'Extensions') {
-            setScreenState("kiosk_result");
-            setKioskResult({ title: item, isExtensionGallery: true, category: item, loading: false });
-            return;
-         }
-
          setScreenState("kiosk_result");
          if (isDoc) {
            let safeFile = item.replace(/\s+/g, '-').toLowerCase(); if (lowerItem === "magna carta") safeFile = "magna-carta"; if (lowerItem === "handbook") safeFile = "handbook"; setKioskResult({ title: item, isPdf: true, pdfUrl: `/${safeFile}.pdf` }); return;
@@ -648,7 +660,7 @@ export default function App() {
          if (matchedCat && !isDoc) { setDirectoryMode(matchedCat); } else { sendMessage(item); }
       }
     };
-    if (category === "Majors" || category === "Extensions" || category.toLowerCase().includes("facilities") || kioskResult?.isDirectory || item.toLowerCase() === "handbook" || item.toLowerCase() === "magna carta") { action(); } else { requireAuth(action); }
+    if (category === "Majors" || category.toLowerCase().includes("facilities") || kioskResult?.isDirectory || item.toLowerCase() === "handbook" || item.toLowerCase() === "magna carta") { action(); } else { requireAuth(action); }
   };
 
   const handleRenameCategory = (oldCat: string) => { setUiPrompt({ isOpen: true, title: `Rename Category "${oldCat}"`, onSubmit: async (newCatName) => { if (!newCatName || newCatName.trim() === "" || newCatName === oldCat) return; const trimmed = newCatName.trim(); try { const res = await fetch(`${API_URL}/knowledge/manage/category`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ oldCategory: oldCat, newCategory: trimmed }) }); if (!res.ok) throw new Error("Server failed to rename category"); setCustomCategories(prev => prev.map(c => c === oldCat ? trimmed : c)); if (adminCategory === oldCat) setAdminCategory(trimmed); showToast(`Category renamed to "${trimmed}"`, "success"); fetchGlobalKnowledge(); setSyncTrigger(p => p + 1); } catch (e: any) { showToast("Error renaming category in database.", "error"); } } }); };
@@ -695,12 +707,6 @@ export default function App() {
 
   const virtualKeyRows = [['1','2','3','4','5','6','7','8','9','0'], ['q','w','e','r','t','y','u','i','o','p'], ['a','s','d','f','g','h','j','k','l'], ['z','x','c','v','b','n','m', 'BACK'], ['SPACE', 'ENTER', 'CLOSE']];
 
-  // EXTENSIONS MOCK GALLERY DATA
-  const galleryData = [
-     { month: 'September 2026', photos: ['https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=400&q=80', 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=80', 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&q=80', 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=400&q=80'] },
-     { month: 'August 2026', photos: ['https://images.unsplash.com/photo-1562774053-701939374585?w=400&q=80', 'https://images.unsplash.com/photo-1605810230434-7631ac76ec81?w=400&q=80', 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=400&q=80'] }
-  ];
-
   return (
     <>
       <style>{`
@@ -722,11 +728,6 @@ export default function App() {
         .light-mode .gear-panel-btn { background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(230, 240, 255, 0.95) 100%); border: 1px solid rgba(66, 133, 244, 0.4); color: #0f172a; box-shadow: 0 4px 12px rgba(66, 133, 244, 0.15), inset 0 2px 4px rgba(255, 255, 255, 1); }
         .light-mode .gear-panel-btn:hover { background: linear-gradient(135deg, #ffffff 0%, rgba(220, 235, 255, 1) 100%); border-color: rgba(66, 133, 244, 0.9); box-shadow: 0 8px 24px rgba(66, 133, 244, 0.3), 0 0 20px rgba(66, 133, 244, 0.35); transform: scale(1.04) translateY(-2px); color: #1558d6; }
         .gear-panel-btn.is-sub { background: transparent !important; border: 1px dashed rgba(150, 150, 150, 0.3) !important; box-shadow: none !important; padding: 8px 12px; }
-        
-        .infinite-carousel-wrapper { overflow: hidden; width: 100%; mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); }
-        .infinite-carousel-track { display: flex; gap: 16px; width: max-content; animation: scrollCarousel 35s linear infinite; }
-        .infinite-carousel-track:hover { animation-play-state: paused; }
-        @keyframes scrollCarousel { 0% { transform: translateX(0); } 100% { transform: translateX(calc(-50% - 8px)); } }
       `}</style>
       
       {simKiosk && !isPhysicalKiosk && <div style={{ position: "fixed", inset: 0, background: "#0a0a0a", zIndex: 99998 }} />}
