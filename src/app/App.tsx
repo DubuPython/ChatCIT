@@ -181,7 +181,7 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
                       }} style={{ width: '100%', padding: '8px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 12, outline: 'none' }} />
                     </div>
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      <span style={{ fontSize: 11, color: dark ? '#94a3b8' : '#64748b' }}>End Date</span>
+                      <span style={{ fontSize: 11, color: dark ? '#94a3b8' : '#64748b' }}>End Date (Optional)</span>
                       <input type="date" value={calForm.endDate} onChange={e => setCalForm({...calForm, endDate: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 12, outline: 'none' }} />
                     </div>
                  </div>
@@ -194,7 +194,7 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
                  <textarea placeholder="Description" value={calForm.description} onChange={e => setCalForm({...calForm, description: e.target.value})} rows={3} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 14, outline: 'none', resize: 'vertical' }} />
                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
                     <button onClick={() => setIsCalFormOpen(false)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'transparent', color: dark ? '#94a3b8' : '#64748b', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-                    <button onClick={handleSaveCalEvent} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#4285f4', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Save</button>
+                    <button onClick={handleSaveCalEvent} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#4285f4', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Save Event</button>
                  </div>
               </div>
            ) : (
@@ -329,6 +329,7 @@ export default function App() {
   });
   
   const [syncTrigger, setSyncTrigger] = useState(0);
+  const [screensaverSlides, setScreensaverSlides] = useState<any[]>([]);
 
   useEffect(() => { localStorage.setItem('chatcit_custom_cats', JSON.stringify(customCategories)); }, [customCategories]);
   useEffect(() => { localStorage.setItem('chatcit_custom_subcats', JSON.stringify(customSubCats)); }, [customSubCats]);
@@ -413,20 +414,40 @@ export default function App() {
 
   const [draftMapping, setDraftMapping] = useState<Record<string, string[]>>({});
 
-  const fetchKioskMapping = async () => {
+  // BULLETPROOF FETCHING LOGIC - Decrypts Database Objects/Strings safely
+  const fetchKioskSettings = async () => {
     try {
-      const res = await fetch(`${API_URL}/settings/kiosk_mapping?_t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } });
-      if (res.ok) { const data = await res.json(); if (data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length > 0) { setKioskMapping(data); localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(data)); } }
+      const resMap = await fetch(`${API_URL}/settings/kiosk_mapping?_t=${Date.now()}`);
+      if (resMap.ok) { 
+         const data = await resMap.json(); 
+         let val = data.value !== undefined ? data.value : data;
+         if (typeof val === 'string') { try { val = JSON.parse(val); } catch(e){} }
+         if (val && typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length > 0) { 
+            setKioskMapping(val); 
+            localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(val)); 
+         } 
+      }
+      
+      const resSaver = await fetch(`${API_URL}/settings/kiosk_screensaver?_t=${Date.now()}`);
+      if (resSaver.ok) { 
+         const data = await resSaver.json(); 
+         let val = data.value !== undefined ? data.value : data;
+         if (typeof val === 'string') { try { val = JSON.parse(val); } catch(e){} }
+         if (Array.isArray(val)) setScreensaverSlides(val); 
+      }
     } catch(e) {}
   };
 
-  useEffect(() => { fetchKioskMapping(); const interval = setInterval(fetchKioskMapping, 30000); return () => clearInterval(interval); }, []);
+  useEffect(() => { fetchKioskSettings(); const interval = setInterval(fetchKioskSettings, 30000); return () => clearInterval(interval); }, []);
   useEffect(() => { if (adminTab === 'kiosk') { setDraftMapping(kioskMapping); } }, [adminTab, kioskMapping]);
 
+  // BULLETPROOF SAVE MAPPING LOGIC - Serializes before sending
   const saveKioskMapping = async () => {
      try {
-        await fetch(`${API_URL}/settings/kiosk_mapping`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: draftMapping }) });
-        setKioskMapping(draftMapping); localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(draftMapping));
+        const payload = { value: JSON.stringify(draftMapping) };
+        await fetch(`${API_URL}/settings/kiosk_mapping`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        setKioskMapping(draftMapping); 
+        localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(draftMapping));
         showToast("Kiosk layout saved to cloud successfully!", "success");
      } catch(e) { showToast("Failed to save layout to cloud.", "error"); }
   };
@@ -521,7 +542,7 @@ export default function App() {
 
   const requireAuth = (action: () => void) => {
     if (simKiosk) { action(); return; }
-    if (currentUser && Number(currentUser.id) === -1) { setAuthMode("login"); setShowAuthPopup(true); if (isMobile && !simKiosk) { setSidebarOpen(false); setRightRailOpen(false); } } 
+    if (currentUser && Number(currentUser.id) === -1) { setAuthMode("login"); setShowAuthPopup(true); if (isMobile) { setSidebarOpen(false); setRightRailOpen(false); } } 
     else { action(); }
   };
 
@@ -752,7 +773,7 @@ export default function App() {
 
       <div className={dark ? "dark-mode" : "light-mode"} style={containerStyle}>
         {(simKiosk && (screenState === "presentation" || screenState === "home" || screenState === "kiosk_result")) && (
-          <KioskScreen dark={dark} screenState={screenState} setScreenState={setScreenState} kioskCategory={kioskCategory} setKioskCategory={setKioskCategory} kioskResult={kioskResult} setKioskResult={setKioskResult} handleKioskSelection={handleKioskSelection} topRightButtons={topRightButtons} setFullScreenMedia={setFullScreenMedia} setShowCalendar={setShowCalendar} kioskMapping={kioskMapping} setKioskMapping={setKioskMapping} allSidebarCategories={allSidebarCategories} isAdmin={currentUser?.role === 'admin' || currentUser?.role === 'superadmin'} />
+          <KioskScreen dark={dark} screenState={screenState} setScreenState={setScreenState} kioskCategory={kioskCategory} setKioskCategory={setKioskCategory} kioskResult={kioskResult} setKioskResult={setKioskResult} handleKioskSelection={handleKioskSelection} topRightButtons={topRightButtons} setFullScreenMedia={setFullScreenMedia} setShowCalendar={setShowCalendar} kioskMapping={kioskMapping} setKioskMapping={setKioskMapping} allSidebarCategories={allSidebarCategories} isAdmin={currentUser?.role === 'admin' || currentUser?.role === 'superadmin'} screensaverSlides={screensaverSlides} />
         )}
 
         {uiPrompt && (
@@ -925,7 +946,7 @@ export default function App() {
                 {viewMode === "admin" && currentUser && !simKiosk ? (
                   <div className="admin-panel-wrapper" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, paddingBottom: useMobileLayout ? 120 : 24, display: "flex", flexDirection: "column" }}>
                      <div style={{ flex: 1, overflowY: "auto", padding: "16px", WebkitOverflowScrolling: "touch" }}>
-                       <AdminPanel dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allSidebarCategories} mergedSubCategoriesMap={mergedSubCategoriesMap} setDbCategories={setDbCategories} setDbSubCategories={setDbSubCategories} fetchData={fetchGlobalKnowledge} layoutConfig={layoutConfig} saveLayoutConfig={saveLayoutConfig} syncTrigger={syncTrigger} />
+                       <AdminPanel dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allSidebarCategories} mergedSubCategoriesMap={mergedSubCategoriesMap} setDbCategories={setDbCategories} setDbSubCategories={setDbSubCategories} fetchData={fetchGlobalKnowledge} layoutConfig={layoutConfig} saveLayoutConfig={saveLayoutConfig} syncTrigger={syncTrigger} screensaverSlides={screensaverSlides} setScreensaverSlides={setScreensaverSlides} />
                      </div>
                   </div>
                 ) : directoryMode ? (
@@ -975,45 +996,51 @@ export default function App() {
             {(viewMode === 'admin' || rightRailOpen || (!useMobileLayout && !gearMode && !isKioskChat)) && (
               <aside style={{ width: RAIL_W, flexShrink: 0, background: (viewMode === 'admin' && !simKiosk) ? sbBg : bg, position: "absolute", top: 0, bottom: 0, right: (useMobileLayout || isKioskChat) ? (rightRailOpen ? 0 : -RAIL_W) : 0, zIndex: 60, transition: "right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: (useMobileLayout || isKioskChat) && rightRailOpen ? "0 0 24px rgba(0,0,0,0.5)" : "none", overflow: "visible" }}>
                 {viewMode === 'admin' && !simKiosk ? (
-                   <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: sbBg, borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
-                         <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}><Folder size={18} /> Sub-Categories</div>
-                      </div>
-                      {adminTab === 'knowledge' ? (
-                          <div style={{ padding: "12px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-                             {['All', ...(mergedSubCategoriesMap[adminCategory] || [])].map(sub => (
-                                <div key={sub} style={{ display: "flex", alignItems: "center", gap: 4, width: "100%" }}>
-                                  <button onClick={() => { setAdminDept(sub); }} className={`sidebar-btn ${adminDept === sub ? 'primary' : 'is-sub'}`} style={{ flex: 1, paddingLeft: 12 }}>{sub}</button>
-                                  {sub !== 'All' && (<div style={{ display: "flex", gap: 2 }}><button onClick={() => handleRenameSubCategory(adminCategory, sub)} style={{ background: "none", border: "none", color: sb.muted, cursor: "pointer", padding: 6, display: "flex", alignItems: "center" }}><Edit2 size={13} /></button><button onClick={() => handleDeleteSubCategory(adminCategory, sub)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 6, display: "flex", alignItems: "center" }}><Trash2 size={13} /></button></div>)}
-                                </div>
-                             ))}
-                             <button onClick={() => setUiPrompt({ isOpen: true, title: "Enter new sub-category (folder):", onSubmit: (val) => { setCustomSubCats((prev: {cat: string, sub: string}[]) => [...prev, {cat: adminCategory, sub: val}]); setAdminDept(val); showToast(`Added sub-category: ${val}`, "success"); } })} className="sidebar-btn is-sub" style={{ border: `1px dashed ${sb.faint}`, marginTop: 8 }}><Plus size={14}/> Add Sub-category</button>
+                  <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: sbBg, borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 16px 12px", flexShrink: 0 }}>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}><Folder size={18} /> Sub-Categories</div>
+                    </div>
+                    {adminTab === 'knowledge' ? (
+                      <div style={{ padding: "12px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                        {['All', ...(mergedSubCategoriesMap[adminCategory] || [])].map(sub => (
+                          <div key={sub} style={{ display: "flex", alignItems: "center", gap: 4, width: "100%" }}>
+                            <button onClick={() => setAdminDept(sub)} className={`sidebar-btn ${adminDept === sub ? 'primary' : 'is-sub'}`} style={{ flex: 1, paddingLeft: 12 }}>{sub}</button>
+                            {sub !== 'All' && (
+                              <div style={{ display: "flex", gap: 2 }}>
+                                <button onClick={() => handleRenameSubCategory(adminCategory, sub)} style={{ background: "none", border: "none", color: sb.muted, cursor: "pointer", padding: 6, display: "flex", alignItems: "center" }}><Edit2 size={13} /></button>
+                                <button onClick={() => handleDeleteSubCategory(adminCategory, sub)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 6, display: "flex", alignItems: "center" }}><Trash2 size={13} /></button>
+                              </div>
+                            )}
                           </div>
-                      ) : (<div style={{ padding: 24, textAlign: "center", color: sb.faint, fontSize: 13, lineHeight: 1.5 }}>Select 'Database' tab on the left to manage folders here.</div>)}
-                   </div>
+                        ))}
+                        <button onClick={() => setUiPrompt({ isOpen: true, title: "Enter new sub-category (folder):", onSubmit: (val) => { setCustomSubCats((prev: {cat: string, sub: string}[]) => [...prev, {cat: adminCategory, sub: val}]); setAdminDept(val); showToast(`Added sub-category: ${val}`, "success"); } })} className="sidebar-btn is-sub" style={{ border: `1px dashed ${sb.faint}`, marginTop: 8 }}><Plus size={14}/> Add Sub-category</button>
+                      </div>
+                    ) : (
+                      <div style={{ padding: 24, textAlign: "center", color: sb.faint, fontSize: 13, lineHeight: 1.5 }}>Select 'Database' tab on the left to manage folders here.</div>
+                    )}
+                  </div>
                 ) : (
-                   <>
-                      {/* ONLY show gears on normal web UI or Kiosk Chat */}
-                      {(!simKiosk || screenState === 'chat') && (
-                        <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, right: 0 }}>
-                          <GearAbs id="g-right-top" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); }} />
-                          <GearAbs id="g-right-mid" side="right" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-rightAngle * RATIO + (180 / N_LG)} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); }} />
-                          <GearAbs id="g-right-bot" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); }} />
-                        </div>
-                      )}
-                      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "14px 16px 0", zIndex: 20 }}>{topRightButtons}</div>
-                      {(!simKiosk || screenState === 'chat') && [
-                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: gear1Cat, value: gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : "No Data", onPick: () => { const item = gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : null; if(item && item !== "No Data") { handleKioskSelection(gear1Cat, item); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); } },
-                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: gear2Cat, value: gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : "No Data", onPick: () => { const item = gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : null; if(item && item !== "No Data") { handleKioskSelection(gear2Cat, item); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); } },
-                        { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: gear3Cat, value: gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : "No Data", onPick: () => { const item = gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : null; if(item && item !== "No Data") { handleKioskSelection(gear3Cat, item); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); } },
-                      ].map((p: any, i: number) => (
-                        <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "right", right: GEAR_VIS, top: p.y, zIndex: 10 }}>
-                          {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "right" }}>{p.label}</div>}
-                          <button onClick={p.onPick} className="gear-panel-btn" style={{ flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: "0", textAlign: "right" }}><span style={{ display: "block", width: "100%", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>{p.value}</span></button>
-                          <div style={{ fontSize: 10, color: textFaint, marginTop: 8, opacity: 0.8, fontWeight: 500, textAlign: "right" }}>click gear to cycle</div>
-                        </div>
-                      ))}
-                   </>
+                  <>
+                    {(!simKiosk || screenState === 'chat') && (
+                      <div style={{ position: "absolute", top: 0, bottom: 0, width: GEAR_VIS, zIndex: 1, right: 0 }}>
+                        <GearAbs id="g-right-top" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); }} />
+                        <GearAbs id="g-right-mid" side="right" OR={OR_LG} IR={IR_LG} n={N_LG} tint={dark ? { light: "#84acf2", mid: "#3f6dc4", dark: "#213c73" } : { light: "#bcd4ff", mid: "#5b8ae6", dark: "#2f5fb0" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D} rotation={-rightAngle * RATIO + (180 / N_LG)} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); }} />
+                        <GearAbs id="g-right-bot" side="right" OR={OR_SM} IR={IR_SM} n={N_SM} tint={dark ? { light: "#9a9aa8", mid: "#5e5e6c", dark: "#333340" } : { light: "#f0f0f4", mid: "#b6b6c4", dark: "#7a7a8a" }} holeColor={bg} centerY={TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2} rotation={rightAngle} onClick={() => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); }} />
+                      </div>
+                    )}
+                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP_H, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "14px 16px 0", zIndex: 20 }}>{topRightButtons}</div>
+                    {(!simKiosk || screenState === 'chat') && [
+                      { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM, label: gear1Cat, value: gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : "No Data", onPick: () => { const item = gear1Items.length > 0 ? gear1Items[gear1Idx % gear1Items.length] : null; if(item && item !== "No Data") { handleKioskSelection(gear1Cat, item); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear1Idx(i => i + 1); } },
+                      { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D, label: gear2Cat, value: gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : "No Data", onPick: () => { const item = gear2Items.length > 0 ? gear2Items[gear2Idx % gear2Items.length] : null; if(item && item !== "No Data") { handleKioskSelection(gear2Cat, item); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear2Idx(i => i + 1); } },
+                      { y: TOP_H + Math.max(OR_SM * 0.2, ((simKiosk ? 1366 : window.innerHeight) - TOP_H - (OR_SM + CENTER_D * 2 + OR_SM)) / 2) + OR_SM + CENTER_D * 2, label: gear3Cat, value: gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : "No Data", onPick: () => { const item = gear3Items.length > 0 ? gear3Items[gear3Idx % gear3Items.length] : null; if(item && item !== "No Data") { handleKioskSelection(gear3Cat, item); if (isKioskChat) setRightRailOpen(false); } }, onGear: () => { setRightAngle(a => a + STEP_DEG); setGear3Idx(i => i + 1); } },
+                    ].map((p: any, i: number) => (
+                      <div key={i} style={{ position: "absolute", width: PANEL_W, padding: "0 14px", transform: "translateY(-50%)", textAlign: "right", right: GEAR_VIS, top: p.y, zIndex: 10 }}>
+                        {p.label && <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: textFaint, marginBottom: 8, textAlign: "right" }}>{p.label}</div>}
+                        <button onClick={p.onPick} className="gear-panel-btn" style={{ flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: "0", textAlign: "right" }}><span style={{ display: "block", width: "100%", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25 }}>{p.value}</span></button>
+                        <div style={{ fontSize: 10, color: textFaint, marginTop: 8, opacity: 0.8, fontWeight: 500, textAlign: "right" }}>click gear to cycle</div>
+                      </div>
+                    ))}
+                  </>
                 )}
               </aside>
             )}
