@@ -20,7 +20,7 @@ export function AdminPanel({
   dark, showToast, currentUser, activeTab, setActiveTab, activeCategoryTab, activeDeptTab,
   allCategories, mergedSubCategoriesMap, setDbCategories, setDbSubCategories, fetchData: globalFetchData,
   layoutConfig, saveLayoutConfig, syncTrigger,
-  screensaverSlides = [], setScreensaverSlides
+  screensaverSlides, setScreensaverSlides
 }: {
   dark: boolean; showToast: (msg: string, type: 'success' | 'error' | 'info') => void; currentUser: User;
   activeTab: string; setActiveTab: (t: string) => void;
@@ -335,6 +335,35 @@ export function AdminPanel({
 
   if (loading) return (<div style={{ display: "flex", height: "80vh", width: "100%", alignItems: "center", justifyContent: "center" }}><div style={{ transform: "scale(0.8)" }}><GearboxLoader /></div></div>);
 
+  const handleSaveScreensaver = async () => {
+    try {
+       showToast("Saving screensaver...", "info");
+       
+       // Serialize the array before sending so PostgreSQL accepts it as a safe string
+       const payload = { value: JSON.stringify(draftScreensaver) };
+       
+       const res = await fetch(`${API_URL}/settings/kiosk_screensaver`, { 
+           method: 'POST', 
+           headers: { 'Content-Type': 'application/json' }, 
+           body: JSON.stringify(payload) 
+       });
+       
+       if (!res.ok) {
+           throw new Error(`Server returned ${res.status}`);
+       }
+       
+       if (setScreensaverSlides) {
+           setScreensaverSlides(draftScreensaver);
+       }
+       
+       setIsDraftingScreensaver(false);
+       showToast("Screensaver saved to cloud!", "success");
+    } catch(e: any) { 
+       console.error("Save Error:", e);
+       showToast(`Network or server error.`, "error"); 
+    }
+  };
+
   return (
     <div style={{ maxWidth: 1400, width: "100%", margin: "0 auto", padding: "16px 12px", boxSizing: "border-box" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
@@ -448,34 +477,13 @@ export function AdminPanel({
                               setDraftScreensaver([...draftScreensaver, { title: "New Highlight", desc: "Description here...", img: data.secure_url }]);
                               setIsDraftingScreensaver(true);
                            } else { showToast(`Cloudinary Error: ${data.error?.message || "Unknown"}`, "error"); }
-                        } catch(err: any) { showToast(`Upload error: ${err.message}`, "error"); } finally { setUploadingImage(false); e.target.value = ''; }
+                        } catch(err: any) { showToast(`Upload failed: ${err.message}`, "error"); } finally { setUploadingImage(false); e.target.value = ''; }
                     }} />
                  </label>
               </div>
               
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
-                 <button onClick={async () => {
-                     try {
-                        showToast("Saving screensaver...", "info");
-                        const res = await fetch(`${API_URL}/settings/kiosk_screensaver`, { 
-                            method: 'POST', 
-                            headers: { 'Content-Type': 'application/json' }, 
-                            body: JSON.stringify({ value: draftScreensaver }) 
-                        });
-                        
-                        if (!res.ok) {
-                            const errText = await res.text();
-                            throw new Error(`Server returned ${res.status}: ${errText}`);
-                        }
-                        
-                        if (setScreensaverSlides) setScreensaverSlides(draftScreensaver);
-                        setIsDraftingScreensaver(false);
-                        showToast("Screensaver saved to cloud!", "success");
-                     } catch(e: any) { 
-                        console.error("Save Error:", e);
-                        showToast(`Network or server error.`, "error"); 
-                     }
-                 }} style={{ background: "#10b981", color: "#fff", padding: "10px 20px", borderRadius: 8, border: "none", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+                 <button onClick={handleSaveScreensaver} style={{ background: "#10b981", color: "#fff", padding: "10px 20px", borderRadius: 8, border: "none", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
                      <CheckCircle size={16} /> Save Screensaver
                  </button>
               </div>
