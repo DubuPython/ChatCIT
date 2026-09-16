@@ -106,11 +106,8 @@ export function AdminPanel({
   useEffect(() => { fetchDashboardData(); }, [syncTrigger]);
   useEffect(() => { setSearchQuery(""); }, [activeTab]);
 
-  const allUserDepts = ["All", ...Array.from(new Set(users.map((u: any) => u.department || 'Others')))];
-
-  const keywordsList = form.keyword ? form.keyword.split(',').map(k => k.trim()).filter(Boolean) : [];
-  const handleAddKeyword = (e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); const val = keywordInput.trim().replace(/,/g, ''); if (val && !keywordsList.includes(val)) setForm({ ...form, keyword: [...keywordsList, val].join(', ') }); setKeywordInput(""); } };
-  const removeKeyword = (toRemove: string) => { setForm({ ...form, keyword: keywordsList.filter(k => k !== toRemove).join(', ') }); };
+  const departmentCounts = users.reduce((acc, u) => { const dept = (u as any).department || "Others"; acc[dept] = (acc[dept] || 0) + 1; acc["Total Users"] = (acc["Total Users"] || 0) + 1; return acc; }, {} as Record<string, number>);
+  const bg = dark ? "#25242c" : "#fff"; const border = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"; const textMuted = dark ? "#9aa0a6" : "#6b7280"; const textPrimary = dark ? "#e8eaed" : "#1a1a2e"; const textFaint = dark ? "#5f6368" : "#9ca3af";
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return; setUploadingImage(true);
@@ -140,76 +137,14 @@ export function AdminPanel({
   const handleSaveCalendar = async (id?: number) => {
     if (!calForm.date || !calForm.title) { showToast("Date and Title are required.", "error"); return; }
     try {
-      const res = await fetch(id ? `${API_URL}/calendar/${id}` : `${API_URL}/calendar`, {
-        method: id ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(calForm)
-      });
+      const res = await fetch(id ? `${API_URL}/calendar/${id}` : `${API_URL}/calendar`, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(calForm) });
       if (!res.ok) throw new Error("Failed to save calendar event.");
-      setEditingCalId(null);
-      setCalForm({ date: "", endDate: "", title: "", description: "", type: "Special Event" });
-      fetchDashboardData();
-      showToast(id ? "Calendar updated!" : "New event added!", "success");
+      setEditingCalId(null); setCalForm({ date: "", endDate: "", title: "", description: "", type: "Special Event" }); fetchDashboardData(); showToast(id ? "Calendar updated!" : "New event added!", "success");
     } catch (e: any) { showToast(e.message, "error"); }
   };
 
   const handleDelete = (type: 'knowledge'|'unanswered'|'bugs'|'users'|'calendar', id: number) => {
-    setModal({
-      isOpen: true, type: 'confirm', title: 'Confirm Deletion', message: `Are you sure you want to delete this ${type === 'users' ? 'user account' : 'entry'}? This action cannot be undone.`, inputValue: '',
-      onConfirm: async () => { 
-        try { 
-          const res = await fetch(`${API_URL}/${type}/${id}`, { method: "DELETE" }); 
-          if (!res.ok) throw new Error("Server rejected deletion");
-          fetchDashboardData(); showToast("Deleted successfully.", "info"); 
-        } catch (e) { showToast("Error deleting item.", "error"); } 
-      }
-    });
-  };
-
-  const handleResetPassword = (userId: number, currentEmail: string) => {
-    setModal({
-      isOpen: true, type: 'prompt', title: 'Reset Password', message: `Enter a new temporary password for student: ${currentEmail}`, inputValue: '',
-      onConfirm: async (newPassword) => {
-        if (!newPassword || newPassword.trim() === "") { showToast("Password cannot be empty.", "error"); return; }
-        try {
-          const res = await fetch(`${API_URL}/users/${userId}/reset-password`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ newPassword }) });
-          if (res.ok) { showToast("Password successfully reset!", "success"); } else { showToast("Failed to reset password.", "error"); }
-        } catch (e) { showToast("Error resetting password.", "error"); }
-      }
-    });
-  };
-
-  const handleResetFaqCounters = () => {
-    setModal({
-      isOpen: true, type: 'confirm', title: 'Reset FAQ Analytics', message: 'Are you sure you want to completely reset all "Times Asked" counters back to zero? This action cannot be undone.', inputValue: '',
-      onConfirm: async () => {
-        try { 
-           const res = await fetch(`${API_URL}/faqs/reset`, { method: "PUT", headers: { "Content-Type": "application/json" } }); 
-           if (!res.ok) throw new Error("Server rejected reset");
-           showToast("FAQ counters have been reset to zero.", "success"); fetchDashboardData(); 
-        } catch (e) { showToast("Error resetting counters.", "error"); }
-      }
-    });
-  };
-
-  const convertToKnowledge = (question: string, id: number) => {
-    fetch(`${API_URL}/unanswered/${id}`, { method: "DELETE" }).then(fetchDashboardData);
-    setActiveTab('knowledge'); 
-    setEditingId(0); 
-    setForm({ 
-      keyword: question, response: "", picture_url: "", qr_link: "",
-      category: activeCategoryTab !== "All" ? activeCategoryTab : "Handbook", 
-      subcategory: activeDeptTab !== "All" ? activeDeptTab : "All", display_name: "" 
-    }); 
-    setKeywordInput(""); showToast("Moved to Knowledge Base draft.", "info");
-  };
-
-  const handleRoleChange = async (userId: number, newRole: string) => {
-    try {
-      const res = await fetch(`${API_URL}/users/${userId}/role`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: newRole, requesterRole: currentUser?.role }) });
-      if (!res.ok) throw new Error((await res.json()).error || "Failed to update role");
-      showToast("Role updated!", "success"); fetchDashboardData();
-    } catch (e: any) { showToast(e.message, "error"); }
+    setModal({ isOpen: true, type: 'confirm', title: 'Confirm Deletion', message: `Are you sure you want to delete this?`, inputValue: '', onConfirm: async () => { try { const res = await fetch(`${API_URL}/${type}/${id}`, { method: "DELETE" }); if (!res.ok) throw new Error("Server rejected deletion"); fetchDashboardData(); showToast("Deleted successfully.", "info"); } catch (e) { showToast("Error deleting item.", "error"); } } });
   };
 
   // KIOSK EDITOR SAFE SAVING ACTIONS
@@ -220,8 +155,7 @@ export function AdminPanel({
         if (!res.ok) throw new Error("Server error");
         if (setKioskMapping) setKioskMapping(draftMapping);
         localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(draftMapping));
-        setIsDraftingKiosk(false);
-        showToast("Layout saved to cloud!", "success");
+        setIsDraftingKiosk(false); showToast("Layout saved to cloud!", "success");
      } catch(e) { showToast("Failed to save layout.", "error"); }
   };
 
@@ -231,8 +165,7 @@ export function AdminPanel({
         const res = await fetch(`${API_URL}/settings/kiosk_highlights`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: JSON.stringify(draftHighlights) }) });
         if (!res.ok) throw new Error("Server error");
         if (setKioskHighlights) setKioskHighlights(draftHighlights);
-        setIsDraftingKiosk(false);
-        showToast("Highlights saved to cloud!", "success");
+        setIsDraftingKiosk(false); showToast("Highlights saved to cloud!", "success");
      } catch(e) { showToast("Failed to save highlights.", "error"); }
   };
 
@@ -242,8 +175,7 @@ export function AdminPanel({
         const res = await fetch(`${API_URL}/settings/kiosk_screensaver`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: JSON.stringify(draftScreensaver) }) });
         if (!res.ok) throw new Error("Server error");
         if (setScreensaverSlides) setScreensaverSlides(draftScreensaver);
-        setIsDraftingKiosk(false);
-        showToast("Screensaver saved to cloud!", "success");
+        setIsDraftingKiosk(false); showToast("Screensaver saved to cloud!", "success");
      } catch(e) { showToast("Failed to save screensaver.", "error"); }
   };
 
@@ -265,119 +197,15 @@ export function AdminPanel({
     const matchSearch = d.keyword.toLowerCase().includes(q) || d.response.toLowerCase().includes(q) || ((d as any).display_name || "").toLowerCase().includes(q);
     const dbSub = ((d as any).subcategory || "All").toLowerCase();
     const matchSub = activeDeptTab === "All" || dbSub === activeDeptTab.toLowerCase();
-    
     if (activeCategoryTab !== 'All' && activeCategoryTab !== 'General' && activeCategoryTab !== 'Handbook') { return matchCat && matchSub && matchSearch; }
     return matchCat && matchSearch;
   });
 
-  const filteredUnanswered = unanswered.filter(u => u.question.toLowerCase().includes(q));
-  const filteredBugs = bugs.filter(b => b.user_info.toLowerCase().includes(q) || b.description.toLowerCase().includes(q));
-  const filteredUsers = users.filter(u => {
-    const matchesSearch = u.email.toLowerCase().includes(q) || (u.username && u.username.toLowerCase().includes(q));
-    const matchesDept = activeDeptTab === "All" || (u.department || "Others") === activeDeptTab;
-    return matchesSearch && matchesDept;
-  });
-
-  const departmentCounts = users.reduce((acc, u) => { const dept = (u as any).department || "Others"; acc[dept] = (acc[dept] || 0) + 1; acc["Total Users"] = (acc["Total Users"] || 0) + 1; return acc; }, {} as Record<string, number>);
-  const bg = dark ? "#25242c" : "#fff"; const border = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"; const textMuted = dark ? "#9aa0a6" : "#6b7280"; const textPrimary = dark ? "#e8eaed" : "#1a1a2e";
-
-  const renderEditForm = (title: string) => (
-    <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
-      <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{title}</h3>
-      
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 11, color: textMuted }}>Category</span>
-          <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value, subcategory: "All" })} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
-            {allCategories.map(c => (<option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c}</option>))}
-          </select>
-        </div>
-
-        <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 11, color: textMuted }}>Sub-category (Folder)</span>
-          <select value={form.subcategory || "All"} onChange={e => setForm({ ...form, subcategory: e.target.value })} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
-            <option value="All" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>None (Main Folder)</option>
-            {(mergedSubCategoriesMap[form.category] || []).map(c => (
-              <option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span style={{ fontSize: 11, color: textMuted }}>Official Display Name (Optional)</span>
-        <input value={form.display_name || ""} onChange={e => setForm({...form, display_name: e.target.value})} placeholder="e.g. Ms. Vinna Nina O. Ramos" style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span style={{ fontSize: 11, color: textMuted }}>Trigger Keywords (Press Enter or Comma to add)</span>
-        <div style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
-          {keywordsList.map(kw => (<span key={kw} style={{ background: "#4285f4", color: "#fff", padding: "2px 8px", borderRadius: 12, fontSize: 11, fontWeight: 500, display: "flex", alignItems: "center", gap: 4 }}>{kw} <X size={10} cursor="pointer" onClick={() => removeKeyword(kw)} style={{ opacity: 0.8 }} /></span>))}
-          <input value={keywordInput} onChange={e => setKeywordInput(e.target.value)} onKeyDown={handleAddKeyword} placeholder={keywordsList.length === 0 ? "e.g. grading system, passing score" : "Add another..."} style={{ flex: 1, minWidth: 120, border: "none", background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
-        </div>
-      </div>
-
-      <textarea value={form.response} onChange={(e) => setForm({ ...form, response: e.target.value })} placeholder="Bot Response / Factual Rules..." rows={4} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", resize: "vertical", fontSize: 13 }} />
-      
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <input value={form.picture_url} onChange={(e) => setForm({ ...form, picture_url: e.target.value })} placeholder="Picture URL" style={{ flex: 1, minWidth: 160, padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
-        <label style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 12px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.1)" : "#f3f4f6", border: `1px solid ${border}`, cursor: uploadingImage ? "wait" : "pointer", fontWeight: 500, fontSize: 12, whiteSpace: "nowrap" }}>
-          <UploadCloud size={14} /> {uploadingImage ? "Uploading..." : "Upload Image"}
-          <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} style={{ display: "none" }} />
-        </label>
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <input value={form.qr_link} onChange={e => setForm({...form, qr_link: e.target.value})} placeholder="Target URL / QR Code Link (Optional, e.g. https://bulsu.edu.ph)" style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
-      </div>
-
-      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
-        <button onClick={() => { setEditingId(null); setKeywordInput(""); }} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "transparent", color: textMuted, cursor: "pointer", fontWeight: 500, fontSize: 13 }}>Cancel</button>
-        <button onClick={() => handleSaveKnowledge(editingId === 0 || editingId === null ? undefined : editingId)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 14px", borderRadius: 8, border: "none", background: "#4285f4", color: "#fff", cursor: "pointer", fontWeight: 500, fontSize: 13 }}><Save size={14} /> Save</button>
-      </div>
-    </div>
-  );
-
-  const renderCalendarForm = (title: string) => (
-    <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
-      <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{title}</h3>
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-        
-        <div style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 11, color: textMuted }}>Start Date</span>
-          <input type="date" value={calForm.date ? calForm.date.split('T')[0] : ""} onChange={e => setCalForm({...calForm, date: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
-        </div>
-        
-        <div style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 11, color: textMuted }}>End Date (Optional)</span>
-          <input type="date" value={calForm.endDate ? calForm.endDate.split('T')[0] : ""} onChange={e => setCalForm({...calForm, endDate: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
-        </div>
-
-        <div style={{ flex: 2, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 11, color: textMuted }}>Event Title</span>
-          <input type="text" value={calForm.title} onChange={e => setCalForm({...calForm, title: e.target.value})} placeholder="e.g. Midterm Examinations" style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
-        </div>
-        
-        <div style={{ flex: 1, minWidth: 150, display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 11, color: textMuted }}>Event Type</span>
-          <select value={calForm.type} onChange={e => setCalForm({...calForm, type: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
-            <option value="Special Event" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Special Event (Blue)</option>
-            <option value="Examination" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Examination (Red)</option>
-            <option value="Holiday" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Holiday (Green)</option>
-          </select>
-        </div>
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span style={{ fontSize: 11, color: textMuted }}>Description (Optional)</span>
-        <textarea value={calForm.description} onChange={e => setCalForm({...calForm, description: e.target.value})} placeholder="Add extra details..." rows={2} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", resize: "vertical", fontSize: 13 }} />
-      </div>
-      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
-        <button onClick={() => { setEditingCalId(null); }} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "transparent", color: textMuted, cursor: "pointer", fontWeight: 500, fontSize: 13 }}>Cancel</button>
-        <button onClick={() => handleSaveCalendar(editingCalId === 0 || editingCalId === null ? undefined : editingCalId)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 14px", borderRadius: 8, border: "none", background: "#4285f4", color: "#fff", cursor: "pointer", fontWeight: 500, fontSize: 13 }}><Save size={14} /> Save</button>
-      </div>
-    </div>
-  );
+  // BULLETPROOF ARRAYS FOR RENDERING
+  const safeCategories = Array.isArray(allCategories) ? allCategories : [];
+  const safeDraftMapping = draftMapping || {};
+  const safeDraftHighlights = Array.isArray(draftHighlights) ? draftHighlights : [];
+  const safeDraftScreensaver = Array.isArray(draftScreensaver) ? draftScreensaver : [];
 
   if (loading) return (<div style={{ display: "flex", height: "80vh", width: "100%", alignItems: "center", justifyContent: "center" }}><div style={{ transform: "scale(0.8)" }}><GearboxLoader /></div></div>);
 
@@ -389,199 +217,45 @@ export function AdminPanel({
           <button onClick={() => setActiveTab('knowledge')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'knowledge' ? "#4285f4" : "transparent", color: activeTab === 'knowledge' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Database size={14} /> Database</button>
           <button onClick={() => setActiveTab('calendar')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'calendar' ? "#4285f4" : "transparent", color: activeTab === 'calendar' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Calendar size={14} /> Calendar</button>
           <button onClick={() => setActiveTab('faq')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'faq' ? "#4285f4" : "transparent", color: activeTab === 'faq' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><TrendingUp size={14} /> FAQ Analytics</button>
-          <button onClick={() => setActiveTab('unanswered')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'unanswered' ? "#4285f4" : "transparent", color: activeTab === 'unanswered' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><HelpCircle size={14} /> Unanswered <span style={{ background: activeTab === 'unanswered' ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.1)", padding: "2px 6px", borderRadius: 12, fontSize: 10 }}>{unanswered.length}</span></button>
-          <button onClick={() => setActiveTab('bugs')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'bugs' ? "#4285f4" : "transparent", color: activeTab === 'bugs' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Bug size={14} /> Bugs <span style={{ background: activeTab === 'bugs' ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.1)", padding: "2px 6px", borderRadius: 12, fontSize: 10 }}>{bugs.length}</span></button>
+          <button onClick={() => setActiveTab('unanswered')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'unanswered' ? "#4285f4" : "transparent", color: activeTab === 'unanswered' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><HelpCircle size={14} /> Unanswered</button>
+          <button onClick={() => setActiveTab('bugs')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'bugs' ? "#4285f4" : "transparent", color: activeTab === 'bugs' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Bug size={14} /> Bugs</button>
           <button onClick={() => setActiveTab('users')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'users' ? "#4285f4" : "transparent", color: activeTab === 'users' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Users size={14} /> Users</button>
           <button onClick={() => setActiveTab('display')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'display' ? "#4285f4" : "transparent", color: activeTab === 'display' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Monitor size={14} /> Display</button>
           <button onClick={() => setActiveTab('kiosk')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'kiosk' ? "#4285f4" : "transparent", color: activeTab === 'kiosk' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><LayoutGrid size={14} /> Kiosk Editor</button>
         </div>
       </div>
 
-      {activeTab === 'kiosk' && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-           {/* 1. KIOSK CLUSTER LAYOUT EDITOR */}
-           <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, padding: 24 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-                 <div>
-                    <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Kiosk Cluster Layout</h3>
-                    <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Map your databank categories to the 5 main Kiosk buttons.</p>
-                 </div>
-                 <button onClick={handleSaveKioskLayout} style={{ background: '#10b981', color: '#fff', padding: '10px 20px', borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle size={16} /> Save Layout</button>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 24 }}>
-                 {["Faculty", "Accomplishment", "Student Affairs", "Curriculum", "Extensions"].map(cluster => {
-                    const safeClusterArray = Array.isArray(draftMapping[cluster]) ? draftMapping[cluster] : [];
-                    return (
-                    <div key={cluster} style={{ background: dark ? 'rgba(255,255,255,0.03)' : '#f9fafb', border: `1px solid ${border}`, borderRadius: 16, padding: 20 }}>
-                       <h3 style={{ fontSize: 16, fontWeight: 700, color: textPrimary, margin: '0 0 12px' }}>{cluster}</h3>
-                       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                          <select id={`select-${cluster}`} style={{ flex: 1, padding: '8px', borderRadius: 6, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: textPrimary, border: `1px solid ${border}`, outline: 'none' }}>
-                             <option value="" style={{ color: '#000' }}>Add category...</option>
-                             {allCategories.filter(c => !safeClusterArray.includes(c)).map(c => (<option key={c} value={c} style={{ color: '#000' }}>{c}</option>))}
-                          </select>
-                          <button onClick={() => { const sel = document.getElementById(`select-${cluster}`) as HTMLSelectElement; if (sel.value) { addDraftCat(cluster, sel.value); sel.value = ""; setIsDraftingKiosk(true); } }} style={{ background: '#4285f4', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Add</button>
-                       </div>
-                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {safeClusterArray.map(cat => (
-                             <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: dark ? 'rgba(0,0,0,0.3)' : '#fff', borderRadius: 6, border: `1px solid ${border}` }}>
-                                <span style={{ fontSize: 13, fontWeight: 600, color: textPrimary }}>{cat.replace('Teachers', 'Professors')}</span>
-                                <button onClick={() => { removeDraftCat(cluster, cat); setIsDraftingKiosk(true); }} style={{ color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer' }}><Trash2 size={14} /></button>
-                             </div>
-                          ))}
-                          {safeClusterArray.length === 0 && <div style={{ textAlign: 'center', color: textFaint, fontSize: 12, marginTop: 10 }}>No items assigned.</div>}
-                       </div>
-                    </div>
-                 )})}
-              </div>
-           </div>
-
-           {/* 2. HIGHLIGHTS OF THE MONTH EDITOR */}
-           <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, padding: 24 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-                 <div>
-                    <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Highlights of the Month</h3>
-                    <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Manage the infinite carousel highlights shown on the Kiosk home screen.</p>
-                 </div>
-                 <button onClick={handleSaveHighlights} style={{ background: '#10b981', color: '#fff', padding: '10px 20px', borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle size={16} /> Save Highlights</button>
-              </div>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-                 {(Array.isArray(draftHighlights) ? draftHighlights : []).map((slide, index) => (
-                    <div key={index} style={{ background: dark ? 'rgba(0,0,0,0.2)' : '#f9fafb', borderRadius: 12, border: `1px solid ${border}`, padding: 16, position: "relative", display: "flex", flexDirection: "column", gap: 8 }}>
-                       <button onClick={() => {
-                          const newH = draftHighlights.filter((_, i) => i !== index);
-                          setDraftHighlights(newH);
-                          setIsDraftingKiosk(true);
-                       }} style={{ position: "absolute", top: 8, right: 8, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}><X size={12}/></button>
-                       <img src={slide.img} style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8, background: '#000', border: `1px solid ${border}` }} />
-                       <input value={slide.title || ""} onChange={e => { 
-                           const n = [...draftHighlights]; 
-                           n[index] = { ...n[index], title: e.target.value }; 
-                           setDraftHighlights(n); 
-                           setIsDraftingKiosk(true); 
-                       }} placeholder="Highlight Title (e.g. CIT Week 2026)" style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: "inherit", fontSize: 13, outline: "none", fontWeight: 600 }} />
-                       <input value={slide.date || ""} onChange={e => { 
-                           const n = [...draftHighlights]; 
-                           n[index] = { ...n[index], date: e.target.value }; 
-                           setDraftHighlights(n); 
-                           setIsDraftingKiosk(true); 
-                       }} placeholder="Short Date (e.g. Sept 20-25)" style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: "#4285f4", fontSize: 12, outline: "none", fontWeight: 600 }} />
-                    </div>
-                 ))}
-                 
-                 <label style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', borderRadius: 12, border: `1px dashed ${border}`, padding: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 220, cursor: uploadingImage ? "wait" : "pointer", gap: 12 }}>
-                    <UploadCloud size={32} color={textMuted} />
-                    <span style={{ fontSize: 13, color: textMuted, fontWeight: 600 }}>{uploadingImage ? "Uploading..." : "Add Highlight"}</span>
-                    <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingImage} onChange={async (e) => {
-                        const file = e.target.files?.[0]; if (!file) return; setUploadingImage(true);
-                        const formData = new FormData(); formData.append("file", file); formData.append("upload_preset", UPLOAD_PRESET); formData.append("cloud_name", CLOUD_NAME);
-                        try {
-                           const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
-                           const data = await res.json();
-                           if (data.secure_url) {
-                              const safeHighlights = Array.isArray(draftHighlights) ? draftHighlights : [];
-                              setDraftHighlights([...safeHighlights, { title: "New Highlight", date: "Date", img: data.secure_url }]);
-                              setIsDraftingKiosk(true);
-                           } else { showToast(`Upload error`, "error"); }
-                        } catch(err) { showToast("Upload failed", "error"); } finally { setUploadingImage(false); e.target.value = ''; }
-                    }} />
-                 </label>
-              </div>
-           </div>
-
-           {/* 3. SCREENSAVER PICTURES EDITOR */}
-           <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, padding: 24 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-                 <div>
-                    <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Idle Screensaver Pictures</h3>
-                    <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Manage the full-screen pictures displayed on the Kiosk when idle.</p>
-                 </div>
-                 <button onClick={handleSaveScreensaver} style={{ background: '#10b981', color: '#fff', padding: '10px 20px', borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle size={16} /> Save Screensavers</button>
-              </div>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-                 {(Array.isArray(draftScreensaver) ? draftScreensaver : []).map((url, index) => (
-                    <div key={index} style={{ background: dark ? 'rgba(0,0,0,0.2)' : '#f9fafb', borderRadius: 12, border: `1px solid ${border}`, padding: 8, position: "relative" }}>
-                       <button onClick={() => {
-                          const newS = draftScreensaver.filter((_, i) => i !== index);
-                          setDraftScreensaver(newS);
-                          setIsDraftingKiosk(true);
-                       }} style={{ position: "absolute", top: 16, right: 16, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: '0 4px 12px rgba(0,0,0,0.5)', zIndex: 10 }}><X size={14}/></button>
-                       <img src={typeof url === 'string' ? url : (url as any)?.img} style={{ width: "100%", height: 180, objectFit: "cover", borderRadius: 8, background: '#000' }} />
-                    </div>
-                 ))}
-                 
-                 <label style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', borderRadius: 12, border: `1px dashed ${border}`, padding: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 180, cursor: uploadingImage ? "wait" : "pointer", gap: 12 }}>
-                    <UploadCloud size={32} color={textMuted} />
-                    <span style={{ fontSize: 13, color: textMuted, fontWeight: 600 }}>{uploadingImage ? "Uploading..." : "Upload Screensaver"}</span>
-                    <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingImage} onChange={async (e) => {
-                        const file = e.target.files?.[0]; if (!file) return; setUploadingImage(true);
-                        const formData = new FormData(); formData.append("file", file); formData.append("upload_preset", UPLOAD_PRESET); formData.append("cloud_name", CLOUD_NAME);
-                        try {
-                           const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
-                           const data = await res.json();
-                           if (data.secure_url) {
-                              const safeSavers = Array.isArray(draftScreensaver) ? draftScreensaver : [];
-                              setDraftScreensaver([...safeSavers, data.secure_url]);
-                              setIsDraftingKiosk(true);
-                           } else { showToast(`Upload error`, "error"); }
-                        } catch(err) { showToast("Upload failed", "error"); } finally { setUploadingImage(false); e.target.value = ''; }
-                    }} />
-                 </label>
-              </div>
-           </div>
-        </div>
-      )}
-
       {activeTab === 'display' && (
         <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, padding: 24, display: "flex", flexDirection: "column", gap: 24 }}>
-           <div>
-              <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Device Layout Settings</h3>
-              <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Customize what appears on the kiosk gears and sidebar quick prompts for this specific device. This is saved to local storage.</p>
-           </div>
-
+           <div><h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Device Layout Settings</h3><p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Customize what appears on the kiosk gears and sidebar quick prompts for this specific device. This is saved to local storage.</p></div>
            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: textMuted }}>Top Gear (Gear 1)</label>
-                <select value={layoutConfig.gear1 || allCategories[0] || ""} onChange={(e) => {saveLayoutConfig({...layoutConfig, gear1: e.target.value}); showToast("Gear 1 Updated", "success");}} style={{ padding: "10px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: "inherit", outline: "none" }}>
-                  {allCategories.map(c => <option key={c} value={c} style={{background: bg}}>{c}</option>)}
+                <select value={layoutConfig.gear1 || safeCategories[0] || ""} onChange={(e) => {saveLayoutConfig({...layoutConfig, gear1: e.target.value}); showToast("Gear 1 Updated", "success");}} style={{ padding: "10px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: "inherit", outline: "none" }}>
+                  {safeCategories.map(c => <option key={c} value={c} style={{background: bg}}>{c}</option>)}
                 </select>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: textMuted }}>Middle Gear (Gear 2)</label>
-                <select value={layoutConfig.gear2 || allCategories[1] || ""} onChange={(e) => {saveLayoutConfig({...layoutConfig, gear2: e.target.value}); showToast("Gear 2 Updated", "success");}} style={{ padding: "10px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: "inherit", outline: "none" }}>
-                  {allCategories.map(c => <option key={c} value={c} style={{background: bg}}>{c}</option>)}
+                <select value={layoutConfig.gear2 || safeCategories[1] || ""} onChange={(e) => {saveLayoutConfig({...layoutConfig, gear2: e.target.value}); showToast("Gear 2 Updated", "success");}} style={{ padding: "10px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: "inherit", outline: "none" }}>
+                  {safeCategories.map(c => <option key={c} value={c} style={{background: bg}}>{c}</option>)}
                 </select>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: textMuted }}>Bottom Gear (Gear 3)</label>
-                <select value={layoutConfig.gear3 || allCategories[2] || ""} onChange={(e) => {saveLayoutConfig({...layoutConfig, gear3: e.target.value}); showToast("Gear 3 Updated", "success");}} style={{ padding: "10px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: "inherit", outline: "none" }}>
-                  {allCategories.map(c => <option key={c} value={c} style={{background: bg}}>{c}</option>)}
+                <select value={layoutConfig.gear3 || safeCategories[2] || ""} onChange={(e) => {saveLayoutConfig({...layoutConfig, gear3: e.target.value}); showToast("Gear 3 Updated", "success");}} style={{ padding: "10px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: "inherit", outline: "none" }}>
+                  {safeCategories.map(c => <option key={c} value={c} style={{background: bg}}>{c}</option>)}
                 </select>
               </div>
            </div>
-
            <hr style={{ border: "none", borderTop: `1px solid ${border}`, margin: "8px 0" }} />
-
            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <label style={{ fontSize: 14, fontWeight: 600, color: textPrimary }}>Sidebar Quick Prompts</label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {allCategories.map(c => {
+                {safeCategories.map(c => {
                   const isSelected = layoutConfig.quickPrompts.includes(c);
                   return (
-                    <button 
-                      key={c}
-                      onClick={() => {
-                        let newPrompts = [...layoutConfig.quickPrompts];
-                        if (isSelected) newPrompts = newPrompts.filter(p => p !== c);
-                        else if (newPrompts.length < 7) newPrompts.push(c);
-                        else { showToast("You can only select up to 7 Quick Prompts.", "error"); return; }
-                        saveLayoutConfig({...layoutConfig, quickPrompts: newPrompts});
-                      }}
-                      style={{ padding: "8px 14px", borderRadius: 20, border: `1px solid ${isSelected ? '#4285f4' : border}`, background: isSelected ? 'rgba(66, 133, 244, 0.1)' : 'transparent', color: isSelected ? '#4285f4' : textMuted, cursor: "pointer", fontWeight: 500, fontSize: 13 }}
-                    >
-                      {c}
-                    </button>
+                    <button key={c} onClick={() => { let newPrompts = [...layoutConfig.quickPrompts]; if (isSelected) newPrompts = newPrompts.filter(p => p !== c); else if (newPrompts.length < 7) newPrompts.push(c); else { showToast("You can only select up to 7 Quick Prompts.", "error"); return; } saveLayoutConfig({...layoutConfig, quickPrompts: newPrompts}); }} style={{ padding: "8px 14px", borderRadius: 20, border: `1px solid ${isSelected ? '#4285f4' : border}`, background: isSelected ? 'rgba(66, 133, 244, 0.1)' : 'transparent', color: isSelected ? '#4285f4' : textMuted, cursor: "pointer", fontWeight: 500, fontSize: 13 }}>{c}</button>
                   )
                 })}
               </div>
@@ -612,27 +286,12 @@ export function AdminPanel({
               <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} /> Sync Data
             </button>
             {activeTab === 'knowledge' && editingId !== 0 && (
-              <button onClick={() => { 
-                setEditingId(0); 
-                setForm({ 
-                  keyword: "", 
-                  response: "", 
-                  picture_url: "", 
-                  category: activeCategoryTab !== "All" ? activeCategoryTab : "Handbook", 
-                  subcategory: activeDeptTab !== "All" ? activeDeptTab : "All", 
-                  display_name: "",
-                  qr_link: "" 
-                }); 
-                setKeywordInput(""); 
-              }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontWeight: 500, fontSize: 13, flex: 1, whiteSpace: "nowrap" }}>
+              <button onClick={() => { setEditingId(0); setForm({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All", display_name: "", qr_link: "" }); setKeywordInput(""); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontWeight: 500, fontSize: 13, flex: 1, whiteSpace: "nowrap" }}>
                 <Plus size={14} /> Add Entry
               </button>
             )}
             {activeTab === 'calendar' && editingCalId !== 0 && (
-              <button onClick={() => { 
-                setEditingCalId(0); 
-                setCalForm({ date: "", endDate: "", title: "", description: "", type: "Special Event" }); 
-              }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontWeight: 500, fontSize: 13, flex: 1, whiteSpace: "nowrap" }}>
+              <button onClick={() => { setEditingCalId(0); setCalForm({ date: "", endDate: "", title: "", description: "", type: "Special Event" }); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontWeight: 500, fontSize: 13, flex: 1, whiteSpace: "nowrap" }}>
                 <Plus size={14} /> Add Event
               </button>
             )}
@@ -644,7 +303,39 @@ export function AdminPanel({
         <>
           {editingCalId === 0 && (
             <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, marginBottom: 20, overflow: 'hidden' }}>
-              {renderCalendarForm("Add New Event")}
+              <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Add New Event</h3>
+                <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span style={{ fontSize: 11, color: textMuted }}>Start Date</span>
+                    <input type="date" value={calForm.date ? calForm.date.split('T')[0] : ""} onChange={e => setCalForm({...calForm, date: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span style={{ fontSize: 11, color: textMuted }}>End Date (Optional)</span>
+                    <input type="date" value={calForm.endDate ? calForm.endDate.split('T')[0] : ""} onChange={e => setCalForm({...calForm, endDate: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
+                  </div>
+                  <div style={{ flex: 2, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span style={{ fontSize: 11, color: textMuted }}>Event Title</span>
+                    <input type="text" value={calForm.title} onChange={e => setCalForm({...calForm, title: e.target.value})} placeholder="e.g. Midterm Examinations" style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 150, display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span style={{ fontSize: 11, color: textMuted }}>Event Type</span>
+                    <select value={calForm.type} onChange={e => setCalForm({...calForm, type: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
+                      <option value="Special Event" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Special Event (Blue)</option>
+                      <option value="Examination" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Examination (Red)</option>
+                      <option value="Holiday" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Holiday (Green)</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontSize: 11, color: textMuted }}>Description (Optional)</span>
+                  <textarea value={calForm.description} onChange={e => setCalForm({...calForm, description: e.target.value})} placeholder="Add extra details..." rows={2} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", resize: "vertical", fontSize: 13 }} />
+                </div>
+                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
+                  <button onClick={() => { setEditingCalId(null); }} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "transparent", color: textMuted, cursor: "pointer", fontWeight: 500, fontSize: 13 }}>Cancel</button>
+                  <button onClick={() => handleSaveCalendar()} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 14px", borderRadius: 8, border: "none", background: "#4285f4", color: "#fff", cursor: "pointer", fontWeight: 500, fontSize: 13 }}><Save size={14} /> Save</button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -667,40 +358,58 @@ export function AdminPanel({
                       <tr style={{ borderBottom: editingCalId === row.id ? 'none' : `1px solid ${border}`, background: editingCalId === row.id ? (dark ? "rgba(255,255,255,0.02)" : "#f9fafb") : "transparent", transition: "background 0.2s" }}>
                         <td style={{ padding: "10px 12px", verticalAlign: "top", fontWeight: 600 }}>
                           {new Date(row.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          
-                          {/* SHOW END DATE IF DIFFERENT FROM START DATE */}
-                          {row.endDate && row.endDate !== row.date && (
-                             <>
-                                <br/><span style={{ fontSize: 11, color: textMuted }}>to</span><br/>
-                                {new Date(row.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                             </>
-                          )}
+                          {row.endDate && row.endDate !== row.date && (<><br/><span style={{ fontSize: 11, color: textMuted }}>to</span><br/>{new Date(row.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</>)}
                         </td>
                         <td style={{ padding: "10px 12px", verticalAlign: "top" }}>
                           <div style={{ fontWeight: 700, color: dark ? '#fff' : '#000', marginBottom: 4 }}>{row.title}</div>
                           {row.description && <div style={{ color: textMuted, fontSize: 12 }}>{row.description}</div>}
                         </td>
                         <td style={{ padding: "10px 12px", verticalAlign: "top" }}>
-                          <span style={{ 
-                            background: row.type?.includes('Exam') ? 'rgba(239, 68, 68, 0.1)' : row.type?.includes('Holiday') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)', 
-                            color: row.type?.includes('Exam') ? '#ef4444' : row.type?.includes('Holiday') ? '#10b981' : '#3b82f6', 
-                            padding: "4px 10px", borderRadius: 12, fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" 
-                          }}>
+                          <span style={{ background: row.type?.includes('Exam') ? 'rgba(239, 68, 68, 0.1)' : row.type?.includes('Holiday') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)', color: row.type?.includes('Exam') ? '#ef4444' : row.type?.includes('Holiday') ? '#10b981' : '#3b82f6', padding: "4px 10px", borderRadius: 12, fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
                             {row.type || 'Special Event'}
                           </span>
                         </td>
                         <td style={{ padding: "10px 12px", verticalAlign: "top", textAlign: "right", whiteSpace: "nowrap" }}>
-                          <button onClick={() => { 
-                            if (editingCalId === row.id) setEditingCalId(null);
-                            else { setCalForm({ date: row.date, endDate: row.endDate || row.date, title: row.title, description: row.description || "", type: row.type || "Special Event" }); setEditingCalId(row.id); }
-                          }} style={{ background: "none", border: "none", color: editingCalId === row.id ? textMuted : "#4285f4", cursor: "pointer", padding: 4 }} title="Edit"><Edit2 size={14} /></button>
+                          <button onClick={() => { if (editingCalId === row.id) setEditingCalId(null); else { setCalForm({ date: row.date, endDate: row.endDate || row.date, title: row.title, description: row.description || "", type: row.type || "Special Event" }); setEditingCalId(row.id); } }} style={{ background: "none", border: "none", color: editingCalId === row.id ? textMuted : "#4285f4", cursor: "pointer", padding: 4 }} title="Edit"><Edit2 size={14} /></button>
                           <button onClick={() => handleDelete('calendar', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4 }} title="Delete"><Trash2 size={14} /></button>
                         </td>
                       </tr>
                       {editingCalId === row.id && (
                         <tr style={{ background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", borderBottom: `1px solid ${border}` }}>
                           <td colSpan={4} style={{ padding: 0 }}>
-                             {renderCalendarForm("Edit Event")}
+                             <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+                               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Edit Event</h3>
+                               <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                                 <div style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column", gap: 4 }}>
+                                   <span style={{ fontSize: 11, color: textMuted }}>Start Date</span>
+                                   <input type="date" value={calForm.date ? calForm.date.split('T')[0] : ""} onChange={e => setCalForm({...calForm, date: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
+                                 </div>
+                                 <div style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column", gap: 4 }}>
+                                   <span style={{ fontSize: 11, color: textMuted }}>End Date (Optional)</span>
+                                   <input type="date" value={calForm.endDate ? calForm.endDate.split('T')[0] : ""} onChange={e => setCalForm({...calForm, endDate: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
+                                 </div>
+                                 <div style={{ flex: 2, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
+                                   <span style={{ fontSize: 11, color: textMuted }}>Event Title</span>
+                                   <input type="text" value={calForm.title} onChange={e => setCalForm({...calForm, title: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }} />
+                                 </div>
+                                 <div style={{ flex: 1, minWidth: 150, display: "flex", flexDirection: "column", gap: 4 }}>
+                                   <span style={{ fontSize: 11, color: textMuted }}>Event Type</span>
+                                   <select value={calForm.type} onChange={e => setCalForm({...calForm, type: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
+                                     <option value="Special Event" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Special Event (Blue)</option>
+                                     <option value="Examination" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Examination (Red)</option>
+                                     <option value="Holiday" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Holiday (Green)</option>
+                                   </select>
+                                 </div>
+                               </div>
+                               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                 <span style={{ fontSize: 11, color: textMuted }}>Description (Optional)</span>
+                                 <textarea value={calForm.description} onChange={e => setCalForm({...calForm, description: e.target.value})} rows={2} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", resize: "vertical", fontSize: 13 }} />
+                               </div>
+                               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
+                                 <button onClick={() => { setEditingCalId(null); }} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "transparent", color: textMuted, cursor: "pointer", fontWeight: 500, fontSize: 13 }}>Cancel</button>
+                                 <button onClick={() => handleSaveCalendar(row.id)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 14px", borderRadius: 8, border: "none", background: "#4285f4", color: "#fff", cursor: "pointer", fontWeight: 500, fontSize: 13 }}><Save size={14} /> Save</button>
+                               </div>
+                             </div>
                           </td>
                         </tr>
                       )}
@@ -717,7 +426,52 @@ export function AdminPanel({
         <>
           {editingId === 0 && (
             <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, marginBottom: 20, overflow: 'hidden' }}>
-              {renderEditForm("Add New Knowledge")}
+              <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Add New Knowledge</h3>
+                <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span style={{ fontSize: 11, color: textMuted }}>Category</span>
+                    <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value, subcategory: "All" })} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
+                      {safeCategories.map(c => (<option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c}</option>))}
+                    </select>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span style={{ fontSize: 11, color: textMuted }}>Sub-category (Folder)</span>
+                    <select value={form.subcategory || "All"} onChange={e => setForm({ ...form, subcategory: e.target.value })} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
+                      <option value="All" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>None (Main Folder)</option>
+                      {(mergedSubCategoriesMap[form.category] || []).map(c => (
+                        <option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontSize: 11, color: textMuted }}>Official Display Name (Optional)</span>
+                  <input value={form.display_name || ""} onChange={e => setForm({...form, display_name: e.target.value})} placeholder="e.g. Ms. Vinna Nina O. Ramos" style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontSize: 11, color: textMuted }}>Trigger Keywords (Press Enter or Comma to add)</span>
+                  <div style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                    {keywordsList.map(kw => (<span key={kw} style={{ background: "#4285f4", color: "#fff", padding: "2px 8px", borderRadius: 12, fontSize: 11, fontWeight: 500, display: "flex", alignItems: "center", gap: 4 }}>{kw} <X size={10} cursor="pointer" onClick={() => removeKeyword(kw)} style={{ opacity: 0.8 }} /></span>))}
+                    <input value={keywordInput} onChange={e => setKeywordInput(e.target.value)} onKeyDown={handleAddKeyword} placeholder={keywordsList.length === 0 ? "e.g. grading system, passing score" : "Add another..."} style={{ flex: 1, minWidth: 120, border: "none", background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
+                  </div>
+                </div>
+                <textarea value={form.response} onChange={(e) => setForm({ ...form, response: e.target.value })} placeholder="Bot Response / Factual Rules..." rows={4} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", resize: "vertical", fontSize: 13 }} />
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <input value={form.picture_url} onChange={(e) => setForm({ ...form, picture_url: e.target.value })} placeholder="Picture URL" style={{ flex: 1, minWidth: 160, padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
+                  <label style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 12px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.1)" : "#f3f4f6", border: `1px solid ${border}`, cursor: uploadingImage ? "wait" : "pointer", fontWeight: 500, fontSize: 12, whiteSpace: "nowrap" }}>
+                    <UploadCloud size={14} /> {uploadingImage ? "Uploading..." : "Upload Image"}
+                    <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} style={{ display: "none" }} />
+                  </label>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <input value={form.qr_link} onChange={e => setForm({...form, qr_link: e.target.value})} placeholder="Target URL / QR Code Link (Optional, e.g. https://bulsu.edu.ph)" style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
+                </div>
+                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
+                  <button onClick={() => { setEditingId(null); setKeywordInput(""); }} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "transparent", color: textMuted, cursor: "pointer", fontWeight: 500, fontSize: 13 }}>Cancel</button>
+                  <button onClick={() => handleSaveKnowledge()} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 14px", borderRadius: 8, border: "none", background: "#4285f4", color: "#fff", cursor: "pointer", fontWeight: 500, fontSize: 13 }}><Save size={14} /> Save</button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -778,7 +532,52 @@ export function AdminPanel({
                       {editingId === row.id && (
                         <tr style={{ background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", borderBottom: `1px solid ${border}` }}>
                           <td colSpan={3} style={{ padding: 0 }}>
-                             {renderEditForm("Edit Entry")}
+                             <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+                               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Edit Entry</h3>
+                               <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                                 <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
+                                   <span style={{ fontSize: 11, color: textMuted }}>Category</span>
+                                   <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value, subcategory: "All" })} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
+                                     {safeCategories.map(c => (<option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c}</option>))}
+                                   </select>
+                                 </div>
+                                 <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
+                                   <span style={{ fontSize: 11, color: textMuted }}>Sub-category (Folder)</span>
+                                   <select value={form.subcategory || "All"} onChange={e => setForm({ ...form, subcategory: e.target.value })} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", color: "inherit", outline: "none", fontSize: 13 }}>
+                                     <option value="All" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>None (Main Folder)</option>
+                                     {(mergedSubCategoriesMap[form.category] || []).map(c => (
+                                       <option key={c} value={c} style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>{c}</option>
+                                     ))}
+                                   </select>
+                                 </div>
+                               </div>
+                               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                 <span style={{ fontSize: 11, color: textMuted }}>Official Display Name (Optional)</span>
+                                 <input value={form.display_name || ""} onChange={e => setForm({...form, display_name: e.target.value})} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
+                               </div>
+                               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                 <span style={{ fontSize: 11, color: textMuted }}>Trigger Keywords (Press Enter or Comma to add)</span>
+                                 <div style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                                   {keywordsList.map(kw => (<span key={kw} style={{ background: "#4285f4", color: "#fff", padding: "2px 8px", borderRadius: 12, fontSize: 11, fontWeight: 500, display: "flex", alignItems: "center", gap: 4 }}>{kw} <X size={10} cursor="pointer" onClick={() => removeKeyword(kw)} style={{ opacity: 0.8 }} /></span>))}
+                                   <input value={keywordInput} onChange={e => setKeywordInput(e.target.value)} onKeyDown={handleAddKeyword} placeholder={keywordsList.length === 0 ? "e.g. grading system, passing score" : "Add another..."} style={{ flex: 1, minWidth: 120, border: "none", background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
+                                 </div>
+                               </div>
+                               <textarea value={form.response} onChange={(e) => setForm({ ...form, response: e.target.value })} rows={4} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", resize: "vertical", fontSize: 13 }} />
+                               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                                 <input value={form.picture_url} onChange={(e) => setForm({ ...form, picture_url: e.target.value })} placeholder="Picture URL" style={{ flex: 1, minWidth: 160, padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
+                                 <label style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 12px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.1)" : "#f3f4f6", border: `1px solid ${border}`, cursor: uploadingImage ? "wait" : "pointer", fontWeight: 500, fontSize: 12, whiteSpace: "nowrap" }}>
+                                   <UploadCloud size={14} /> {uploadingImage ? "Uploading..." : "Upload Image"}
+                                   <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} style={{ display: "none" }} />
+                                 </label>
+                               </div>
+                               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                 <input value={form.qr_link} onChange={e => setForm({...form, qr_link: e.target.value})} placeholder="Target URL / QR Code Link (Optional, e.g. https://bulsu.edu.ph)" style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
+                               </div>
+                               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
+                                 <button onClick={() => { setEditingId(null); setKeywordInput(""); }} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "transparent", color: textMuted, cursor: "pointer", fontWeight: 500, fontSize: 13 }}>Cancel</button>
+                                 <button onClick={() => handleSaveKnowledge(row.id)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 14px", borderRadius: 8, border: "none", background: "#4285f4", color: "#fff", cursor: "pointer", fontWeight: 500, fontSize: 13 }}><Save size={14} /> Save</button>
+                               </div>
+                             </div>
                           </td>
                         </tr>
                       )}
@@ -881,6 +680,145 @@ export function AdminPanel({
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {/* KIOSK TAB */}
+      {activeTab === 'kiosk' && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+           {/* 1. KIOSK CLUSTER LAYOUT EDITOR */}
+           <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, padding: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+                 <div>
+                    <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Kiosk Cluster Layout</h3>
+                    <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Map your databank categories to the 5 main Kiosk buttons.</p>
+                 </div>
+                 <button onClick={handleSaveKioskLayout} style={{ background: '#10b981', color: '#fff', padding: '10px 20px', borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle size={16} /> Save Layout</button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 24 }}>
+                 {["Faculty", "Accomplishment", "Student Affairs", "Curriculum", "Extensions"].map(cluster => {
+                    const safeClusterArray = Array.isArray(safeDraftMapping[cluster]) ? safeDraftMapping[cluster] : [];
+                    return (
+                    <div key={cluster} style={{ background: dark ? 'rgba(255,255,255,0.03)' : '#f9fafb', border: `1px solid ${border}`, borderRadius: 16, padding: 20 }}>
+                       <h3 style={{ fontSize: 16, fontWeight: 700, color: textPrimary, margin: '0 0 12px' }}>{cluster}</h3>
+                       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                          <select id={`select-${cluster}`} style={{ flex: 1, padding: '8px', borderRadius: 6, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: textPrimary, border: `1px solid ${border}`, outline: 'none' }}>
+                             <option value="" style={{ color: '#000' }}>Add category...</option>
+                             {safeCategories.filter(c => !safeClusterArray.includes(c)).map(c => (<option key={c} value={c} style={{ color: '#000' }}>{c}</option>))}
+                          </select>
+                          <button onClick={() => { const sel = document.getElementById(`select-${cluster}`) as HTMLSelectElement; if (sel.value) { addDraftCat(cluster, sel.value); sel.value = ""; setIsDraftingKiosk(true); } }} style={{ background: '#4285f4', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Add</button>
+                       </div>
+                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {safeClusterArray.map((cat: string) => (
+                             <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: dark ? 'rgba(0,0,0,0.3)' : '#fff', borderRadius: 6, border: `1px solid ${border}` }}>
+                                <span style={{ fontSize: 13, fontWeight: 600, color: textPrimary }}>{cat.replace('Teachers', 'Professors')}</span>
+                                <button onClick={() => { removeDraftCat(cluster, cat); setIsDraftingKiosk(true); }} style={{ color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer' }}><Trash2 size={14} /></button>
+                             </div>
+                          ))}
+                          {safeClusterArray.length === 0 && <div style={{ textAlign: 'center', color: textFaint, fontSize: 12, marginTop: 10 }}>No items assigned.</div>}
+                       </div>
+                    </div>
+                 )})}
+              </div>
+           </div>
+
+           {/* 2. HIGHLIGHTS OF THE MONTH EDITOR */}
+           <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, padding: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+                 <div>
+                    <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Highlights of the Month</h3>
+                    <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Manage the infinite carousel highlights shown on the Kiosk home screen.</p>
+                 </div>
+                 <button onClick={handleSaveHighlights} style={{ background: '#10b981', color: '#fff', padding: '10px 20px', borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle size={16} /> Save Highlights</button>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+                 {safeDraftHighlights.map((slide, index) => {
+                    const safeSlide = typeof slide === 'object' && slide !== null ? slide : { img: '', title: '', date: '' };
+                    return (
+                    <div key={index} style={{ background: dark ? 'rgba(0,0,0,0.2)' : '#f9fafb', borderRadius: 12, border: `1px solid ${border}`, padding: 16, position: "relative", display: "flex", flexDirection: "column", gap: 8 }}>
+                       <button onClick={() => {
+                          const newH = safeDraftHighlights.filter((_, i) => i !== index);
+                          setDraftHighlights(newH);
+                          setIsDraftingKiosk(true);
+                       }} style={{ position: "absolute", top: 8, right: 8, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}><X size={12}/></button>
+                       <img src={safeSlide.img} style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8, background: '#000', border: `1px solid ${border}` }} />
+                       <input value={safeSlide.title || ""} onChange={e => { 
+                           const n = [...safeDraftHighlights]; 
+                           n[index] = { ...n[index], title: e.target.value }; 
+                           setDraftHighlights(n); 
+                           setIsDraftingKiosk(true); 
+                       }} placeholder="Highlight Title (e.g. CIT Week 2026)" style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: "inherit", fontSize: 13, outline: "none", fontWeight: 600 }} />
+                       <input value={safeSlide.date || ""} onChange={e => { 
+                           const n = [...safeDraftHighlights]; 
+                           n[index] = { ...n[index], date: e.target.value }; 
+                           setDraftHighlights(n); 
+                           setIsDraftingKiosk(true); 
+                       }} placeholder="Short Date (e.g. Sept 20-25)" style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: "#4285f4", fontSize: 12, outline: "none", fontWeight: 600 }} />
+                    </div>
+                 )})}
+                 
+                 <label style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', borderRadius: 12, border: `1px dashed ${border}`, padding: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 220, cursor: uploadingImage ? "wait" : "pointer", gap: 12 }}>
+                    <UploadCloud size={32} color={textMuted} />
+                    <span style={{ fontSize: 13, color: textMuted, fontWeight: 600 }}>{uploadingImage ? "Uploading..." : "Add Highlight"}</span>
+                    <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingImage} onChange={async (e) => {
+                        const file = e.target.files?.[0]; if (!file) return; setUploadingImage(true);
+                        const formData = new FormData(); formData.append("file", file); formData.append("upload_preset", UPLOAD_PRESET); formData.append("cloud_name", CLOUD_NAME);
+                        try {
+                           const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
+                           const data = await res.json();
+                           if (data.secure_url) {
+                              setDraftHighlights([...safeDraftHighlights, { title: "New Highlight", date: "Date", img: data.secure_url }]);
+                              setIsDraftingKiosk(true);
+                           } else { showToast(`Upload error`, "error"); }
+                        } catch(err) { showToast("Upload failed", "error"); } finally { setUploadingImage(false); e.target.value = ''; }
+                    }} />
+                 </label>
+              </div>
+           </div>
+
+           {/* 3. SCREENSAVER PICTURES EDITOR */}
+           <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, padding: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+                 <div>
+                    <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Idle Screensaver Pictures</h3>
+                    <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Manage the full-screen pictures displayed on the Kiosk when idle.</p>
+                 </div>
+                 <button onClick={handleSaveScreensaver} style={{ background: '#10b981', color: '#fff', padding: '10px 20px', borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle size={16} /> Save Screensavers</button>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+                 {safeDraftScreensaver.map((url, index) => {
+                    const safeUrl = typeof url === 'string' ? url : (url as any)?.img || '';
+                    return (
+                    <div key={index} style={{ background: dark ? 'rgba(0,0,0,0.2)' : '#f9fafb', borderRadius: 12, border: `1px solid ${border}`, padding: 8, position: "relative" }}>
+                       <button onClick={() => {
+                          const newS = safeDraftScreensaver.filter((_, i) => i !== index);
+                          setDraftScreensaver(newS);
+                          setIsDraftingKiosk(true);
+                       }} style={{ position: "absolute", top: 16, right: 16, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: '0 4px 12px rgba(0,0,0,0.5)', zIndex: 10 }}><X size={14}/></button>
+                       <img src={safeUrl} style={{ width: "100%", height: 180, objectFit: "cover", borderRadius: 8, background: '#000' }} />
+                    </div>
+                 )})}
+                 
+                 <label style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', borderRadius: 12, border: `1px dashed ${border}`, padding: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 180, cursor: uploadingImage ? "wait" : "pointer", gap: 12 }}>
+                    <UploadCloud size={32} color={textMuted} />
+                    <span style={{ fontSize: 13, color: textMuted, fontWeight: 600 }}>{uploadingImage ? "Uploading..." : "Upload Screensaver"}</span>
+                    <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingImage} onChange={async (e) => {
+                        const file = e.target.files?.[0]; if (!file) return; setUploadingImage(true);
+                        const formData = new FormData(); formData.append("file", file); formData.append("upload_preset", UPLOAD_PRESET); formData.append("cloud_name", CLOUD_NAME);
+                        try {
+                           const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
+                           const data = await res.json();
+                           if (data.secure_url) {
+                              setDraftScreensaver([...safeDraftScreensaver, data.secure_url]);
+                              setIsDraftingKiosk(true);
+                           } else { showToast(`Upload error`, "error"); }
+                        } catch(err) { showToast("Upload failed", "error"); } finally { setUploadingImage(false); e.target.value = ''; }
+                    }} />
+                 </label>
+              </div>
+           </div>
         </div>
       )}
 
