@@ -1,5 +1,5 @@
-import React, { useRef, useState, useEffect } from "react";
-import { Users, GraduationCap, FileText, ChevronLeft, ChevronRight, MessageSquare, Bot, Maximize, Search, UserSquare, Briefcase, ArrowRight, ArrowLeft, Calendar as CalendarIcon, X, Folder, LayoutGrid, Building } from "lucide-react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
+import { Users, GraduationCap, FileText, ChevronLeft, ChevronRight, MessageSquare, Bot, Maximize, Search, UserSquare, Briefcase, ArrowRight, ArrowLeft, Calendar as CalendarIcon, X, LayoutGrid, Building } from "lucide-react";
 import { GearboxLoader } from "./ui/helpers";
 import { API_URL } from "../config";
 
@@ -102,13 +102,9 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
        display: flex; gap: 16px; width: max-content;
        animation: scrollCarousel 30s linear infinite;
     }
+    /* Hover pause removed! */
+    
     @keyframes scrollCarousel { 0% { transform: translateX(0); } 100% { transform: translateX(calc(-50% - 8px)); } }
-
-    .glassy-option-btn {
-      background: ${theme.card}; border: 1px solid ${theme.border}; border-radius: 16px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1); backdrop-filter: blur(12px); min-height: 80px;
-    }
-    .glassy-option-btn:active { transform: scale(0.98); opacity: 0.8; }
 
     .glassy-dir-card {
       background: ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.7)'}; border: 1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(166, 1, 18, 0.15)'};
@@ -165,6 +161,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
 
   const [currentTime, setCurrentTime] = useState(new Date());
   
+  // Base Theme Colors
   const theme = dark ? {
     bg: '#1C1D55', card: '#1257AC', accent: '#FDB51C', text: '#ffffff', textMuted: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.15)'
   } : {
@@ -193,7 +190,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1600&q=80"
   ];
   
-  // Safely parse slides in case they were stored as objects or strings
   let activeSlides = defaultSlides;
   if (screensaverSlides && screensaverSlides.length > 0) {
       activeSlides = screensaverSlides.map((s: any) => typeof s === 'string' ? s : s.img).filter(Boolean);
@@ -231,8 +227,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
              const directoryItems = rawData.filter((item: any) => {
                  const itemCat = (item.category || "").toLowerCase();
                  const itemSub = (item.subcategory || "").toLowerCase();
-                 
-                 // If both are provided, make sure it matches the exact subcategory selected
                  if (searchCat && searchTitle && searchCat !== searchTitle) {
                      return itemCat === searchCat && itemSub === searchTitle;
                  }
@@ -288,7 +282,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     });
   };
 
-  const filteredDirectory = React.useMemo(() => {
+  const filteredDirectory = useMemo(() => {
       return dbDirectoryData.filter(item => {
             const major = item.subcategory || "All";
             return dirMajor ? major.toLowerCase() === dirMajor.toLowerCase() : true;
@@ -309,7 +303,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
      itemsToRender = kioskMapping[kioskCategory] || [];
   }
 
-  // UPDATE: OVERRIDE DEFAULT HANDLER IN KIOSKSCREEN.TSX TO USE THE PASSED ONE IF AVAILABLE
+  // INTERCEPTOR: FORCES GALLERY MODE ON ACCOMPLISHMENTS OR EXTENSIONS
   const handleKioskSelectionInternal = async (category: string, item: string) => {
       const lowerCat = (category || '').toLowerCase();
       const isGallery = lowerCat.includes('accomp') || lowerCat.includes('exten');
@@ -320,7 +314,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
           return;
       }
       
-      // Fallback to the main handleKioskSelection for other types (documents, chat, etc)
       if (handleKioskSelection) {
           handleKioskSelection(category, item);
       }
