@@ -102,9 +102,13 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
        display: flex; gap: 16px; width: max-content;
        animation: scrollCarousel 30s linear infinite;
     }
-    /* Hover pause removed! */
-    
     @keyframes scrollCarousel { 0% { transform: translateX(0); } 100% { transform: translateX(calc(-50% - 8px)); } }
+
+    .glassy-option-btn {
+      background: ${theme.card}; border: 1px solid ${theme.border}; border-radius: 16px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1); backdrop-filter: blur(12px); min-height: 80px;
+    }
+    .glassy-option-btn:active { transform: scale(0.98); opacity: 0.8; }
 
     .glassy-dir-card {
       background: ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.7)'}; border: 1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(166, 1, 18, 0.15)'};
@@ -161,7 +165,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
 
   const [currentTime, setCurrentTime] = useState(new Date());
   
-  // Base Theme Colors
   const theme = dark ? {
     bg: '#1C1D55', card: '#1257AC', accent: '#FDB51C', text: '#ffffff', textMuted: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.15)'
   } : {
@@ -213,29 +216,31 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     }
   }, [screenState, activeSlides.length]);
 
+  // BULLETPROOF GALLERY & DIRECTORY DATA FETCHER
   useEffect(() => {
      if (kioskResult?.isPdf) setPdfPage(1);
      if (kioskResult?.isDirectory || kioskResult?.isGallery) {
          setDirMajor(kioskResult.subcategory && kioskResult.subcategory !== 'All' ? kioskResult.subcategory : null); 
          setDirPage(1);
          setLoadingDir(true);
+         
          fetch(`${API_URL}/knowledge`).then(res => res.json()).then(data => {
              const rawData = Array.isArray(data) ? data : [];
-             const searchCat = (kioskResult.category || "").toLowerCase();
              const searchTitle = (kioskResult.title || "").toLowerCase();
              
+             // FIXED: Completely ignore the UI Cluster name and only filter by the selected item title!
              const directoryItems = rawData.filter((item: any) => {
                  const itemCat = (item.category || "").toLowerCase();
                  const itemSub = (item.subcategory || "").toLowerCase();
-                 if (searchCat && searchTitle && searchCat !== searchTitle) {
-                     return itemCat === searchCat && itemSub === searchTitle;
-                 }
+                 
+                 // If the item in the DB is stored under this exact category or subcategory name, show it!
                  return itemCat === searchTitle || itemSub === searchTitle;
              });
+             
              setDbDirectoryData(directoryItems);
            }).catch(err => console.error(err)).finally(() => setLoadingDir(false));
      }
-  }, [kioskResult?.title, kioskResult?.isDirectory, kioskResult?.isGallery, kioskResult?.category]);
+  }, [kioskResult?.title, kioskResult?.isDirectory, kioskResult?.isGallery]);
 
   useEffect(() => {
     if (!kioskResult?.isPdf || !kioskResult?.pdfUrl) return;
@@ -303,7 +308,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
      itemsToRender = kioskMapping[kioskCategory] || [];
   }
 
-  // INTERCEPTOR: FORCES GALLERY MODE ON ACCOMPLISHMENTS OR EXTENSIONS
   const handleKioskSelectionInternal = async (category: string, item: string) => {
       const lowerCat = (category || '').toLowerCase();
       const isGallery = lowerCat.includes('accomp') || lowerCat.includes('exten');
