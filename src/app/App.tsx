@@ -191,10 +191,10 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
                     <option value="Examination" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Examination (Red)</option>
                     <option value="Holiday" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>Holiday (Green)</option>
                  </select>
-                 <textarea placeholder="Description" value={calForm.description} onChange={e => setCalForm({...calForm, description: e.target.value})} rows={3} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 14, outline: 'none', resize: 'vertical' }} />
+                 <textarea placeholder="Description (Optional)" value={calForm.description} onChange={e => setCalForm({...calForm, description: e.target.value})} rows={3} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: dark ? '#fff' : '#000', fontSize: 14, outline: 'none', resize: 'vertical' }} />
                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
                     <button onClick={() => setIsCalFormOpen(false)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'transparent', color: dark ? '#94a3b8' : '#64748b', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-                    <button onClick={handleSaveCalEvent} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#4285f4', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Save</button>
+                    <button onClick={handleSaveCalEvent} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#4285f4', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Save Event</button>
                  </div>
               </div>
            ) : (
@@ -669,11 +669,22 @@ export default function App() {
   const handleLogout = () => { setCurrentUser({ id: -1, email: "guest@bulsu.edu.ph", role: "student", username: "Guest User" }); setChats([]); setActiveChatId(null); setViewMode("chat"); localStorage.removeItem('chatcit_user'); localStorage.removeItem('chatcit_chats'); showToast("Logged out successfully.", "info"); setAuthMode("login"); setShowAuthPopup(true); };
 
   const trBtnSize = simKiosk ? 64 : 40; const trIconSize = simKiosk ? 32 : 20; const trRadius = simKiosk ? 20 : 12; const trGap = simKiosk ? 20 : 12;
-  const isAdminUser = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  
+  // NOTE: THIS IS THE FIX. INSTEAD OF CHECKING FOR ADMIN, WE CHECK FOR DESKTOP SIZE OR KIOSK TOGGLE
+  const isPhysicalKioskView = simKiosk && window.screen.height >= window.screen.width;
 
   const topRightButtons = (
     <div style={{ display: "flex", alignItems: "center", gap: trGap }}>
-      {(isAdminUser && simKiosk) && (<button onClick={() => { setSimKiosk(false); localStorage.removeItem('permanent_kiosk'); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: trBtnSize, height: trBtnSize, borderRadius: trRadius, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", color: "#a855f7", cursor: "pointer", transition: "all 0.2s" }} title="Exit Kiosk Mode"><Smartphone size={trIconSize} /></button>)}
+      {/* 🚨 FIX: "Exit Kiosk" will now show if you are in simKiosk AND you are NOT on a literal vertical hardware screen! */}
+      {(simKiosk && !isPhysicalKioskView) && (
+        <button onClick={() => { 
+          setSimKiosk(false); 
+          localStorage.removeItem('permanent_kiosk'); 
+          window.history.replaceState({}, document.title, window.location.pathname); // Strips the ?kiosk URL Param
+        }} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: trBtnSize, height: trBtnSize, borderRadius: trRadius, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", color: "#a855f7", cursor: "pointer", transition: "all 0.2s" }} title="Exit Kiosk Mode">
+          <Smartphone size={trIconSize} />
+        </button>
+      )}
       {(!simKiosk) && (<button onClick={() => { setSimKiosk(true); localStorage.setItem('permanent_kiosk', 'true'); setScreenState("presentation"); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: trBtnSize, height: trBtnSize, borderRadius: trRadius, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", color: "#a855f7", cursor: "pointer", transition: "all 0.2s" }} title="Enter Kiosk Mode"><Smartphone size={trIconSize} /></button>)}
       <button onClick={() => requireAuth(() => setShowBugModal(true))} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: trBtnSize, height: trBtnSize, borderRadius: trRadius, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", color: "#ef4444", cursor: "pointer", transition: "all 0.2s" }} title="Report a Bug"><Bug size={trIconSize} /></button>
       <button onClick={() => requireAuth(() => setShowCalendar(true))} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: trBtnSize, height: trBtnSize, borderRadius: trRadius, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", color: "#10b981", cursor: "pointer", transition: "all 0.2s" }} title="Academic Calendar"><CalendarIcon size={trIconSize} /></button>
