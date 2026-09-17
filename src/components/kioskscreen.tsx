@@ -131,12 +131,12 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     .back-btn-modern:active { transform: scale(0.92); }
 
     .kiosk-detail-card {
-       width: 90%; max-width: 860px; height: calc(100% - 20px); max-height: 84vh;
+       width: 90%; max-width: 860px; min-height: 800px;
        background: ${dark ? 'rgba(18, 87, 172, 0.15)' : 'rgba(255,255,255,0.85)'};
        border-radius: 32px; border: 1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(166, 1, 18, 0.2)'}; display: flex; flex-direction: column; box-shadow: 0 30px 60px rgba(0,0,0,0.3);
-       overflow: hidden; margin-bottom: 24px; z-index: 10; backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px);
+       margin-bottom: 40px; z-index: 10; backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px);
     }
-    .kiosk-detail-card.is-pdf { height: 1050px !important; max-height: 1050px !important; min-height: 1050px !important; padding: 0 !important; flex: 0 0 1050px !important; }
+    .kiosk-detail-card.is-pdf { height: 1050px !important; max-height: 1050px !important; min-height: 1050px !important; padding: 0 !important; flex: 0 0 1050px !important; overflow: hidden; }
     .slide-enter { animation: fadeIn 1s ease-in-out forwards; }
   `}</style>
 );
@@ -218,7 +218,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     }
   }, [screenState, activeSlides.length]);
 
-  // Fetch Directory or Gallery items directly
   useEffect(() => {
      if (kioskResult?.isPdf) setPdfPage(1);
      if (kioskResult?.isDirectory || kioskResult?.isGallery) {
@@ -338,7 +337,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   return (
     <>
       <GlobalKioskStyles dark={dark} theme={theme} />
-      <div className="screensaver-fullscreen">
+      <div className="screensaver-fullscreen" style={{ background: theme.bg }}>
         <div className="bg-blob-1" />
         <div className="bg-blob-2" />
         
@@ -397,8 +396,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                </div>
             </div>
 
-            {/* INTEGRATED NATURAL SCROLL FLOW BANNER */}
-            <div style={{ width: '100%', maxWidth: 680, padding: '0 16px', marginTop: 12, marginBottom: 40 }}>
+            <div style={{ width: '100%', padding: '0 24px', position: 'absolute', bottom: 32, maxWidth: 680 }}>
                <div className="glassy-cluster-card kiosk-pulse-btn" onClick={() => { setScreenState("chat"); setKioskCategory(null); setKioskResult(null); }} style={{ margin: 0, padding: 32, minHeight: 180, display: 'flex', justifyContent: 'center', border: 'none' }}>
                   <div style={{ fontSize: 16, opacity: 0.9, fontWeight: 700, marginBottom: 4 }}>Interactive AI Assistant</div>
                   <div style={{ fontSize: 36, fontWeight: 800, marginBottom: 20 }}>Talk with ChatCIT</div>
@@ -455,13 +453,13 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                   </div>
                 </div>
               ) : kioskResult?.isGallery ? (
-                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '32px 40px 16px 40px', flexShrink: 0 }}>
+                <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '32px 40px 16px 40px' }}>
                     <button onClick={() => { setKioskResult(null); setScreenState("home"); }} className="back-btn-modern" style={{ background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}><ArrowLeft size={20}/> Back</button>
                     <h2 style={{ fontSize: 32, fontWeight: 800, color: theme.text, margin: 0 }}>{kioskResult?.title.replace('Teachers', 'Professors')} Gallery</h2>
                   </div>
-                  {/* SMOOTH SCROLLABLE GALLERY - NO PAGINATION BUTTONS */}
-                  <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: '24px 40px 48px' }}>
+                  {/* INFINITE SCROLLABLE GALLERY - NO PAGINATION */}
+                  <div style={{ padding: '24px 40px 48px' }}>
                      {loadingDir ? ( <div style={{ display: 'flex', height: 300, alignItems: 'center', justifyContent: 'center' }}><div style={{ transform: 'scale(0.8)' }}><GearboxLoader /></div></div>
                      ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24, width: '100%' }}>
@@ -479,13 +477,13 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                   </div>
                 </div>
               ) : kioskResult?.isDirectory ? (
-                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '32px 40px 16px 40px', flexShrink: 0 }}>
+                <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '32px 40px 16px 40px' }}>
                     <button onClick={() => { setKioskResult(null); setScreenState("home"); }} className="back-btn-modern" style={{ background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}><ArrowLeft size={20}/> Back</button>
                     <h2 style={{ fontSize: 32, fontWeight: 800, color: theme.text, margin: 0 }}>{kioskResult?.title.replace('Teachers', 'Professors')}</h2>
                   </div>
-                  {/* SMOOTH SCROLLABLE FACULTY DIRECTORY - NO NEXT/PREV BUTTONS */}
-                  <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: '20px 40px 48px', display: 'flex', flexDirection: 'column' }}>
+                  {/* INFINITE SCROLLABLE FACULTY DIRECTORY - NO NEXT/PREV BUTTONS */}
+                  <div style={{ padding: '20px 40px 48px', display: 'flex', flexDirection: 'column' }}>
                      {!dirMajor && subCategories.length > 0 ? (
                         <>
                           <div style={{ fontSize: 22, fontWeight: 700, color: theme.textMuted, marginBottom: 24, textAlign: 'center' }}>Select a Folder to view {kioskResult.title.replace('Teachers', 'Professors')}</div>
@@ -520,7 +518,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                   </div>
                 </div>
               ) : (
-                <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: '48px', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ padding: '48px', display: 'flex', flexDirection: 'column' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 40 }}>
                     <button onClick={() => { setKioskResult(null); setScreenState("home"); }} style={{ background: "transparent", border: "none", color: theme.text, cursor: "pointer", display: "flex", alignItems: "center", marginTop: 4 }}><ArrowLeft size={32} /></button>
                     <h2 style={{ fontSize: 36, fontWeight: 800, margin: 0, color: theme.text, textTransform: 'uppercase', lineHeight: 1.2 }}>{kioskResult?.title}</h2>
