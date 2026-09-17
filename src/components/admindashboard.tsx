@@ -112,7 +112,11 @@ export function AdminPanel({
     try {
       const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
       const uploadedData = await res.json();
-      if (uploadedData.secure_url) { setForm({ ...form, picture_url: uploadedData.secure_url }); showToast("Image uploaded successfully!", "success"); } 
+      if (uploadedData.secure_url) { 
+          // FIX: Use functional state update to prevent stale closures wiping data
+          setForm(prev => ({ ...prev, picture_url: uploadedData.secure_url })); 
+          showToast("Image uploaded successfully!", "success"); 
+      } 
       else { showToast(`Cloudinary Error: ${uploadedData.error?.message || "Unknown"}`, "error"); }
     } catch (err: any) { showToast(`Network error: ${err.message}`, "error"); } finally { setUploadingImage(false); }
   };
@@ -255,7 +259,6 @@ export function AdminPanel({
   const departmentCounts = users.reduce((acc, u) => { const dept = (u as any).department || "Others"; acc[dept] = (acc[dept] || 0) + 1; acc["Total Users"] = (acc["Total Users"] || 0) + 1; return acc; }, {} as Record<string, number>);
   const bg = dark ? "#25242c" : "#fff"; const border = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"; const textMuted = dark ? "#9aa0a6" : "#6b7280"; const textPrimary = dark ? "#e8eaed" : "#1a1a2e"; const textFaint = dark ? "#5f6368" : "#9ca3af";
 
-  // BUG FIX: Define safe arrays BEFORE they are used in the render functions!
   const safeCategories = Array.isArray(allCategories) ? allCategories : [];
   const safeDraftMapping = draftMapping || {};
   const safeDraftHighlights = Array.isArray(draftHighlights) ? draftHighlights : [];
@@ -299,7 +302,7 @@ export function AdminPanel({
       <textarea value={form.response} onChange={(e) => setForm({ ...form, response: e.target.value })} placeholder="Bot Response / Factual Rules..." rows={4} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", resize: "vertical", fontSize: 13 }} />
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <input value={form.picture_url} onChange={(e) => setForm({ ...form, picture_url: e.target.value })} placeholder="Picture URL" style={{ flex: 1, minWidth: 160, padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
-        <label style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 12px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.1)" : "#f3f4f6", border: `1px solid ${border}`, cursor: uploadingImage ? "wait" : "pointer", fontWeight: 500, fontSize: 12, whiteSpace: "nowrap" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 12px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.1)" : "#f3f4f6", border: `1px solid ${border}`, cursor: uploadingImage ? "wait" : "pointer", fontWeight: 500, fontSize: 12, whiteSpace: "nowrap", opacity: uploadingImage ? 0.5 : 1 }}>
           <UploadCloud size={14} /> {uploadingImage ? "Uploading..." : "Upload Image"}
           <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} style={{ display: "none" }} />
         </label>
@@ -309,7 +312,7 @@ export function AdminPanel({
       </div>
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
         <button onClick={() => { setEditingId(null); setKeywordInput(""); }} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "transparent", color: textMuted, cursor: "pointer", fontWeight: 500, fontSize: 13 }}>Cancel</button>
-        <button onClick={() => handleSaveKnowledge(editingId === 0 || editingId === null ? undefined : editingId)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 14px", borderRadius: 8, border: "none", background: "#4285f4", color: "#fff", cursor: "pointer", fontWeight: 500, fontSize: 13 }}><Save size={14} /> Save</button>
+        <button disabled={uploadingImage} onClick={() => handleSaveKnowledge(editingId === 0 || editingId === null ? undefined : editingId)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 14px", borderRadius: 8, border: "none", background: "#4285f4", color: "#fff", cursor: uploadingImage ? "not-allowed" : "pointer", opacity: uploadingImage ? 0.5 : 1, fontWeight: 500, fontSize: 13 }}><Save size={14} /> Save</button>
       </div>
     </div>
   );
@@ -368,6 +371,7 @@ export function AdminPanel({
         </div>
       </div>
 
+      {/* KIOSK TAB */}
       {activeTab === 'kiosk' && (
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
            {/* 1. KIOSK CLUSTER LAYOUT EDITOR */}
