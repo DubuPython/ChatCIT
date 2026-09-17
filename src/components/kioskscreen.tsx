@@ -9,7 +9,7 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     
     .screensaver-fullscreen {
       position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 999995;
-      background: #000;
+      background: ${theme.bg};
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       animation: fadeIn 0.4s ease; border-radius: inherit; overflow: hidden;
     }
@@ -219,22 +219,29 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
 
   useEffect(() => {
      if (kioskResult?.isPdf) setPdfPage(1);
-     if (kioskResult?.isDirectory) {
+     if (kioskResult?.isDirectory || kioskResult?.isGallery) {
          setDirMajor(kioskResult.subcategory && kioskResult.subcategory !== 'All' ? kioskResult.subcategory : null); 
          setDirPage(1);
          setLoadingDir(true);
          fetch(`${API_URL}/knowledge`).then(res => res.json()).then(data => {
              const rawData = Array.isArray(data) ? data : [];
-             const targetName = (kioskResult.category || kioskResult.title || "").toLowerCase();
+             const searchCat = (kioskResult.category || "").toLowerCase();
+             const searchTitle = (kioskResult.title || "").toLowerCase();
+             
              const directoryItems = rawData.filter((item: any) => {
                  const itemCat = (item.category || "").toLowerCase();
                  const itemSub = (item.subcategory || "").toLowerCase();
-                 return itemCat === targetName || itemSub === targetName;
+                 
+                 // If both are provided, make sure it matches the exact subcategory selected
+                 if (searchCat && searchTitle && searchCat !== searchTitle) {
+                     return itemCat === searchCat && itemSub === searchTitle;
+                 }
+                 return itemCat === searchTitle || itemSub === searchTitle;
              });
              setDbDirectoryData(directoryItems);
            }).catch(err => console.error(err)).finally(() => setLoadingDir(false));
      }
-  }, [kioskResult?.title, kioskResult?.isDirectory]);
+  }, [kioskResult?.title, kioskResult?.isDirectory, kioskResult?.isGallery, kioskResult?.category]);
 
   useEffect(() => {
     if (!kioskResult?.isPdf || !kioskResult?.pdfUrl) return;
@@ -301,6 +308,23 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   if (clusterItems.some(c => c.label === kioskCategory)) {
      itemsToRender = kioskMapping[kioskCategory] || [];
   }
+
+  // UPDATE: OVERRIDE DEFAULT HANDLER IN KIOSKSCREEN.TSX TO USE THE PASSED ONE IF AVAILABLE
+  const handleKioskSelectionInternal = async (category: string, item: string) => {
+      const lowerCat = (category || '').toLowerCase();
+      const isGallery = lowerCat.includes('accomp') || lowerCat.includes('exten');
+
+      if (isGallery) {
+          setScreenState("kiosk_result");
+          setKioskResult({ title: item, isGallery: true, category: category });
+          return;
+      }
+      
+      // Fallback to the main handleKioskSelection for other types (documents, chat, etc)
+      if (handleKioskSelection) {
+          handleKioskSelection(category, item);
+      }
+  };
 
   const goHome = () => { setScreenState("home"); setKioskCategory(null); setKioskResult(null); };
 
@@ -404,7 +428,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20, width: '100%', maxWidth: 720 }}>
                 {itemsToRender.map((item, idx) => (
-                  <div key={idx} className="glassy-dir-card" onClick={() => handleKioskSelection(kioskCategory, item)}>
+                  <div key={idx} className="glassy-dir-card" onClick={() => handleKioskSelectionInternal(kioskCategory, item)}>
                     <div style={{ color: dark ? theme.accent : theme.cardBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{getIconForCategory(item, 32)}</div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: theme.text, lineHeight: 1.4, wordBreak: 'break-word', textAlign: 'left', display: 'flex', alignItems: 'center' }}>{item.replace('Teachers', 'Professors')}</div>
                     <div className="card-arrow" style={{ width: 32, height: 32, position: 'absolute', right: 24, bottom: 24, flexShrink: 0, borderColor: dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)', color: theme.textMuted }}><ArrowRight size={16}/></div>
@@ -435,6 +459,38 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                     <span style={{ fontSize: 18, fontWeight: 800, color: theme.text, whiteSpace: 'nowrap', margin: '0 16px' }}>Page {pdfPage} of {totalPages}</span>
                     <button onClick={() => setPdfPage((p: number) => Math.min(totalPages, p + 1))} className="back-btn-modern" disabled={pdfPage >= totalPages} style={{ padding: '8px 16px' }}><ChevronRight size={16}/></button>
                     <button onClick={() => setPdfPage((p: number) => Math.min(totalPages, p + 5))} className="back-btn-modern" disabled={pdfPage >= totalPages} style={{ padding: '8px 16px' }}>+5</button>
+                  </div>
+                </div>
+              ) : kioskResult?.isGallery ? (
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '40px 40px 0 40px', flexShrink: 0 }}>
+                    <button onClick={() => { setKioskResult(null); setScreenState("home"); }} className="back-btn-modern" style={{ background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}><ArrowLeft size={20}/> Back</button>
+                    <h2 style={{ fontSize: 32, fontWeight: 800, color: theme.text, margin: 0 }}>{kioskResult?.title.replace('Teachers', 'Professors')} Gallery</h2>
+                  </div>
+                  <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '40px', display: 'flex', flexDirection: 'column' }}>
+                     {loadingDir ? ( <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ transform: 'scale(0.8)' }}><GearboxLoader /></div></div>
+                     ) : (
+                        <>
+                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24, width: '100%' }}>
+                              {currentDirData.length > 0 ? currentDirData.map((item) => (
+                                 <div key={item.id} className="glassy-dir-card" style={{ padding: 16, flexDirection: 'column', alignItems: 'flex-start', cursor: item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? 'zoom-in' : 'default' }} onClick={() => { if (item.picture_url && !item.picture_url.toLowerCase().includes('.pdf')) setFullScreenMedia(item.picture_url); else if (item.picture_url && item.picture_url.toLowerCase().includes('.pdf')) window.open(item.picture_url, '_blank'); }}>
+                                    <div style={{ width: '100%', height: 220, borderRadius: 12, background: dark ? 'rgba(0,0,0,0.3)' : '#fff', border: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', marginBottom: 12 }}>
+                                       {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={item.picture_url} alt="Gallery" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: dark ? theme.accent : theme.cardBorder }}><FileText size={40} /></span>}
+                                    </div>
+                                    <span style={{ fontSize: 18, fontWeight: 800, color: theme.text, lineHeight: 1.3 }}>{item.display_name || (item.keyword ? item.keyword.split(',')[0] : "")}</span>
+                                    {item.response && <span style={{ fontSize: 14, color: theme.textMuted, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5, marginTop: 4 }}>{item.response}</span>}
+                                 </div>
+                              )) : (<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: theme.textMuted, fontWeight: 600, padding: 40, gridColumn: '1 / -1' }}>No images found in this gallery.</div>)}
+                           </div>
+                           {totalDirPages > 1 && (
+                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: 32, padding: '16px 24px', background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.8)', borderRadius: 24, border: `1px solid ${theme.border}` }}>
+                                <button onClick={() => setDirPage(p => Math.max(1, p - 1))} disabled={dirPage <= 1} style={{ padding: '12px 24px', borderRadius: 16, border: 'none', background: theme.accent, color: dark ? '#1C1D55' : '#fff', fontSize: 16, fontWeight: 800, cursor: 'pointer', opacity: dirPage <= 1 ? 0.3 : 1, transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.95)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>Previous</button>
+                                <span style={{ fontSize: 18, fontWeight: 800, color: theme.text }}>Page {dirPage} of {totalDirPages}</span>
+                                <button onClick={() => setDirPage(p => Math.min(totalDirPages, p + 1))} disabled={dirPage >= totalDirPages} style={{ padding: '12px 24px', borderRadius: 16, border: 'none', background: theme.accent, color: dark ? '#1C1D55' : '#fff', fontSize: 16, fontWeight: 800, cursor: 'pointer', opacity: dirPage >= totalDirPages ? 0.3 : 1, transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.95)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>Next</button>
+                             </div>
+                           )}
+                        </>
+                     )}
                   </div>
                 </div>
               ) : kioskResult?.isDirectory ? (
