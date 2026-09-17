@@ -85,9 +85,9 @@ export function ChatDirectory({ dark, category, onClose, onCardClick }: any) {
         </div>
       </div>
 
-      {/* Filter Pills */}
+      {/* Filter Pills - FIX: Changed to flexWrap so text never gets cut off */}
       {subCategories.length > 1 && (
-        <div className="no-scrollbar" style={{ padding: "0 32px 16px", display: "flex", gap: 8, overflowX: "auto", whiteSpace: "nowrap", WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}>
+        <div style={{ padding: "0 32px 16px", display: "flex", flexWrap: "wrap", gap: 8 }}>
           {subCategories.map(sub => (
             <button 
               key={sub} 
@@ -100,8 +100,10 @@ export function ChatDirectory({ dark, category, onClose, onCardClick }: any) {
                 color: activeFilter === sub ? "#fff" : textPrimary, 
                 fontWeight: 600, 
                 fontSize: 13, 
-                cursor: "pointer", 
-                flexShrink: 0,
+                cursor: "pointer",
+                whiteSpace: "normal", 
+                textAlign: "left",
+                lineHeight: 1.3,
                 transition: "all 0.2s" 
               }}
             >
@@ -111,7 +113,7 @@ export function ChatDirectory({ dark, category, onClose, onCardClick }: any) {
         </div>
       )}
 
-      {/* INFINITE SCROLLABLE LIST - LETTING THE MAIN WINDOW SCROLL */}
+      {/* INFINITE SCROLLABLE LIST - FIX: No pagination! */}
       <div style={{ padding: "0 32px 40px", display: "flex", flexDirection: "column", gap: 12 }}>
         {filteredData.length === 0 ? (
           <div style={{ textAlign: "center", color: textMuted, padding: 40, fontSize: 15, fontWeight: 500 }}>No results found.</div>
@@ -122,9 +124,9 @@ export function ChatDirectory({ dark, category, onClose, onCardClick }: any) {
               onClick={() => onCardClick(item.display_name || (item.keyword ? item.keyword.split(',')[0] : ""))}
               style={{ display: "flex", alignItems: "center", gap: 16, padding: 16, background: cardBg, border: `1px solid ${border}`, borderRadius: 16, cursor: "pointer", transition: "all 0.2s" }}
             >
-              <div style={{ width: 48, height: 48, borderRadius: "50%", background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <div style={{ width: 48, height: 48, borderRadius: "50%", background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
                 {item.picture_url && !item.picture_url.toLowerCase().includes(".pdf") ? (
-                  <img src={item.picture_url} alt="Profile" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+                  <img src={item.picture_url} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
                   <User size={24} color="#4285f4" />
                 )}
