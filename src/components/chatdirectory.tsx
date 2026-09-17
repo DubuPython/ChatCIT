@@ -50,16 +50,16 @@ export function ChatDirectory({ dark, category, onClose, onCardClick }: any) {
 
   if (loading) {
     return (
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: bg, height: "100%" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", background: bg, minHeight: "100%", width: "100%", padding: 60 }}>
         <div style={{ transform: "scale(0.8)" }}><GearboxLoader /></div>
       </div>
     );
   }
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: bg, height: "100%", minHeight: 0, position: "relative" }}>
+    <div style={{ display: "flex", flexDirection: "column", background: bg, minHeight: "100%", width: "100%", position: "relative" }}>
       {/* Header */}
-      <div style={{ padding: "32px 32px 16px", flexShrink: 0, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+      <div style={{ padding: "32px 32px 16px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: textPrimary, textTransform: "uppercase", display: "flex", alignItems: "center", gap: 10 }}>
             <User size={26} color="#4285f4" /> {category.replace('Teachers', 'Professors')}
@@ -72,7 +72,7 @@ export function ChatDirectory({ dark, category, onClose, onCardClick }: any) {
       </div>
 
       {/* Search Bar */}
-      <div style={{ padding: "0 32px 16px", flexShrink: 0 }}>
+      <div style={{ padding: "0 32px 16px" }}>
         <div style={{ display: "flex", alignItems: "center", background: dark ? "rgba(255,255,255,0.05)" : "#fff", border: `1px solid ${border}`, borderRadius: 12, padding: "12px 16px", gap: 12 }}>
           <Search size={18} color={textMuted} />
           <input 
@@ -87,7 +87,7 @@ export function ChatDirectory({ dark, category, onClose, onCardClick }: any) {
 
       {/* Filter Pills */}
       {subCategories.length > 1 && (
-        <div className="no-scrollbar" style={{ padding: "0 32px 16px", flexShrink: 0, display: "flex", gap: 8, overflowX: "auto", whiteSpace: "nowrap", WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}>
+        <div className="no-scrollbar" style={{ padding: "0 32px 16px", display: "flex", gap: 8, overflowX: "auto", whiteSpace: "nowrap", WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}>
           {subCategories.map(sub => (
             <button 
               key={sub} 
@@ -111,8 +111,8 @@ export function ChatDirectory({ dark, category, onClose, onCardClick }: any) {
         </div>
       )}
 
-      {/* SCROLLABLE LIST - NO PAGINATION */}
-      <div className="no-scrollbar" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "0 32px 40px", display: "flex", flexDirection: "column", gap: 12, touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}>
+      {/* INFINITE SCROLLABLE LIST - LETTING THE MAIN WINDOW SCROLL */}
+      <div style={{ padding: "0 32px 40px", display: "flex", flexDirection: "column", gap: 12 }}>
         {filteredData.length === 0 ? (
           <div style={{ textAlign: "center", color: textMuted, padding: 40, fontSize: 15, fontWeight: 500 }}>No results found.</div>
         ) : (
