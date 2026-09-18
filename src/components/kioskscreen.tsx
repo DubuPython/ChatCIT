@@ -131,10 +131,10 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     .back-btn-modern:active { transform: scale(0.92); }
 
     .kiosk-detail-card {
-       width: 90%; max-width: 860px; min-height: 800px;
+       width: 90%; max-width: 860px; height: calc(100% - 20px); max-height: 84vh;
        background: ${dark ? 'rgba(18, 87, 172, 0.15)' : 'rgba(255,255,255,0.85)'};
        border-radius: 32px; border: 1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(166, 1, 18, 0.2)'}; display: flex; flex-direction: column; box-shadow: 0 30px 60px rgba(0,0,0,0.3);
-       margin-bottom: 40px; z-index: 10; backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px);
+       overflow: hidden; margin-bottom: 40px; z-index: 10; backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px);
     }
     .kiosk-detail-card.is-pdf { height: 1050px !important; max-height: 1050px !important; min-height: 1050px !important; padding: 0 !important; flex: 0 0 1050px !important; overflow: hidden; }
     .slide-enter { animation: fadeIn 1s ease-in-out forwards; }
@@ -211,6 +211,10 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const activeHighlights = (kioskHighlights && kioskHighlights.length > 0) ? kioskHighlights : defaultHighlights;
   const infiniteHighlights = [...activeHighlights, ...activeHighlights];
 
+  // FACULTY & SORTING LOGIC
+  const isFac = (kioskResult?.title || "").toLowerCase().includes("facul") || (kioskResult?.title || "").toLowerCase().includes("prof") || (kioskResult?.title || "").toLowerCase().includes("committee");
+  const [sortMode, setSortMode] = useState<"hierarchy" | "az" | "za">(isFac ? "hierarchy" : "az");
+
   useEffect(() => {
     if (screenState === 'presentation') {
       const timer = setInterval(() => setCurrentSlide(s => (s + 1) % activeSlides.length), 6000);
@@ -223,6 +227,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
      if (kioskResult?.isDirectory || kioskResult?.isGallery) {
          setDirMajor(kioskResult.subcategory && kioskResult.subcategory !== 'All' ? kioskResult.subcategory : null); 
          setLoadingDir(true);
+         setSortMode(isFac ? "hierarchy" : "az");
          
          fetch(`${API_URL}/knowledge`).then(res => res.json()).then(data => {
              const rawData = Array.isArray(data) ? data : [];
@@ -284,6 +289,20 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     });
   };
 
+  const getHierarchyRank = (item: any) => {
+      const text = (item.response || "").toLowerCase();
+      const title = (item.display_name || item.keyword || "").toLowerCase();
+      
+      if (text.includes("chancellor") || title.includes("chancellor")) return 1;
+      if ((text.includes("dean") && !text.includes("associate")) || (title.includes("dean") && !title.includes("associate"))) return 2;
+      if (text.includes("associate dean") || title.includes("associate dean")) return 3;
+      if (text.includes("chairman") || text.includes("chairperson") || text.includes("head")) return 4;
+      if (text.includes("coordinator")) return 5;
+      if (text.includes("part-time") || text.includes("part time") || text.includes("guest")) return 7;
+      if (text.includes("faculty") || text.includes("instructor") || text.includes("professor")) return 6;
+      return 8;
+  };
+
   const filteredDirectory = useMemo(() => {
       return dbDirectoryData.filter(item => {
             const major = item.subcategory || "All";
@@ -291,11 +310,28 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
         }).sort((a, b) => {
             const nameA = a.display_name || (a.keyword ? a.keyword.split(',')[0] : "") || "";
             const nameB = b.display_name || (b.keyword ? b.keyword.split(',')[0] : "") || "";
-            return nameA.localeCompare(nameB);
+            
+            if (sortMode === "hierarchy" && isFac) {
+                const rankA = getHierarchyRank(a);
+                const rankB = getHierarchyRank(b);
+                if (rankA !== rankB) return rankA - rankB;
+                return nameA.localeCompare(nameB); // Same rank -> A-Z
+            } else if (sortMode === "za") {
+                return nameB.localeCompare(nameA);
+            } else {
+                return nameA.localeCompare(nameB);
+            }
         });
-  }, [dbDirectoryData, dirMajor]);
+  }, [dbDirectoryData, dirMajor, sortMode, isFac]);
 
   const subCategories = Array.from(new Set(dbDirectoryData.map((d: any) => d.subcategory))).filter(s => s && s !== 'All');
+
+  const sortBtnStyle = (active: boolean) => ({
+      padding: "8px 16px", borderRadius: 16, fontSize: 14, fontWeight: 800, cursor: "pointer", border: "none",
+      background: active ? theme.accent : "transparent",
+      color: active ? (dark ? "#1C1D55" : "#fff") : theme.textMuted,
+      transition: "all 0.2s"
+  });
 
   let itemsToRender: string[] = [];
   if (clusterItems.some(c => c.label === kioskCategory)) {
@@ -372,7 +408,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
             </div>
 
             {/* MARQUEE SANDWICH & HIGHLIGHTS OF THE MONTH */}
-            <div style={{ width: '100%', maxWidth: 680, marginTop: 40, marginBottom: 20, padding: '0 16px' }}>
+            <div style={{ width: '100%', maxWidth: 680, marginTop: 40, marginBottom: 32, padding: '0 16px' }}>
                
                <div className="marquee-container" style={{ background: dark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(166, 1, 18, 0.05)', borderColor: dark ? '#3b82f6' : 'rgba(166, 1, 18, 0.2)', marginBottom: 24 }}>
                   <div className="marquee-text" style={{ color: dark ? '#60a5fa' : '#A60112' }}>#ALABULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #ALABULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp;</div>
@@ -453,13 +489,26 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                   </div>
                 </div>
               ) : kioskResult?.isGallery ? (
-                <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '32px 40px 16px 40px' }}>
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '32px 40px 16px 40px', flexShrink: 0 }}>
                     <button onClick={() => { setKioskResult(null); setScreenState("home"); }} className="back-btn-modern" style={{ background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}><ArrowLeft size={20}/> Back</button>
                     <h2 style={{ fontSize: 32, fontWeight: 800, color: theme.text, margin: 0 }}>{kioskResult?.title.replace('Teachers', 'Professors')} Gallery</h2>
                   </div>
-                  {/* INFINITE SCROLLABLE GALLERY - NO PAGINATION */}
-                  <div style={{ padding: '24px 40px 48px' }}>
+                  
+                  {/* SORT CONTROLS */}
+                  {(!loadingDir && dbDirectoryData.length > 0) && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 40px 16px' }}>
+                         <span style={{ fontSize: 16, color: theme.textMuted, fontWeight: 600 }}>{filteredDirectory.length} images found</span>
+                         <div style={{ display: 'flex', gap: 8, background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)', padding: 4, borderRadius: 20 }}>
+                             {isFac && <button onClick={() => setSortMode("hierarchy")} style={sortBtnStyle(sortMode === "hierarchy")}>Hierarchy</button>}
+                             <button onClick={() => setSortMode("az")} style={sortBtnStyle(sortMode === "az")}>A-Z</button>
+                             <button onClick={() => setSortMode("za")} style={sortBtnStyle(sortMode === "za")}>Z-A</button>
+                         </div>
+                      </div>
+                  )}
+
+                  {/* INFINITE SCROLLABLE GALLERY - NO PAGINATION BUTTONS */}
+                  <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: '0 40px 48px' }}>
                      {loadingDir ? ( <div style={{ display: 'flex', height: 300, alignItems: 'center', justifyContent: 'center' }}><div style={{ transform: 'scale(0.8)' }}><GearboxLoader /></div></div>
                      ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24, width: '100%' }}>
@@ -477,20 +526,36 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                   </div>
                 </div>
               ) : kioskResult?.isDirectory ? (
-                <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '32px 40px 16px 40px' }}>
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '32px 40px 16px 40px', flexShrink: 0 }}>
                     <button onClick={() => { setKioskResult(null); setScreenState("home"); }} className="back-btn-modern" style={{ background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}><ArrowLeft size={20}/> Back</button>
                     <h2 style={{ fontSize: 32, fontWeight: 800, color: theme.text, margin: 0 }}>{kioskResult?.title.replace('Teachers', 'Professors')}</h2>
                   </div>
+                  
+                  {/* SORT CONTROLS */}
+                  {(!dirMajor && subCategories.length > 0) ? null : (
+                      (!loadingDir && dbDirectoryData.length > 0) && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 40px 16px' }}>
+                             <span style={{ fontSize: 16, color: theme.textMuted, fontWeight: 600 }}>{filteredDirectory.length} records found</span>
+                             <div style={{ display: 'flex', gap: 8, background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)', padding: 4, borderRadius: 20 }}>
+                                 {isFac && <button onClick={() => setSortMode("hierarchy")} style={sortBtnStyle(sortMode === "hierarchy")}>Hierarchy</button>}
+                                 <button onClick={() => setSortMode("az")} style={sortBtnStyle(sortMode === "az")}>A-Z</button>
+                                 <button onClick={() => setSortMode("za")} style={sortBtnStyle(sortMode === "za")}>Z-A</button>
+                             </div>
+                          </div>
+                      )
+                  )}
+
                   {/* INFINITE SCROLLABLE FACULTY DIRECTORY - NO NEXT/PREV BUTTONS */}
-                  <div style={{ padding: '20px 40px 48px', display: 'flex', flexDirection: 'column' }}>
+                  <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: '0 40px 48px', display: 'flex', flexDirection: 'column' }}>
                      {!dirMajor && subCategories.length > 0 ? (
                         <>
                           <div style={{ fontSize: 22, fontWeight: 700, color: theme.textMuted, marginBottom: 24, textAlign: 'center' }}>Select a Folder to view {kioskResult.title.replace('Teachers', 'Professors')}</div>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 16 }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'center' }}>
                              {subCategories.map((m, idx) => (
-                               <button key={idx} className="glassy-dir-card" style={{ justifyContent: 'center', padding: '28px', border: 'none', background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)' }} onClick={() => { setDirMajor(m as string); }}>
-                                 <span style={{ color: dark ? theme.accent : theme.cardBorder }}>{getIconForCategory(kioskResult.title, 32)}</span><span style={{ fontSize: 22, fontWeight: 800, color: theme.text }}>{m as string}</span>
+                               <button key={idx} className="glassy-dir-card" style={{ flex: '1 1 calc(50% - 16px)', minWidth: 280, justifyContent: 'center', padding: '24px', border: 'none', background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)' }} onClick={() => { setDirMajor(m as string); }}>
+                                 <span style={{ color: dark ? theme.accent : theme.cardBorder }}>{getIconForCategory(kioskResult.title, 32)}</span>
+                                 <span style={{ fontSize: 20, fontWeight: 800, color: theme.text, whiteSpace: 'normal', textAlign: 'center' }}>{m as string}</span>
                                </button>
                              ))}
                           </div>
@@ -518,7 +583,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                   </div>
                 </div>
               ) : (
-                <div style={{ padding: '48px', display: 'flex', flexDirection: 'column' }}>
+                <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: '48px', display: 'flex', flexDirection: 'column' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 40 }}>
                     <button onClick={() => { setKioskResult(null); setScreenState("home"); }} style={{ background: "transparent", border: "none", color: theme.text, cursor: "pointer", display: "flex", alignItems: "center", marginTop: 4 }}><ArrowLeft size={32} /></button>
                     <h2 style={{ fontSize: 36, fontWeight: 800, margin: 0, color: theme.text, textTransform: 'uppercase', lineHeight: 1.2 }}>{kioskResult?.title}</h2>
