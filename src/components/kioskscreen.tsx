@@ -153,6 +153,17 @@ const getIconForCategory = (cat: string, size = 20) => {
   return <LayoutGrid size={size} />;
 };
 
+// =========================================================
+// OPTIMIZER UTILITY: Forces Cloudinary to serve compressed, fast-loading images
+// =========================================================
+const optimizeImage = (url: string) => {
+    if (!url) return url;
+    if (url.includes('cloudinary.com') && !url.includes('q_auto')) {
+        return url.replace('/upload/', '/upload/q_auto,f_auto/');
+    }
+    return url;
+};
+
 export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, setKioskCategory, kioskResult, setKioskResult, handleKioskSelection, topRightButtons, setFullScreenMedia, setShowCalendar, kioskMapping, screensaverSlides, kioskHighlights }: any) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdfPage, setPdfPage] = useState(1);
@@ -210,6 +221,19 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   ];
   const activeHighlights = (kioskHighlights && kioskHighlights.length > 0) ? kioskHighlights : defaultHighlights;
   const infiniteHighlights = [...activeHighlights, ...activeHighlights];
+
+  // =========================================================
+  // PRELOADER: Silently downloads and caches all images in the background!
+  // =========================================================
+  useEffect(() => {
+     const preloadUrls = [ ...activeSlides, ...infiniteHighlights.map(h => h.img) ];
+     preloadUrls.forEach(url => {
+         if (url) {
+             const img = new window.Image();
+             img.src = optimizeImage(url);
+         }
+     });
+  }, [activeSlides, infiniteHighlights]);
 
   // FACULTY & SORTING LOGIC
   const isFac = (kioskResult?.title || "").toLowerCase().includes("facul") || (kioskResult?.title || "").toLowerCase().includes("prof") || (kioskResult?.title || "").toLowerCase().includes("committee");
@@ -360,7 +384,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
        <>
          <GlobalKioskStyles dark={dark} theme={theme} />
          <div className="screensaver-fullscreen presentation-mode">
-            <img key={currentSlide} src={activeSlides[currentSlide]} className="slide-enter" style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute' }} />
+            <img key={currentSlide} src={optimizeImage(activeSlides[currentSlide])} className="slide-enter" style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute' }} />
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 300, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)', zIndex: 10, pointerEvents: 'none' }} />
             <div style={{ position: 'absolute', bottom: 120, zIndex: 20 }}>
                <button onClick={goHome} className="kiosk-pulse-btn" style={{ padding: '24px 64px', borderRadius: 100, fontSize: 32, fontWeight: 900, cursor: 'pointer', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>Interact with inCITe</button>
@@ -408,7 +432,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
             </div>
 
             {/* MARQUEE SANDWICH & HIGHLIGHTS OF THE MONTH */}
-            <div style={{ width: '100%', maxWidth: 680, marginTop: 40, marginBottom: 32, padding: '0 16px' }}>
+            <div style={{ width: '100%', maxWidth: 680, marginTop: 40, marginBottom: 20, padding: '0 16px' }}>
                
                <div className="marquee-container" style={{ background: dark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(166, 1, 18, 0.05)', borderColor: dark ? '#3b82f6' : 'rgba(166, 1, 18, 0.2)', marginBottom: 24 }}>
                   <div className="marquee-text" style={{ color: dark ? '#60a5fa' : '#A60112' }}>#ALABULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #ALABULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp;</div>
@@ -420,7 +444,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                   <div className="carousel-track">
                      {infiniteHighlights.map((h, i) => (
                         <div key={i} style={{ minWidth: 260, height: 160, borderRadius: 20, background: theme.card, border: `1px solid ${theme.border}`, overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
-                           <img src={h.img} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7 }} />
+                           <img src={optimizeImage(h.img)} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7 }} />
                            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)' }}><div style={{ color: '#fff', fontSize: 16, fontWeight: 800 }}>{h.title}</div><div style={{ color: theme.accent, fontSize: 12, fontWeight: 700 }}>{h.date}</div></div>
                         </div>
                      ))}
@@ -515,7 +539,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                            {filteredDirectory.length > 0 ? filteredDirectory.map((item) => (
                               <div key={item.id} className="glassy-dir-card" style={{ padding: 16, flexDirection: 'column', alignItems: 'flex-start', cursor: item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? 'zoom-in' : 'default' }} onClick={() => { if (item.picture_url && !item.picture_url.toLowerCase().includes('.pdf')) setFullScreenMedia(item.picture_url); else if (item.picture_url && item.picture_url.toLowerCase().includes('.pdf')) window.open(item.picture_url, '_blank'); }}>
                                  <div style={{ width: '100%', height: 220, borderRadius: 12, background: dark ? 'rgba(0,0,0,0.3)' : '#fff', border: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', marginBottom: 12 }}>
-                                    {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={item.picture_url} alt="Gallery" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: dark ? theme.accent : theme.cardBorder }}><FileText size={40} /></span>}
+                                    {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={optimizeImage(item.picture_url)} alt="Gallery" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: dark ? theme.accent : theme.cardBorder }}><FileText size={40} /></span>}
                                  </div>
                                  <span style={{ fontSize: 18, fontWeight: 800, color: theme.text, lineHeight: 1.3 }}>{item.display_name || (item.keyword ? item.keyword.split(',')[0] : "")}</span>
                                  {item.response && <span style={{ fontSize: 14, color: theme.textMuted, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5, marginTop: 4 }}>{item.response}</span>}
@@ -567,7 +591,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                               {filteredDirectory.length > 0 ? filteredDirectory.map((item) => (
                                  <div key={item.id} className="glassy-dir-card" style={{ padding: 24 }} onClick={() => handleKioskSelection(kioskResult.category || kioskResult.title, item.display_name || (item.keyword ? item.keyword.split(',')[0] : ""))}>
                                     <div style={{ width: 80, height: 80, borderRadius: '50%', background: dark ? 'rgba(0,0,0,0.3)' : '#fff', border: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
-                                       {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={item.picture_url} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: dark ? theme.accent : theme.cardBorder }}>{getIconForCategory(kioskResult.title, 40)}</span>}
+                                       {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={optimizeImage(item.picture_url)} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: dark ? theme.accent : theme.cardBorder }}>{getIconForCategory(kioskResult.title, 40)}</span>}
                                     </div>
                                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start', textAlign: 'left' }}>
                                        <span style={{ fontSize: 22, fontWeight: 800, color: theme.text }}>{item.display_name || (item.keyword ? item.keyword.split(',')[0] : "")}</span>
@@ -592,7 +616,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 20, marginTop: 60 }}><Bot color={theme.accent} size={80} className="animate-pulse" /><span style={{ fontSize: 26, color: theme.textMuted, fontWeight: 700 }}>inCITe is fetching details...</span></div>
                   ) : (
                     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      {kioskResult?.image && (<div style={{ background: '#fff', borderRadius: 32, padding: 24, marginBottom: 40, boxShadow: '0 12px 32px rgba(0,0,0,0.2)' }}><img src={kioskResult.image} alt={`${kioskResult.title} Logo`} style={{ width: 240, height: 240, objectFit: 'contain' }} /></div>)}
+                      {kioskResult?.image && (<div style={{ background: '#fff', borderRadius: 32, padding: 24, marginBottom: 40, boxShadow: '0 12px 32px rgba(0,0,0,0.2)' }}><img src={optimizeImage(kioskResult.image)} alt={`${kioskResult.title} Logo`} style={{ width: 240, height: 240, objectFit: 'contain' }} /></div>)}
                       <div style={{ fontSize: 20, lineHeight: 1.7, color: theme.text, width: '100%', whiteSpace: 'pre-wrap', paddingBottom: 20, fontWeight: 500 }}>{formatText(kioskResult?.content)}</div>
                       
                       {(() => {
