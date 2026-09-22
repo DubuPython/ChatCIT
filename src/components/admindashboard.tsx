@@ -54,14 +54,12 @@ export function AdminPanel({
   const [draftHighlights, setDraftHighlights] = useState<any[]>([]);
   const [isDraftingKiosk, setIsDraftingKiosk] = useState(false);
 
-  // SAFE SYNCING: Prevent backend corruption from crashing the editor
+  // SAFE SYNCING
   useEffect(() => {
      if (!isDraftingKiosk) {
          setDraftMapping(kioskMapping && typeof kioskMapping === 'object' ? kioskMapping : {});
-         
          const safeScreensavers = Array.isArray(screensaverSlides) ? screensaverSlides : [];
          setDraftScreensaver(safeScreensavers.map((s: any) => typeof s === 'string' ? s : s.img).filter(Boolean));
-         
          setDraftHighlights(Array.isArray(kioskHighlights) ? kioskHighlights : []);
      }
   }, [kioskMapping, screensaverSlides, kioskHighlights, isDraftingKiosk]);
@@ -113,7 +111,6 @@ export function AdminPanel({
       const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
       const uploadedData = await res.json();
       if (uploadedData.secure_url) { 
-          // FIX: Use functional state update to prevent stale closures wiping data
           setForm(prev => ({ ...prev, picture_url: uploadedData.secure_url })); 
           showToast("Image uploaded successfully!", "success"); 
       } 
@@ -122,9 +119,10 @@ export function AdminPanel({
   };
 
   const handleSaveKnowledge = async (id?: number) => {
-    if (!form.keyword.trim() || !form.response.trim()) { showToast("At least one Keyword and a Response are required.", "error"); return; }
+    if (!form.keyword.trim()) { showToast("At least one Keyword is required.", "error"); return; }
     try {
-      const finalResponse = form.qr_link.trim() ? `${form.response.trim()}\n\n${form.qr_link.trim()}` : form.response.trim();
+      const baseResponse = form.response ? form.response.trim() : "";
+      const finalResponse = form.qr_link.trim() ? (baseResponse ? `${baseResponse}\n\n${form.qr_link.trim()}` : form.qr_link.trim()) : baseResponse;
       const payload = { ...form, response: finalResponse };
 
       const res = await fetch(id ? `${API_URL}/knowledge/${id}` : `${API_URL}/knowledge`, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -289,7 +287,7 @@ export function AdminPanel({
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span style={{ fontSize: 11, color: textMuted }}>Official Display Name (Optional)</span>
+        <span style={{ fontSize: 11, color: textMuted }}>Official Display Name (Optional. Type "-" to leave completely blank on Kiosk)</span>
         <input value={form.display_name || ""} onChange={e => setForm({...form, display_name: e.target.value})} placeholder="e.g. Ms. Vinna Nina O. Ramos" style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -299,7 +297,7 @@ export function AdminPanel({
           <input value={keywordInput} onChange={e => setKeywordInput(e.target.value)} onKeyDown={handleAddKeyword} placeholder={keywordsList.length === 0 ? "e.g. grading system, passing score" : "Add another..."} style={{ flex: 1, minWidth: 120, border: "none", background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
         </div>
       </div>
-      <textarea value={form.response} onChange={(e) => setForm({ ...form, response: e.target.value })} placeholder="Bot Response / Factual Rules..." rows={4} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", resize: "vertical", fontSize: 13 }} />
+      <textarea value={form.response} onChange={(e) => setForm({ ...form, response: e.target.value })} placeholder="Bot Response / Factual Rules (Optional. Type '-' to hide text)..." rows={4} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", resize: "vertical", fontSize: 13 }} />
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <input value={form.picture_url} onChange={(e) => setForm({ ...form, picture_url: e.target.value })} placeholder="Picture URL" style={{ flex: 1, minWidth: 160, padding: "8px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: "inherit", outline: "none", fontSize: 13 }} />
         <label style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 12px", borderRadius: 8, background: dark ? "rgba(255,255,255,0.1)" : "#f3f4f6", border: `1px solid ${border}`, cursor: uploadingImage ? "wait" : "pointer", fontWeight: 500, fontSize: 12, whiteSpace: "nowrap", opacity: uploadingImage ? 0.5 : 1 }}>
@@ -711,7 +709,9 @@ export function AdminPanel({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredData.map((row: any) => (
+                  {filteredData.map((row: any) => {
+                    const titleText = row.display_name === "-" ? "" : (row.display_name || (row.keyword ? row.keyword.split(',')[0] : ""));
+                    return (
                     <React.Fragment key={row.id}>
                       <tr style={{ borderBottom: editingId === row.id ? 'none' : `1px solid ${border}`, background: editingId === row.id ? (dark ? "rgba(255,255,255,0.02)" : "#f9fafb") : "transparent", transition: "background 0.2s" }}>
                         <td style={{ padding: "10px 12px", verticalAlign: "top" }}>
@@ -719,13 +719,17 @@ export function AdminPanel({
                             {(row.category || "Handbook").replace('Teachers', 'Professors')}
                             {row.subcategory && row.subcategory !== 'All' && (<span style={{ color: textMuted }}> &rsaquo; {row.subcategory}</span>)}
                           </div>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: dark ? '#fff' : '#000', marginBottom: 6 }}>{row.display_name || row.keyword.split(',')[0]}</div>
+                          {titleText ? (
+                              <div style={{ fontSize: 14, fontWeight: 700, color: dark ? '#fff' : '#000', marginBottom: 6 }}>{titleText}</div>
+                          ) : (
+                              <div style={{ fontSize: 12, fontStyle: 'italic', color: textMuted, marginBottom: 6 }}>[Hidden Display Name]</div>
+                          )}
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                             {row.keyword.split(',').map((kw: string, idx: number) => kw.trim() ? (<span key={idx} style={{ background: dark ? "rgba(255,255,255,0.08)" : "#f1f5f9", color: dark ? "#e2e8f0" : "#334155", padding: "2px 6px", borderRadius: 4, fontSize: 11, fontWeight: 500, border: `1px solid ${border}`, whiteSpace: "nowrap" }}>{kw.trim()}</span>) : null)}
                           </div>
                         </td>
                         <td style={{ padding: "10px 12px", verticalAlign: "top", opacity: 0.9, lineHeight: 1.4 }}>
-                          <div style={{ marginBottom: row.picture_url ? 6 : 0 }}>{row.response}</div>
+                          <div style={{ marginBottom: row.picture_url ? 6 : 0 }}>{row.response === "-" ? <span style={{ color: textMuted, fontStyle: 'italic', fontSize: 12 }}>[Hidden Response Text]</span> : row.response}</div>
                           {row.picture_url && (row.picture_url.toLowerCase().includes('.pdf') ? (<a href={row.picture_url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#4285f4", textDecoration: "none", display: "inline-flex", alignItems: "center", padding: "2px 6px", background: dark ? "rgba(255,255,255,0.08)" : "#f3f4f6", borderRadius: 4, fontWeight: 500 }}>📄 Attached PDF</a>) : (<button onClick={() => setFullScreenMedia(row.picture_url!)} style={{ display: "inline-block", background: "none", border: "none", padding: 0, cursor: "zoom-in", marginTop: 2 }} title="Click to enlarge"><img src={row.picture_url} alt="Attached" style={{ height: 36, borderRadius: 4, border: `1px solid ${border}`, objectFit: 'cover' }} /></button>))}
                         </td>
                         <td style={{ padding: "10px 12px", verticalAlign: "top", textAlign: "right", whiteSpace: "nowrap" }}>
@@ -760,7 +764,7 @@ export function AdminPanel({
                         </tr>
                       )}
                     </React.Fragment>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             )}
@@ -791,9 +795,9 @@ export function AdminPanel({
                     <tr key={row.id} style={{ borderBottom: `1px solid ${border}` }}>
                       <td style={{ padding: "10px 12px", verticalAlign: "top", fontWeight: 700, color: "#4285f4" }}>#{index + 1}</td>
                       <td style={{ padding: "10px 12px", verticalAlign: "top" }}>
-                        <div style={{ fontWeight: 600, color: dark ? '#fff' : '#000' }}>{row.display_name || row.keyword.split(',')[0]}</div>
+                        <div style={{ fontWeight: 600, color: dark ? '#fff' : '#000' }}>{row.display_name && row.display_name !== "-" ? row.display_name : row.keyword.split(',')[0]}</div>
                       </td>
-                      <td style={{ padding: "10px 12px", verticalAlign: "top", opacity: 0.9, lineHeight: 1.4 }}><div style={{ maxHeight: 36, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{row.response}</div></td>
+                      <td style={{ padding: "10px 12px", verticalAlign: "top", opacity: 0.9, lineHeight: 1.4 }}><div style={{ maxHeight: 36, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{row.response === "-" ? "[Hidden]" : row.response}</div></td>
                       <td style={{ padding: "10px 12px", verticalAlign: "top", textAlign: "right", fontWeight: 600, fontSize: 14 }}>{row.usage_count || 0}</td>
                     </tr>
                   ))}
