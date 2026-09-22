@@ -153,9 +153,6 @@ const getIconForCategory = (cat: string, size = 20) => {
   return <LayoutGrid size={size} />;
 };
 
-// =========================================================
-// OPTIMIZER UTILITY: Forces Cloudinary to serve compressed, fast-loading images
-// =========================================================
 const optimizeImage = (url: string) => {
     if (!url) return url;
     if (url.includes('cloudinary.com') && !url.includes('q_auto')) {
@@ -222,16 +219,10 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const activeHighlights = (kioskHighlights && kioskHighlights.length > 0) ? kioskHighlights : defaultHighlights;
   const infiniteHighlights = [...activeHighlights, ...activeHighlights];
 
-  // =========================================================
-  // PRELOADER: Silently downloads and caches all images in the background!
-  // =========================================================
   useEffect(() => {
      const preloadUrls = [ ...activeSlides, ...infiniteHighlights.map(h => h.img) ];
      preloadUrls.forEach(url => {
-         if (url) {
-             const img = new window.Image();
-             img.src = optimizeImage(url);
-         }
+         if (url) { const img = new window.Image(); img.src = optimizeImage(url); }
      });
   }, [activeSlides, infiniteHighlights]);
 
@@ -332,14 +323,14 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
             const major = item.subcategory || "All";
             return dirMajor ? major.toLowerCase() === dirMajor.toLowerCase() : true;
         }).sort((a, b) => {
-            const nameA = a.display_name || (a.keyword ? a.keyword.split(',')[0] : "") || "";
-            const nameB = b.display_name || (b.keyword ? b.keyword.split(',')[0] : "") || "";
+            const nameA = a.display_name === "-" ? "" : (a.display_name || (a.keyword ? a.keyword.split(',')[0] : ""));
+            const nameB = b.display_name === "-" ? "" : (b.display_name || (b.keyword ? b.keyword.split(',')[0] : ""));
             
             if (sortMode === "hierarchy" && isFac) {
                 const rankA = getHierarchyRank(a);
                 const rankB = getHierarchyRank(b);
                 if (rankA !== rankB) return rankA - rankB;
-                return nameA.localeCompare(nameB); // Same rank -> A-Z
+                return nameA.localeCompare(nameB);
             } else if (sortMode === "za") {
                 return nameB.localeCompare(nameA);
             } else {
@@ -536,15 +527,18 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                      {loadingDir ? ( <div style={{ display: 'flex', height: 300, alignItems: 'center', justifyContent: 'center' }}><div style={{ transform: 'scale(0.8)' }}><GearboxLoader /></div></div>
                      ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24, width: '100%' }}>
-                           {filteredDirectory.length > 0 ? filteredDirectory.map((item) => (
+                           {filteredDirectory.length > 0 ? filteredDirectory.map((item) => {
+                              const titleText = item.display_name === "-" ? "" : (item.display_name || (item.keyword ? item.keyword.split(',')[0] : ""));
+                              const descText = (!item.response || item.response.trim() === "" || item.response === "-") ? "" : item.response;
+                              return (
                               <div key={item.id} className="glassy-dir-card" style={{ padding: 16, flexDirection: 'column', alignItems: 'flex-start', cursor: item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? 'zoom-in' : 'default' }} onClick={() => { if (item.picture_url && !item.picture_url.toLowerCase().includes('.pdf')) setFullScreenMedia(item.picture_url); else if (item.picture_url && item.picture_url.toLowerCase().includes('.pdf')) window.open(item.picture_url, '_blank'); }}>
                                  <div style={{ width: '100%', height: 220, borderRadius: 12, background: dark ? 'rgba(0,0,0,0.3)' : '#fff', border: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', marginBottom: 12 }}>
                                     {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={optimizeImage(item.picture_url)} alt="Gallery" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: dark ? theme.accent : theme.cardBorder }}><FileText size={40} /></span>}
                                  </div>
-                                 <span style={{ fontSize: 18, fontWeight: 800, color: theme.text, lineHeight: 1.3 }}>{item.display_name || (item.keyword ? item.keyword.split(',')[0] : "")}</span>
-                                 {item.response && <span style={{ fontSize: 14, color: theme.textMuted, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5, marginTop: 4 }}>{item.response}</span>}
+                                 {titleText && <span style={{ fontSize: 18, fontWeight: 800, color: theme.text, lineHeight: 1.3 }}>{titleText}</span>}
+                                 {descText && <span style={{ fontSize: 14, color: theme.textMuted, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5, marginTop: 4 }}>{descText}</span>}
                               </div>
-                           )) : (<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: theme.textMuted, fontWeight: 600, padding: 40, gridColumn: '1 / -1' }}>No images found in this gallery.</div>)}
+                           )})}
                         </div>
                      )}
                   </div>
@@ -588,19 +582,24 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                         loadingDir ? ( <div style={{ display: 'flex', height: 300, alignItems: 'center', justifyContent: 'center' }}><div style={{ transform: 'scale(0.8)' }}><GearboxLoader /></div></div>
                         ) : (
                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 16, width: '100%' }}>
-                              {filteredDirectory.length > 0 ? filteredDirectory.map((item) => (
-                                 <div key={item.id} className="glassy-dir-card" style={{ padding: 24 }} onClick={() => handleKioskSelection(kioskResult.category || kioskResult.title, item.display_name || (item.keyword ? item.keyword.split(',')[0] : ""))}>
+                              {filteredDirectory.length > 0 ? filteredDirectory.map((item) => {
+                                 const titleText = item.display_name === "-" ? "" : (item.display_name || (item.keyword ? item.keyword.split(',')[0] : ""));
+                                 const descText = (!item.response || item.response.trim() === "" || item.response === "-") ? "" : item.response;
+                                 const searchTarget = item.display_name && item.display_name !== "-" ? item.display_name : (item.keyword ? item.keyword.split(',')[0] : "");
+                                 return (
+                                 <div key={item.id} className="glassy-dir-card" style={{ padding: 24 }} onClick={() => handleKioskSelectionInternal(kioskResult.category || kioskResult.title, searchTarget)}>
                                     <div style={{ width: 80, height: 80, borderRadius: '50%', background: dark ? 'rgba(0,0,0,0.3)' : '#fff', border: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
                                        {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={optimizeImage(item.picture_url)} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: dark ? theme.accent : theme.cardBorder }}>{getIconForCategory(kioskResult.title, 40)}</span>}
                                     </div>
                                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start', textAlign: 'left' }}>
-                                       <span style={{ fontSize: 22, fontWeight: 800, color: theme.text }}>{item.display_name || (item.keyword ? item.keyword.split(',')[0] : "")}</span>
+                                       {titleText && <span style={{ fontSize: 22, fontWeight: 800, color: theme.text }}>{titleText}</span>}
                                        {item.subcategory && item.subcategory !== "All" && (<span style={{ fontSize: 16, fontWeight: 700, color: dark ? theme.accent : theme.cardBorder }}>{item.subcategory}</span>)}
-                                       <span style={{ fontSize: 15, color: theme.textMuted, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5 }}>{item.response}</span>
+                                       {descText && <span style={{ fontSize: 15, color: theme.textMuted, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5 }}>{descText}</span>}
                                     </div>
                                     <ChevronRight size={28} color={theme.textMuted} style={{ flexShrink: 0 }} />
                                  </div>
-                              )) : (<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: theme.textMuted, fontWeight: 600, padding: 40 }}>No records found.</div>)}
+                              )})}
+                              {filteredDirectory.length === 0 && (<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: theme.textMuted, fontWeight: 600, padding: 40 }}>No records found.</div>)}
                            </div>
                         )
                      )}
@@ -610,14 +609,14 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                 <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: '48px', display: 'flex', flexDirection: 'column' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 40 }}>
                     <button onClick={() => { setKioskResult(null); setScreenState("home"); }} style={{ background: "transparent", border: "none", color: theme.text, cursor: "pointer", display: "flex", alignItems: "center", marginTop: 4 }}><ArrowLeft size={32} /></button>
-                    <h2 style={{ fontSize: 36, fontWeight: 800, margin: 0, color: theme.text, textTransform: 'uppercase', lineHeight: 1.2 }}>{kioskResult?.title}</h2>
+                    <h2 style={{ fontSize: 36, fontWeight: 800, margin: 0, color: theme.text, textTransform: 'uppercase', lineHeight: 1.2 }}>{kioskResult?.title === "-" ? "" : kioskResult?.title}</h2>
                   </div>
                   {kioskResult?.loading ? (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 20, marginTop: 60 }}><Bot color={theme.accent} size={80} className="animate-pulse" /><span style={{ fontSize: 26, color: theme.textMuted, fontWeight: 700 }}>inCITe is fetching details...</span></div>
                   ) : (
                     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       {kioskResult?.image && (<div style={{ background: '#fff', borderRadius: 32, padding: 24, marginBottom: 40, boxShadow: '0 12px 32px rgba(0,0,0,0.2)' }}><img src={optimizeImage(kioskResult.image)} alt={`${kioskResult.title} Logo`} style={{ width: 240, height: 240, objectFit: 'contain' }} /></div>)}
-                      <div style={{ fontSize: 20, lineHeight: 1.7, color: theme.text, width: '100%', whiteSpace: 'pre-wrap', paddingBottom: 20, fontWeight: 500 }}>{formatText(kioskResult?.content)}</div>
+                      {kioskResult?.content && kioskResult.content !== "-" && <div style={{ fontSize: 20, lineHeight: 1.7, color: theme.text, width: '100%', whiteSpace: 'pre-wrap', paddingBottom: 20, fontWeight: 500 }}>{formatText(kioskResult?.content)}</div>}
                       
                       {(() => {
                          const urlMatch = kioskResult?.content?.match(/(https?:\/\/[^\s]+[^.,;:"'\s])/);
