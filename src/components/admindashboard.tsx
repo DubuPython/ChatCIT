@@ -22,7 +22,8 @@ export function AdminPanel({
   layoutConfig, saveLayoutConfig, syncTrigger,
   kioskMapping = {}, setKioskMapping,
   screensaverSlides = [], setScreensaverSlides,
-  kioskHighlights = [], setKioskHighlights
+  kioskHighlights = [], setKioskHighlights,
+  kioskEventPopup = {}, setKioskEventPopup
 }: any) {
   
   const CLOUD_NAME = "xjzuq0fq"; const UPLOAD_PRESET = "chatcit_preset"; 
@@ -52,6 +53,7 @@ export function AdminPanel({
   const [draftMapping, setDraftMapping] = useState<Record<string, string[]>>({});
   const [draftScreensaver, setDraftScreensaver] = useState<string[]>([]);
   const [draftHighlights, setDraftHighlights] = useState<any[]>([]);
+  const [draftEventPopup, setDraftEventPopup] = useState<any>({ enabled: false, title: "", subtitle: "", img: "" });
   const [isDraftingKiosk, setIsDraftingKiosk] = useState(false);
 
   // SAFE SYNCING
@@ -61,8 +63,9 @@ export function AdminPanel({
          const safeScreensavers = Array.isArray(screensaverSlides) ? screensaverSlides : [];
          setDraftScreensaver(safeScreensavers.map((s: any) => typeof s === 'string' ? s : s.img).filter(Boolean));
          setDraftHighlights(Array.isArray(kioskHighlights) ? kioskHighlights : []);
+         setDraftEventPopup(kioskEventPopup && typeof kioskEventPopup === 'object' ? { enabled: false, title: "", subtitle: "", img: "", ...kioskEventPopup } : { enabled: false, title: "", subtitle: "", img: "" });
      }
-  }, [kioskMapping, screensaverSlides, kioskHighlights, isDraftingKiosk]);
+  }, [kioskMapping, screensaverSlides, kioskHighlights, kioskEventPopup, isDraftingKiosk]);
 
   const fetchDashboardData = async () => {
     setIsSyncing(true);
@@ -222,6 +225,16 @@ export function AdminPanel({
         if (setScreensaverSlides) setScreensaverSlides(draftScreensaver);
         setIsDraftingKiosk(false); showToast("Screensaver saved to cloud!", "success");
      } catch(e) { showToast("Failed to save screensaver.", "error"); }
+  };
+
+  const handleSaveEventPopup = async () => {
+     try {
+        showToast("Saving Event Popup...", "info");
+        const res = await fetch(`${API_URL}/settings/kiosk_event_popup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: JSON.stringify(draftEventPopup) }) });
+        if (!res.ok) throw new Error("Server error");
+        if (setKioskEventPopup) setKioskEventPopup(draftEventPopup);
+        setIsDraftingKiosk(false); showToast("Event Popup configuration saved!", "success");
+     } catch(e) { showToast("Failed to save Event Popup.", "error"); }
   };
 
   const addDraftCat = (cluster: string, cat: string) => { 
@@ -503,6 +516,56 @@ export function AdminPanel({
                         } catch(err) { showToast("Upload failed", "error"); } finally { setUploadingImage(false); e.target.value = ''; }
                     }} />
                  </label>
+              </div>
+           </div>
+
+           {/* 4. EVENT POPUP EDITOR */}
+           <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, padding: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+                 <div>
+                    <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Event Popup</h3>
+                    <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Configure a prominent popup that appears on the kiosk screen (e.g. Event of the Week/Month).</p>
+                 </div>
+                 <button onClick={handleSaveEventPopup} style={{ background: '#10b981', color: '#fff', padding: '10px 20px', borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle size={16} /> Save Popup</button>
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, background: dark ? 'rgba(0,0,0,0.2)' : '#f9fafb', borderRadius: 12, border: `1px solid ${border}`, padding: 20 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={draftEventPopup.enabled || false} onChange={e => { setDraftEventPopup({...draftEventPopup, enabled: e.target.checked}); setIsDraftingKiosk(true); }} style={{ width: 18, height: 18, cursor: 'pointer' }} />
+                      <span style={{ fontSize: 15, fontWeight: 700, color: textPrimary }}>Enable Event Popup</span>
+                  </label>
+                  
+                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 250, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          <input value={draftEventPopup.title || ""} onChange={e => { setDraftEventPopup({...draftEventPopup, title: e.target.value}); setIsDraftingKiosk(true); }} placeholder="Popup Title (e.g. Event of the Week)" style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${border}`, background: 'transparent', color: textPrimary, fontSize: 14, outline: 'none', fontWeight: 600 }} />
+                          <textarea value={draftEventPopup.subtitle || ""} onChange={e => { setDraftEventPopup({...draftEventPopup, subtitle: e.target.value}); setIsDraftingKiosk(true); }} placeholder="Short description or Date..." rows={3} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${border}`, background: 'transparent', color: textPrimary, fontSize: 14, outline: 'none', resize: 'vertical' }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 200 }}>
+                          {draftEventPopup.img ? (
+                              <div style={{ position: 'relative', width: '100%', height: 140, borderRadius: 8, overflow: 'hidden', border: `1px solid ${border}` }}>
+                                  <button onClick={() => { setDraftEventPopup({...draftEventPopup, img: ""}); setIsDraftingKiosk(true); }} style={{ position: "absolute", top: 8, right: 8, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}><X size={12}/></button>
+                                  <img src={draftEventPopup.img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              </div>
+                          ) : (
+                              <label style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', borderRadius: 8, border: `1px dashed ${border}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 140, cursor: uploadingImage ? "wait" : "pointer", gap: 8 }}>
+                                  <UploadCloud size={28} color={textMuted} />
+                                  <span style={{ fontSize: 12, color: textMuted, fontWeight: 600 }}>{uploadingImage ? "Uploading..." : "Upload Banner Image"}</span>
+                                  <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingImage} onChange={async (e) => {
+                                      const file = e.target.files?.[0]; if (!file) return; setUploadingImage(true);
+                                      const formData = new FormData(); formData.append("file", file); formData.append("upload_preset", UPLOAD_PRESET); formData.append("cloud_name", CLOUD_NAME);
+                                      try {
+                                         const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
+                                         const data = await res.json();
+                                         if (data.secure_url) {
+                                            setDraftEventPopup({...draftEventPopup, img: data.secure_url});
+                                            setIsDraftingKiosk(true);
+                                         } else { showToast(`Upload error`, "error"); }
+                                      } catch(err) { showToast("Upload failed", "error"); } finally { setUploadingImage(false); e.target.value = ''; }
+                                  }} />
+                              </label>
+                          )}
+                      </div>
+                  </div>
               </div>
            </div>
         </div>
