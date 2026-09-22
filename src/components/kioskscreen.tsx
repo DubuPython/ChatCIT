@@ -101,7 +101,6 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     }
     @keyframes marquee { 0% { transform: translateX(50%); } 100% { transform: translateX(-100%); } }
     
-    /* INFINITE CAROUSEL ANIMATIONS */
     .carousel-container {
        width: 100%; overflow: hidden; position: relative;
        -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
@@ -131,13 +130,26 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     .back-btn-modern:active { transform: scale(0.92); }
 
     .kiosk-detail-card {
-       width: 90%; max-width: 860px; height: calc(100% - 20px); max-height: 84vh;
+       width: 90%; max-width: 860px; min-height: 800px;
        background: ${dark ? 'rgba(18, 87, 172, 0.15)' : 'rgba(255,255,255,0.85)'};
        border-radius: 32px; border: 1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(166, 1, 18, 0.2)'}; display: flex; flex-direction: column; box-shadow: 0 30px 60px rgba(0,0,0,0.3);
-       overflow: hidden; margin-bottom: 40px; z-index: 10; backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px);
+       margin-bottom: 40px; z-index: 10; backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px);
     }
     .kiosk-detail-card.is-pdf { height: 1050px !important; max-height: 1050px !important; min-height: 1050px !important; padding: 0 !important; flex: 0 0 1050px !important; overflow: hidden; }
     .slide-enter { animation: fadeIn 1s ease-in-out forwards; }
+
+    /* EVENT POPUP STYLES */
+    .event-popup-overlay {
+       position: fixed; inset: 0; z-index: 999999; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+       display: flex; align-items: center; justify-content: center; padding: 32px;
+       animation: fadeIn 0.3s ease;
+    }
+    .event-popup-card {
+       width: 100%; max-width: 580px; background: ${dark ? '#1c1b22' : '#fff'};
+       border-radius: 28px; border: 1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
+       box-shadow: 0 30px 60px rgba(0,0,0,0.4); display: flex; flex-direction: column; overflow: hidden;
+       animation: slideUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); position: relative;
+    }
   `}</style>
 );
 
@@ -161,7 +173,7 @@ const optimizeImage = (url: string) => {
     return url;
 };
 
-export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, setKioskCategory, kioskResult, setKioskResult, handleKioskSelection, topRightButtons, setFullScreenMedia, setShowCalendar, kioskMapping, screensaverSlides, kioskHighlights }: any) => {
+export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, setKioskCategory, kioskResult, setKioskResult, handleKioskSelection, topRightButtons, setFullScreenMedia, setShowCalendar, kioskMapping, screensaverSlides, kioskHighlights, kioskEventPopup }: any) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdfPage, setPdfPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -174,6 +186,9 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const [dirMajor, setDirMajor] = useState<string | null>(null);
 
   const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // EVENT POPUP STATE
+  const [dismissedPopup, setDismissedPopup] = useState(false);
   
   const theme = dark ? {
     bg: '#1C1D55', card: '#1257AC', accent: '#FDB51C', text: '#ffffff', textMuted: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.15)'
@@ -219,23 +234,26 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const activeHighlights = (kioskHighlights && kioskHighlights.length > 0) ? kioskHighlights : defaultHighlights;
   const infiniteHighlights = [...activeHighlights, ...activeHighlights];
 
+  // BACKGROUND IMAGE PRELOADER
   useEffect(() => {
-     const preloadUrls = [ ...activeSlides, ...infiniteHighlights.map(h => h.img) ];
+     const preloadUrls = [ ...activeSlides, ...infiniteHighlights.map(h => h.img), kioskEventPopup?.img ];
      preloadUrls.forEach(url => {
          if (url) { const img = new window.Image(); img.src = optimizeImage(url); }
      });
-  }, [activeSlides, infiniteHighlights]);
+  }, [activeSlides, infiniteHighlights, kioskEventPopup]);
+
+  // RESET POPUP WHEN SCREEN GOES BACK TO PRESENTATION (IDLE)
+  useEffect(() => {
+    if (screenState === 'presentation') {
+      const timer = setInterval(() => setCurrentSlide(s => (s + 1) % activeSlides.length), 6000);
+      setDismissedPopup(false); // Reset popup so the next user sees it!
+      return () => clearInterval(timer);
+    }
+  }, [screenState, activeSlides.length]);
 
   // FACULTY & SORTING LOGIC
   const isFac = (kioskResult?.title || "").toLowerCase().includes("facul") || (kioskResult?.title || "").toLowerCase().includes("prof") || (kioskResult?.title || "").toLowerCase().includes("committee");
   const [sortMode, setSortMode] = useState<"hierarchy" | "az" | "za">(isFac ? "hierarchy" : "az");
-
-  useEffect(() => {
-    if (screenState === 'presentation') {
-      const timer = setInterval(() => setCurrentSlide(s => (s + 1) % activeSlides.length), 6000);
-      return () => clearInterval(timer);
-    }
-  }, [screenState, activeSlides.length]);
 
   useEffect(() => {
      if (kioskResult?.isPdf) setPdfPage(1);
@@ -399,6 +417,25 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
         </div>
         <div style={{ position: "absolute", top: 24, right: 32, zIndex: 100 }}>{topRightButtons}</div>
 
+        {/* EVENT POPUP MODAL */}
+        {(screenState === "home" && kioskEventPopup?.enabled && !dismissedPopup) && (
+          <div className="event-popup-overlay" onClick={() => setDismissedPopup(true)}>
+            <div className="event-popup-card" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setDismissedPopup(true)} style={{ position: "absolute", top: 16, right: 16, background: "rgba(0,0,0,0.5)", border: "none", color: "#fff", width: 36, height: 36, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}>
+                <X size={20} />
+              </button>
+              {kioskEventPopup.img && (
+                <img src={optimizeImage(kioskEventPopup.img)} style={{ width: "100%", maxHeight: 360, objectFit: "cover" }} />
+              )}
+              <div style={{ padding: "32px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                {kioskEventPopup.title && <h2 style={{ margin: "0 0 12px 0", fontSize: 28, fontWeight: 800, color: dark ? "#fff" : "#000", lineHeight: 1.2 }}>{kioskEventPopup.title}</h2>}
+                {kioskEventPopup.subtitle && <p style={{ margin: 0, fontSize: 16, color: theme.textMuted, lineHeight: 1.5 }}>{kioskEventPopup.subtitle}</p>}
+                <button onClick={() => setDismissedPopup(true)} style={{ marginTop: 32, padding: "14px 48px", borderRadius: 32, background: theme.accent, color: dark ? "#1C1D55" : "#fff", border: "none", fontSize: 18, fontWeight: 800, cursor: "pointer", boxShadow: "0 8px 24px rgba(0,0,0,0.2)" }}>Continue</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {screenState === "home" && !kioskCategory && (
           <div className="kiosk-main-scroll no-scrollbar">
             
@@ -539,6 +576,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                                  {descText && <span style={{ fontSize: 14, color: theme.textMuted, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5, marginTop: 4 }}>{descText}</span>}
                               </div>
                            )})}
+                           {filteredDirectory.length === 0 && (<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: theme.textMuted, fontWeight: 600, padding: 40, gridColumn: '1 / -1' }}>No images found in this gallery.</div>)}
                         </div>
                      )}
                   </div>
