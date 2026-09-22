@@ -53,14 +53,14 @@ export function ChatDirectory({ dark, category, onClose, onCardClick }: any) {
                           (item.subcategory || "").toLowerCase().includes(q);
       return matchFilter && matchSearch;
     }).sort((a, b) => {
-       const nameA = a.display_name || (a.keyword ? a.keyword.split(',')[0] : "") || "";
-       const nameB = b.display_name || (b.keyword ? b.keyword.split(',')[0] : "") || "";
+       const nameA = a.display_name === "-" ? "" : (a.display_name || (a.keyword ? a.keyword.split(',')[0] : ""));
+       const nameB = b.display_name === "-" ? "" : (b.display_name || (b.keyword ? b.keyword.split(',')[0] : ""));
        
        if (sortMode === "hierarchy" && isFac) {
            const rankA = getHierarchyRank(a);
            const rankB = getHierarchyRank(b);
            if (rankA !== rankB) return rankA - rankB;
-           return nameA.localeCompare(nameB); // Same rank -> A-Z
+           return nameA.localeCompare(nameB);
        } else if (sortMode === "za") {
            return nameB.localeCompare(nameA);
        } else {
@@ -154,31 +154,37 @@ export function ChatDirectory({ dark, category, onClose, onCardClick }: any) {
         {filteredData.length === 0 ? (
           <div style={{ textAlign: "center", color: textMuted, padding: 40, fontSize: 15, fontWeight: 500 }}>No results found.</div>
         ) : (
-          filteredData.map(item => (
-            <div 
-              key={item.id} 
-              onClick={() => onCardClick(item.display_name || (item.keyword ? item.keyword.split(',')[0] : ""))}
-              style={{ display: "flex", alignItems: "center", gap: 16, padding: 16, background: cardBg, border: `1px solid ${border}`, borderRadius: 16, cursor: "pointer", transition: "all 0.2s" }}
-            >
-              <div style={{ width: 48, height: 48, borderRadius: "50%", background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
-                {item.picture_url && !item.picture_url.toLowerCase().includes(".pdf") ? (
-                  <img src={item.picture_url} alt="Profile" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
-                ) : (
-                  <User size={24} color="#4285f4" />
-                )}
+          filteredData.map(item => {
+            const titleText = item.display_name === "-" ? "" : (item.display_name || (item.keyword ? item.keyword.split(',')[0] : ""));
+            const descText = (!item.response || item.response.trim() === "" || item.response === "-") ? "" : item.response;
+            const searchTarget = item.display_name && item.display_name !== "-" ? item.display_name : (item.keyword ? item.keyword.split(',')[0] : "");
+
+            return (
+              <div 
+                key={item.id} 
+                onClick={() => onCardClick(searchTarget)}
+                style={{ display: "flex", alignItems: "center", gap: 16, padding: 16, background: cardBg, border: `1px solid ${border}`, borderRadius: 16, cursor: "pointer", transition: "all 0.2s" }}
+              >
+                <div style={{ width: 48, height: 48, borderRadius: "50%", background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
+                  {item.picture_url && !item.picture_url.toLowerCase().includes(".pdf") ? (
+                    <img src={item.picture_url} alt="Profile" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+                  ) : (
+                    <User size={24} color="#4285f4" />
+                  )}
+                </div>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+                  {titleText && <span style={{ fontSize: 16, fontWeight: 800, color: textPrimary }}>{titleText}</span>}
+                  {item.subcategory && item.subcategory !== "All" && (
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#4285f4", display: "flex", alignItems: "center", gap: 4 }}>
+                      <MapPin size={12} /> {item.subcategory}
+                    </span>
+                  )}
+                  {descText && <span style={{ fontSize: 13, color: textMuted, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{descText}</span>}
+                </div>
+                <ChevronRight size={20} color={textMuted} style={{ flexShrink: 0 }} />
               </div>
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 16, fontWeight: 800, color: textPrimary }}>{item.display_name || (item.keyword ? item.keyword.split(',')[0] : "")}</span>
-                {item.subcategory && item.subcategory !== "All" && (
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#4285f4", display: "flex", alignItems: "center", gap: 4 }}>
-                    <MapPin size={12} /> {item.subcategory}
-                  </span>
-                )}
-                <span style={{ fontSize: 13, color: textMuted, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{item.response}</span>
-              </div>
-              <ChevronRight size={20} color={textMuted} style={{ flexShrink: 0 }} />
-            </div>
-          ))
+            )
+          })
         )}
       </div>
     </div>
