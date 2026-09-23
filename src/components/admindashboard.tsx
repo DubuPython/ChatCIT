@@ -53,7 +53,7 @@ export function AdminPanel({
   const [draftMapping, setDraftMapping] = useState<Record<string, string[]>>({});
   const [draftScreensaver, setDraftScreensaver] = useState<string[]>([]);
   const [draftHighlights, setDraftHighlights] = useState<any[]>([]);
-  const [draftEventPopup, setDraftEventPopup] = useState<any>({ enabled: false, title: "", subtitle: "", img: "" });
+  const [draftEventPopup, setDraftEventPopup] = useState<any>({ enabled: false, title: "", subtitle: "", imgs: [] });
   const [isDraftingKiosk, setIsDraftingKiosk] = useState(false);
 
   // SAFE SYNCING
@@ -63,7 +63,11 @@ export function AdminPanel({
          const safeScreensavers = Array.isArray(screensaverSlides) ? screensaverSlides : [];
          setDraftScreensaver(safeScreensavers.map((s: any) => typeof s === 'string' ? s : s.img).filter(Boolean));
          setDraftHighlights(Array.isArray(kioskHighlights) ? kioskHighlights : []);
-         setDraftEventPopup(kioskEventPopup && typeof kioskEventPopup === 'object' ? { enabled: false, title: "", subtitle: "", img: "", ...kioskEventPopup } : { enabled: false, title: "", subtitle: "", img: "" });
+         
+         // Fix: Map old "img" property to new "imgs" array to prevent data loss
+         const safePopup = kioskEventPopup && typeof kioskEventPopup === 'object' ? kioskEventPopup : {};
+         const migratedImgs = Array.isArray(safePopup.imgs) ? safePopup.imgs : (safePopup.img ? [safePopup.img] : []);
+         setDraftEventPopup({ enabled: false, title: "", subtitle: "", ...safePopup, imgs: migratedImgs });
      }
   }, [kioskMapping, screensaverSlides, kioskHighlights, kioskEventPopup, isDraftingKiosk]);
 
@@ -519,12 +523,12 @@ export function AdminPanel({
               </div>
            </div>
 
-           {/* 4. EVENT POPUP EDITOR */}
+           {/* 4. EVENT POPUP EDITOR (MULTIPLE IMAGES SUPPORTED) */}
            <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, padding: 24 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                  <div>
                     <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Event Popup</h3>
-                    <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Configure a prominent popup that appears on the kiosk screen (e.g. Event of the Week/Month).</p>
+                    <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Configure a prominent scrollable photo-gallery popup that appears when users approach the Kiosk (e.g. Event of the Week).</p>
                  </div>
                  <button onClick={handleSaveEventPopup} style={{ background: '#10b981', color: '#fff', padding: '10px 20px', borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle size={16} /> Save Popup</button>
               </div>
@@ -540,16 +544,26 @@ export function AdminPanel({
                           <input value={draftEventPopup.title || ""} onChange={e => { setDraftEventPopup({...draftEventPopup, title: e.target.value}); setIsDraftingKiosk(true); }} placeholder="Popup Title (e.g. Event of the Week)" style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${border}`, background: 'transparent', color: textPrimary, fontSize: 14, outline: 'none', fontWeight: 600 }} />
                           <textarea value={draftEventPopup.subtitle || ""} onChange={e => { setDraftEventPopup({...draftEventPopup, subtitle: e.target.value}); setIsDraftingKiosk(true); }} placeholder="Short description or Date..." rows={3} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${border}`, background: 'transparent', color: textPrimary, fontSize: 14, outline: 'none', resize: 'vertical' }} />
                       </div>
-                      <div style={{ flex: 1, minWidth: 200 }}>
-                          {draftEventPopup.img ? (
-                              <div style={{ position: 'relative', width: '100%', height: 140, borderRadius: 8, overflow: 'hidden', border: `1px solid ${border}` }}>
-                                  <button onClick={() => { setDraftEventPopup({...draftEventPopup, img: ""}); setIsDraftingKiosk(true); }} style={{ position: "absolute", top: 8, right: 8, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}><X size={12}/></button>
-                                  <img src={draftEventPopup.img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                              </div>
-                          ) : (
-                              <label style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', borderRadius: 8, border: `1px dashed ${border}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 140, cursor: uploadingImage ? "wait" : "pointer", gap: 8 }}>
-                                  <UploadCloud size={28} color={textMuted} />
-                                  <span style={{ fontSize: 12, color: textMuted, fontWeight: 600 }}>{uploadingImage ? "Uploading..." : "Upload Banner Image"}</span>
+                      
+                      {/* MULTIPLE IMAGE UPLOAD ROW */}
+                      <div style={{ width: '100%', marginTop: 8 }}>
+                          <span style={{ fontSize: 13, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 8 }}>Event Gallery Images</span>
+                          <div className="no-scrollbar" style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, WebkitOverflowScrolling: 'touch' }}>
+                              {(draftEventPopup.imgs || []).map((imgUrl: string, idx: number) => (
+                                  <div key={idx} style={{ position: 'relative', width: 140, height: 140, flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1px solid ${border}` }}>
+                                      <button onClick={() => { 
+                                          const newImgs = [...draftEventPopup.imgs];
+                                          newImgs.splice(idx, 1);
+                                          setDraftEventPopup({...draftEventPopup, imgs: newImgs}); 
+                                          setIsDraftingKiosk(true); 
+                                      }} style={{ position: "absolute", top: 8, right: 8, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}><X size={12}/></button>
+                                      <img src={imgUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                  </div>
+                              ))}
+                              
+                              <label style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', borderRadius: 8, border: `1px dashed ${border}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: 140, height: 140, flexShrink: 0, cursor: uploadingImage ? "wait" : "pointer", gap: 8 }}>
+                                  <UploadCloud size={24} color={textMuted} />
+                                  <span style={{ fontSize: 11, color: textMuted, fontWeight: 600 }}>{uploadingImage ? "Uploading..." : "Add Picture"}</span>
                                   <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingImage} onChange={async (e) => {
                                       const file = e.target.files?.[0]; if (!file) return; setUploadingImage(true);
                                       const formData = new FormData(); formData.append("file", file); formData.append("upload_preset", UPLOAD_PRESET); formData.append("cloud_name", CLOUD_NAME);
@@ -557,13 +571,14 @@ export function AdminPanel({
                                          const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
                                          const data = await res.json();
                                          if (data.secure_url) {
-                                            setDraftEventPopup({...draftEventPopup, img: data.secure_url});
+                                            const currentImgs = Array.isArray(draftEventPopup.imgs) ? draftEventPopup.imgs : [];
+                                            setDraftEventPopup({...draftEventPopup, imgs: [...currentImgs, data.secure_url]});
                                             setIsDraftingKiosk(true);
                                          } else { showToast(`Upload error`, "error"); }
                                       } catch(err) { showToast("Upload failed", "error"); } finally { setUploadingImage(false); e.target.value = ''; }
                                   }} />
                               </label>
-                          )}
+                          </div>
                       </div>
                   </div>
               </div>
