@@ -334,7 +334,7 @@ export default function App() {
   const [kioskMapping, setKioskMapping] = useState<Record<string, string[]>>({});
   const [screensaverSlides, setScreensaverSlides] = useState<any[]>([]);
   const [kioskHighlights, setKioskHighlights] = useState<any[]>([]);
-  const [kioskEventPopup, setKioskEventPopup] = useState<any>({ enabled: false, title: "", subtitle: "", img: "" });
+  const [kioskEventPopup, setKioskEventPopup] = useState<any>({ enabled: false, title: "", subtitle: "", imgs: [] });
 
   useEffect(() => { localStorage.setItem('chatcit_custom_cats', JSON.stringify(customCategories)); }, [customCategories]);
   useEffect(() => { localStorage.setItem('chatcit_custom_subcats', JSON.stringify(customSubCats)); }, [customSubCats]);
@@ -419,7 +419,12 @@ export default function App() {
       await fetchSetting('kiosk_mapping', (v:any) => { setKioskMapping(v); localStorage.setItem('chatcit_kiosk_mapping', JSON.stringify(v)); }, (v:any) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {}));
       await fetchSetting('kiosk_screensaver', setScreensaverSlides, (v:any) => (Array.isArray(v) ? v : []));
       await fetchSetting('kiosk_highlights', setKioskHighlights, (v:any) => (Array.isArray(v) ? v : []));
-      await fetchSetting('kiosk_event_popup', setKioskEventPopup, (v:any) => (v && typeof v === 'object' && !Array.isArray(v) ? v : { enabled: false, title: "", subtitle: "", img: "" }));
+      await fetchSetting('kiosk_event_popup', setKioskEventPopup, (v:any) => {
+          if (v && typeof v === 'object' && !Array.isArray(v)) {
+              return v;
+          }
+          return { enabled: false, title: "", subtitle: "", imgs: [] };
+      });
     } catch(e) {}
   };
 
