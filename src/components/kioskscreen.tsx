@@ -234,7 +234,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const activeHighlights = (kioskHighlights && kioskHighlights.length > 0) ? kioskHighlights : defaultHighlights;
   const infiniteHighlights = [...activeHighlights, ...activeHighlights];
 
-  // BACKGROUND IMAGE PRELOADER (Now handles multiple popup images)
+  // BACKGROUND IMAGE PRELOADER
   useEffect(() => {
      const popupImgs = Array.isArray(kioskEventPopup?.imgs) ? kioskEventPopup.imgs : [];
      const preloadUrls = [ ...activeSlides, ...infiniteHighlights.map(h => h.img), ...popupImgs ];
@@ -247,7 +247,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   useEffect(() => {
     if (screenState === 'presentation') {
       const timer = setInterval(() => setCurrentSlide(s => (s + 1) % activeSlides.length), 6000);
-      setDismissedPopup(false); // Reset popup so the next user sees it!
+      setDismissedPopup(false);
       return () => clearInterval(timer);
     }
   }, [screenState, activeSlides.length]);
@@ -435,7 +435,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                  </div>
               )}
               
-              {/* PAGINATION DOTS (Only show if multiple images) */}
+              {/* PAGINATION DOTS */}
               {kioskEventPopup.imgs && kioskEventPopup.imgs.length > 1 && (
                  <div style={{ position: 'absolute', top: 330, width: '100%', display: 'flex', justifyContent: 'center', gap: 6 }}>
                      {kioskEventPopup.imgs.map((_: any, idx: number) => (
@@ -645,7 +645,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                         loadingDir ? ( <div style={{ display: 'flex', height: 300, alignItems: 'center', justifyContent: 'center' }}><div style={{ transform: 'scale(0.8)' }}><GearboxLoader /></div></div>
                         ) : (
                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 16, width: '100%' }}>
-                              {filteredDirectory.length > 0 ? filteredDirectory.map((item) => {
+                              {filteredDirectory.length > 0 && filteredDirectory.map((item) => {
                                  const titleText = item.display_name === "-" ? "" : (item.display_name || (item.keyword ? item.keyword.split(',')[0] : ""));
                                  const descText = (!item.response || item.response.trim() === "" || item.response === "-") ? "" : item.response;
                                  const searchTarget = item.display_name && item.display_name !== "-" ? item.display_name : (item.keyword ? item.keyword.split(',')[0] : "");
