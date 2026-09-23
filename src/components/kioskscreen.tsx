@@ -239,14 +239,24 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const activeHighlights = (kioskHighlights && kioskHighlights.length > 0) ? kioskHighlights : defaultHighlights;
   const infiniteHighlights = [...activeHighlights, ...activeHighlights];
 
-  // BACKGROUND IMAGE PRELOADER (Now supports multi-images from Popup)
+  // BULLETPROOF JSON PARSER FOR POPUP DATA
+  let safePopupState = kioskEventPopup;
+  while (typeof safePopupState === 'string') {
+      try { safePopupState = JSON.parse(safePopupState); } 
+      catch (e) { break; }
+  }
+  
+  const isPopupEnabled = safePopupState?.enabled === true || String(safePopupState?.enabled) === "true";
+  const popupImgs = Array.isArray(safePopupState?.imgs) ? safePopupState.imgs : [];
+  const showPopupCondition = screenState === "home" && isPopupEnabled && !dismissedPopup;
+
+  // BACKGROUND IMAGE PRELOADER
   useEffect(() => {
-     const popupImgs = Array.isArray(kioskEventPopup?.imgs) ? kioskEventPopup.imgs : [];
      const preloadUrls = [ ...activeSlides, ...infiniteHighlights.map(h => h.img), ...popupImgs ];
      preloadUrls.forEach(url => {
          if (url) { const img = new window.Image(); img.src = optimizeImage(url); }
      });
-  }, [activeSlides, infiniteHighlights, kioskEventPopup]);
+  }, [activeSlides, infiniteHighlights, popupImgs]);
 
   // RESET POPUP WHEN SCREEN GOES BACK TO PRESENTATION (IDLE)
   useEffect(() => {
@@ -410,10 +420,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
      );
   }
 
-  // Safe checks for the Popup Engine
-  const showPopupCondition = screenState === "home" && (kioskEventPopup?.enabled === true || String(kioskEventPopup?.enabled) === "true") && !dismissedPopup;
-  const popupImgs = Array.isArray(kioskEventPopup?.imgs) ? kioskEventPopup.imgs : [];
-
   return (
     <>
       <GlobalKioskStyles dark={dark} theme={theme} />
@@ -428,7 +434,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
         </div>
         <div style={{ position: "absolute", top: 24, right: 32, zIndex: 100 }}>{topRightButtons}</div>
 
-        {/* BULLETPROOF EVENT POPUP MODAL */}
+        {/* BULLETPROOF EVENT POPUP MODAL (NO BACKGROUND CLICK TRIGGER) */}
         {showPopupCondition && (
           <div className="event-popup-overlay">
             <div className="event-popup-card" onClick={e => e.stopPropagation()}>
@@ -456,8 +462,8 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
               )}
 
               <div style={{ padding: "32px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", background: dark ? '#1c1b22' : '#fff' }}>
-                {kioskEventPopup?.title && <h2 style={{ margin: "0 0 12px 0", fontSize: 28, fontWeight: 800, color: dark ? "#fff" : "#000", lineHeight: 1.2 }}>{kioskEventPopup.title}</h2>}
-                {kioskEventPopup?.subtitle && <p style={{ margin: 0, fontSize: 16, color: theme.textMuted, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{kioskEventPopup.subtitle}</p>}
+                {safePopupState?.title && <h2 style={{ margin: "0 0 12px 0", fontSize: 28, fontWeight: 800, color: dark ? "#fff" : "#000", lineHeight: 1.2 }}>{safePopupState.title}</h2>}
+                {safePopupState?.subtitle && <p style={{ margin: 0, fontSize: 16, color: theme.textMuted, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{safePopupState.subtitle}</p>}
                 
                 {/* SWIPE INDICATOR */}
                 {popupImgs.length > 1 && (
