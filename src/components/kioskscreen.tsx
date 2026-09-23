@@ -234,9 +234,10 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const activeHighlights = (kioskHighlights && kioskHighlights.length > 0) ? kioskHighlights : defaultHighlights;
   const infiniteHighlights = [...activeHighlights, ...activeHighlights];
 
-  // BACKGROUND IMAGE PRELOADER
+  // BACKGROUND IMAGE PRELOADER (Now handles multiple popup images)
   useEffect(() => {
-     const preloadUrls = [ ...activeSlides, ...infiniteHighlights.map(h => h.img), kioskEventPopup?.img ];
+     const popupImgs = Array.isArray(kioskEventPopup?.imgs) ? kioskEventPopup.imgs : [];
+     const preloadUrls = [ ...activeSlides, ...infiniteHighlights.map(h => h.img), ...popupImgs ];
      preloadUrls.forEach(url => {
          if (url) { const img = new window.Image(); img.src = optimizeImage(url); }
      });
@@ -424,13 +425,37 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
               <button onClick={() => setDismissedPopup(true)} style={{ position: "absolute", top: 16, right: 16, background: "rgba(0,0,0,0.5)", border: "none", color: "#fff", width: 36, height: 36, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}>
                 <X size={20} />
               </button>
-              {kioskEventPopup.img && (
-                <img src={optimizeImage(kioskEventPopup.img)} style={{ width: "100%", maxHeight: 360, objectFit: "cover" }} />
+              
+              {/* IMAGE SCROLLER ENGINE */}
+              {kioskEventPopup.imgs && kioskEventPopup.imgs.length > 0 && (
+                 <div className="no-scrollbar" style={{ display: 'flex', overflowX: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-x', scrollSnapType: 'x mandatory', width: '100%', position: 'relative' }}>
+                     {kioskEventPopup.imgs.map((imgUrl: string, idx: number) => (
+                         <img key={idx} src={optimizeImage(imgUrl)} style={{ width: '100%', height: 360, objectFit: 'cover', flexShrink: 0, scrollSnapAlign: 'start' }} />
+                     ))}
+                 </div>
               )}
+              
+              {/* PAGINATION DOTS (Only show if multiple images) */}
+              {kioskEventPopup.imgs && kioskEventPopup.imgs.length > 1 && (
+                 <div style={{ position: 'absolute', top: 330, width: '100%', display: 'flex', justifyContent: 'center', gap: 6 }}>
+                     {kioskEventPopup.imgs.map((_: any, idx: number) => (
+                         <div key={idx} style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(255,255,255,0.8)', boxShadow: '0 2px 4px rgba(0,0,0,0.5)' }} />
+                     ))}
+                 </div>
+              )}
+
               <div style={{ padding: "32px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
                 {kioskEventPopup.title && <h2 style={{ margin: "0 0 12px 0", fontSize: 28, fontWeight: 800, color: dark ? "#fff" : "#000", lineHeight: 1.2 }}>{kioskEventPopup.title}</h2>}
-                {kioskEventPopup.subtitle && <p style={{ margin: 0, fontSize: 16, color: theme.textMuted, lineHeight: 1.5 }}>{kioskEventPopup.subtitle}</p>}
-                <button onClick={() => setDismissedPopup(true)} style={{ marginTop: 32, padding: "14px 48px", borderRadius: 32, background: theme.accent, color: dark ? "#1C1D55" : "#fff", border: "none", fontSize: 18, fontWeight: 800, cursor: "pointer", boxShadow: "0 8px 24px rgba(0,0,0,0.2)" }}>Continue</button>
+                {kioskEventPopup.subtitle && <p style={{ margin: 0, fontSize: 16, color: theme.textMuted, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{kioskEventPopup.subtitle}</p>}
+                
+                {/* SWIPE INDICATOR */}
+                {kioskEventPopup.imgs && kioskEventPopup.imgs.length > 1 && (
+                    <div style={{ fontSize: 13, color: '#4285f4', fontWeight: 700, marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <ArrowLeft size={14}/> Swipe for more photos <ArrowRight size={14}/>
+                    </div>
+                )}
+
+                <button onClick={() => setDismissedPopup(true)} style={{ marginTop: 24, padding: "14px 48px", borderRadius: 32, background: theme.accent, color: dark ? "#1C1D55" : "#fff", border: "none", fontSize: 18, fontWeight: 800, cursor: "pointer", boxShadow: "0 8px 24px rgba(0,0,0,0.2)" }}>Continue</button>
               </div>
             </div>
           </div>
@@ -620,7 +645,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                         loadingDir ? ( <div style={{ display: 'flex', height: 300, alignItems: 'center', justifyContent: 'center' }}><div style={{ transform: 'scale(0.8)' }}><GearboxLoader /></div></div>
                         ) : (
                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 16, width: '100%' }}>
-                              {filteredDirectory.length > 0 && filteredDirectory.map((item) => {
+                              {filteredDirectory.length > 0 ? filteredDirectory.map((item) => {
                                  const titleText = item.display_name === "-" ? "" : (item.display_name || (item.keyword ? item.keyword.split(',')[0] : ""));
                                  const descText = (!item.response || item.response.trim() === "" || item.response === "-") ? "" : item.response;
                                  const searchTarget = item.display_name && item.display_name !== "-" ? item.display_name : (item.keyword ? item.keyword.split(',')[0] : "");
