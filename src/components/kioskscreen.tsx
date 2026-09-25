@@ -36,7 +36,7 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     .kiosk-main-scroll {
       position: relative; z-index: 10; width: 100%; height: 100%; flex: 1 1 auto; min-height: 0;
       display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-      padding-top: 90px; padding-bottom: 60px;
+      padding-top: 85px; padding-bottom: 60px;
       overflow-y: auto !important; overflow-x: hidden !important;
       -webkit-overflow-scrolling: touch !important;
       touch-action: pan-y !important;
@@ -45,29 +45,29 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     
     .greeting-box {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 24px 32px; border-radius: 32px;
+      padding: 20px 28px; border-radius: 28px;
       background: ${dark ? 'rgba(18, 87, 172, 0.15)' : 'rgba(255, 255, 255, 0.6)'};
       border: 1px solid ${dark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(166, 1, 18, 0.2)'};
       box-shadow: 0 20px 40px rgba(0,0,0,0.1);
       backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
       width: 90%; max-width: 680px; flex-shrink: 0;
-      margin-bottom: 32px; animation: slideDown 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+      margin-bottom: 24px; animation: slideDown 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
 
     .omantel-grid {
-      display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px;
+      display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px;
       width: 100%; max-width: 680px; padding: 0 16px; flex-shrink: 0;
       animation: slideUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
     }
     
     .glassy-cluster-card {
-      border-radius: 28px; padding: 20px; display: flex; flex-direction: column;
+      border-radius: 24px; padding: 18px; display: flex; flex-direction: column;
       background: ${dark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.7)'};
       border: 1px solid ${dark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(166, 1, 18, 0.15)'};
       box-shadow: 0 16px 40px rgba(0,0,0,0.08); 
       backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px);
       cursor: pointer; transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-      position: relative; overflow: hidden; min-height: 160px;
+      position: relative; overflow: hidden; min-height: 150px;
     }
     .glassy-cluster-card:active { transform: scale(0.95); background: ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.9)'}; }
 
@@ -92,12 +92,12 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     
     .marquee-container {
        width: 100%; overflow: hidden; white-space: nowrap; position: relative;
-       padding: 12px; border-radius: 12px; border: 1px solid;
+       padding: 10px; border-radius: 12px; border: 1px solid;
     }
     .marquee-text {
        display: inline-block;
        animation: marquee 35s linear infinite;
-       font-weight: 800; font-size: 16px; letter-spacing: 2px; text-transform: uppercase;
+       font-weight: 800; font-size: 15px; letter-spacing: 2px; text-transform: uppercase;
     }
     @keyframes marquee { 0% { transform: translateX(50%); } 100% { transform: translateX(-100%); } }
     
@@ -107,24 +107,30 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
        mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
     }
     .carousel-track {
-       display: flex; gap: 16px; width: max-content;
+       display: flex; gap: 14px; width: max-content;
        animation: scrollCarousel 30s linear infinite;
     }
-    @keyframes scrollCarousel { 0% { transform: translateX(0); } 100% { transform: translateX(calc(-50% - 8px)); } }
+    @keyframes scrollCarousel { 0% { transform: translateX(0); } 100% { transform: translateX(calc(-50% - 7px)); } }
 
+    /* FIXED: Flexbox layout prevents button and text from overlapping */
     .glassy-dir-card {
       background: ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.7)'}; border: 1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(166, 1, 18, 0.15)'};
-      border-radius: 20px; padding: 24px; display: flex; align-items: center; gap: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      border-radius: 20px; padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); position: relative; min-height: 80px;
     }
     .glassy-dir-card:active { transform: scale(0.97); opacity: 0.9; }
 
-    .card-arrow { width: 32px; height: 32px; border-radius: 50%; border: 2px solid; display: flex; align-items: center; justify-content: center; position: absolute; bottom: 16px; right: 16px; transition: all 0.3s ease; }
-    .glassy-cluster-card:hover .card-arrow { background: ${dark ? theme.accent : theme.cardBorder}; color: ${dark ? '#1C1D55' : '#fff'} !important; }
+    .card-arrow {
+      width: 32px; height: 32px; border-radius: 50%; border: 2px solid;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      transition: all 0.3s ease;
+    }
+    .glassy-dir-card:hover .card-arrow { background: ${dark ? theme.accent : theme.cardBorder}; color: ${dark ? '#1C1D55' : '#fff'} !important; }
 
     .back-btn-modern {
       display: flex; align-items: center; gap: 8px; background: ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)'};
-      border: 1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}; color: ${theme.text}; padding: 12px 20px; border-radius: 24px; font-size: 16px; font-weight: 700; cursor: pointer; 
+      border: 1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}; color: ${theme.text}; padding: 10px 18px; border-radius: 24px; font-size: 15px; font-weight: 700; cursor: pointer; 
       transition: transform 0.1s; box-shadow: 0 8px 24px rgba(0,0,0,0.1); backdrop-filter: blur(10px);
     }
     .back-btn-modern:active { transform: scale(0.92); }
@@ -151,7 +157,6 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
        animation: slideUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); position: relative;
     }
     
-    /* HIDES SCROLLBAR IN THE GALLERY BUT KEEPS SCROLLING */
     .gallery-snap-scroll::-webkit-scrollbar { display: none; }
     .gallery-snap-scroll { scrollbar-width: none; -ms-overflow-style: none; }
   `}</style>
@@ -165,7 +170,7 @@ const getIconForCategory = (cat: string, size = 20) => {
   if (lower.includes("doc") || lower.includes("carta") || lower.includes("handbook")) return <FileText size={size} />;
   if (lower.includes("accomp") || lower.includes("indust") || lower.includes("partner")) return <Briefcase size={size} />;
   if (lower.includes("facil")) return <Building size={size} />;
-  if (lower.includes("facul") || lower.includes("prof") || lower.includes("teach")) return <UserSquare size={size} />;
+  if (lower.includes("facul") || lower.includes("prof") || lower.includes("teach") || lower.includes("committee")) return <UserSquare size={size} />;
   return <LayoutGrid size={size} />;
 };
 
@@ -263,7 +268,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     if (screenState === 'presentation') {
       const timer = setInterval(() => setCurrentSlide(s => (s + 1) % activeSlides.length), 6000);
       setDismissedPopup(false);
-      setActiveGalleryIndex(0); // Reset gallery back to first picture
+      setActiveGalleryIndex(0);
       return () => clearInterval(timer);
     }
   }, [screenState, activeSlides.length]);
@@ -405,6 +410,47 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
 
   const goHome = () => { setScreenState("home"); setKioskCategory(null); setKioskResult(null); };
 
+  // ROBUST QR CODE RESOLVER
+  const getQrUrl = () => {
+      if (kioskResult?.qr_link && kioskResult.qr_link.trim()) {
+          let url = kioskResult.qr_link.trim();
+          if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url;
+          return url;
+      }
+      
+      const content = kioskResult?.content || "";
+      const match = content.match(/(https?:\/\/[^\s]+[^.,;:"'\s]|www\.[^\s]+[^.,;:"'\s])/i);
+      if (match) {
+          let url = match[0].trim();
+          if (url.toLowerCase().startsWith('www.')) url = 'https://' + url;
+          return url;
+      }
+      
+      // Fallback: cross check database items in case the content had formatting issues
+      if (kioskResult?.title && dbDirectoryData.length > 0) {
+          const found = dbDirectoryData.find(d => 
+             (d.display_name && d.display_name.toLowerCase() === kioskResult.title.toLowerCase()) ||
+             (d.keyword && d.keyword.split(',').map((k: string) => k.trim().toLowerCase()).includes(kioskResult.title.toLowerCase()))
+          );
+          if (found) {
+              if (found.qr_link && found.qr_link.trim()) {
+                  let url = found.qr_link.trim();
+                  if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url;
+                  return url;
+              }
+              const foundMatch = (found.response || "").match(/(https?:\/\/[^\s]+[^.,;:"'\s]|www\.[^\s]+[^.,;:"'\s])/i);
+              if (foundMatch) {
+                  let url = foundMatch[0].trim();
+                  if (url.toLowerCase().startsWith('www.')) url = 'https://' + url;
+                  return url;
+              }
+          }
+      }
+      return null;
+  };
+
+  const detectedQrUrl = getQrUrl();
+
   if (screenState === "presentation") {
      return (
        <>
@@ -432,9 +478,11 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
             <Bot size={40} color={dark ? "#fff" : theme.cardBorder} />
             <span style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-1px' }}><span style={{ color: theme.text }}>in</span><span style={{ color: '#1257AC' }}>CIT</span><span style={{ color: theme.text }}>e</span></span>
         </div>
-        <div style={{ position: "absolute", top: 24, right: 32, zIndex: 100 }}>{topRightButtons}</div>
+        
+        {/* FIXED: Top right buttons are scaled down slightly to avoid header crowding */}
+        <div style={{ position: "absolute", top: 22, right: 28, zIndex: 100, transform: 'scale(0.85)', transformOrigin: 'top right' }}>{topRightButtons}</div>
 
-        {/* BULLETPROOF EVENT POPUP MODAL (NO BACKGROUND CLICK TRIGGER) */}
+        {/* EVENT POPUP MODAL (NO BACKGROUND GHOST CLICKS) */}
         {showPopupCondition && (
           <div className="event-popup-overlay">
             <div className="event-popup-card" onClick={e => e.stopPropagation()}>
@@ -452,7 +500,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                  </div>
               )}
               
-              {/* PAGINATION DOTS (Only show if multiple images) */}
+              {/* PAGINATION DOTS */}
               {popupImgs.length > 1 && (
                  <div style={{ position: 'absolute', top: 350, width: '100%', display: 'flex', justifyContent: 'center', gap: 8, pointerEvents: 'none' }}>
                      {popupImgs.map((_: any, idx: number) => (
@@ -465,7 +513,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                 {safePopupState?.title && <h2 style={{ margin: "0 0 12px 0", fontSize: 28, fontWeight: 800, color: dark ? "#fff" : "#000", lineHeight: 1.2 }}>{safePopupState.title}</h2>}
                 {safePopupState?.subtitle && <p style={{ margin: 0, fontSize: 16, color: theme.textMuted, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{safePopupState.subtitle}</p>}
                 
-                {/* SWIPE INDICATOR */}
                 {popupImgs.length > 1 && (
                     <div style={{ fontSize: 14, color: '#4285f4', fontWeight: 800, marginTop: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                         <ArrowLeft size={16}/> Swipe for more photos <ArrowRight size={16}/>
@@ -483,10 +530,10 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
             
             <div className="greeting-box">
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                 <div style={{ width: 64, height: 64, borderRadius: '50%', background: dark ? theme.accent : theme.cardBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}><Bot size={36} color={dark ? '#1C1D55' : '#fff'} /></div>
-                 <div style={{ display: 'flex', flexDirection: 'column' }}><h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: theme.text, letterSpacing: '-0.5px' }}>Good Day CITizen!</h1><p style={{ margin: '4px 0 0', fontSize: 13, color: theme.textMuted, fontWeight: 600 }}>{formattedDate} | {formattedTime}</p></div>
+                 <div style={{ width: 56, height: 56, borderRadius: '50%', background: dark ? theme.accent : theme.cardBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}><Bot size={32} color={dark ? '#1C1D55' : '#fff'} /></div>
+                 <div style={{ display: 'flex', flexDirection: 'column' }}><h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: theme.text, letterSpacing: '-0.5px' }}>Good Day CITizen!</h1><p style={{ margin: '4px 0 0', fontSize: 13, color: theme.textMuted, fontWeight: 600 }}>{formattedDate} | {formattedTime}</p></div>
               </div>
-              <button onClick={() => setShowCalendar(true)} style={{ background: theme.accent, color: dark ? '#1C1D55' : '#fff', border: 'none', padding: '14px 24px', borderRadius: 16, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, fontSize: 15, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.95)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}><CalendarIcon size={18} /> View Calendar</button>
+              <button onClick={() => setShowCalendar(true)} style={{ background: theme.accent, color: dark ? '#1C1D55' : '#fff', border: 'none', padding: '12px 20px', borderRadius: 16, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.95)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}><CalendarIcon size={16} /> View Calendar</button>
             </div>
 
             {/* 5-BUTTON CLUSTER GRID */}
@@ -496,26 +543,26 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                      <div style={{ color: dark ? theme.accent : theme.cardBorder, marginBottom: 12 }}>{item.icon}</div>
                      <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Browse</div>
                      <div style={{ fontSize: item.label.length > 12 ? 16 : 20, color: theme.text, fontWeight: 800, lineHeight: 1.2, marginTop: 4, paddingRight: 24, wordBreak: 'break-word' }}>{item.label}</div>
-                     <div className="card-arrow" style={{ borderColor: dark ? theme.accent : theme.cardBorder, color: dark ? theme.accent : theme.cardBorder }}><ArrowRight size={16}/></div>
+                     <div className="card-arrow" style={{ position: 'absolute', bottom: 16, right: 16, borderColor: dark ? theme.accent : theme.cardBorder, color: dark ? theme.accent : theme.cardBorder }}><ArrowRight size={16}/></div>
                   </div>
                ))}
             </div>
 
             {/* MARQUEE SANDWICH & HIGHLIGHTS OF THE MONTH */}
-            <div style={{ width: '100%', maxWidth: 680, marginTop: 40, marginBottom: 20, padding: '0 16px' }}>
+            <div style={{ width: '100%', maxWidth: 680, marginTop: 36, marginBottom: 20, padding: '0 16px' }}>
                
-               <div className="marquee-container" style={{ background: dark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(166, 1, 18, 0.05)', borderColor: dark ? '#3b82f6' : 'rgba(166, 1, 18, 0.2)', marginBottom: 24 }}>
+               <div className="marquee-container" style={{ background: dark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(166, 1, 18, 0.05)', borderColor: dark ? '#3b82f6' : 'rgba(166, 1, 18, 0.2)', marginBottom: 20 }}>
                   <div className="marquee-text" style={{ color: dark ? '#60a5fa' : '#A60112' }}>#ALABULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #ALABULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp;</div>
                </div>
 
-               <h3 style={{ color: theme.text, fontSize: 20, fontWeight: 800, margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: 10 }}><CalendarIcon size={22} color={theme.accent} /> Highlights of the Month</h3>
+               <h3 style={{ color: theme.text, fontSize: 18, fontWeight: 800, margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: 10 }}><CalendarIcon size={20} color={theme.accent} /> Highlights of the Month</h3>
                
-               <div className="carousel-container" style={{ marginBottom: 24 }}>
+               <div className="carousel-container" style={{ marginBottom: 20 }}>
                   <div className="carousel-track">
                      {infiniteHighlights.map((h, i) => (
-                        <div key={i} style={{ minWidth: 260, height: 160, borderRadius: 20, background: theme.card, border: `1px solid ${theme.border}`, overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
+                        <div key={i} style={{ minWidth: 250, height: 150, borderRadius: 18, background: theme.card, border: `1px solid ${theme.border}`, overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
                            <img src={optimizeImage(h.img)} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7 }} />
-                           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)' }}><div style={{ color: '#fff', fontSize: 16, fontWeight: 800 }}>{h.title}</div><div style={{ color: theme.accent, fontSize: 12, fontWeight: 700 }}>{h.date}</div></div>
+                           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 14, background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)' }}><div style={{ color: '#fff', fontSize: 15, fontWeight: 800 }}>{h.title}</div><div style={{ color: theme.accent, fontSize: 12, fontWeight: 700 }}>{h.date}</div></div>
                         </div>
                      ))}
                   </div>
@@ -527,14 +574,14 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
             </div>
 
             <div style={{ width: '100%', padding: '0 24px', position: 'absolute', bottom: 32, maxWidth: 680 }}>
-               <div className="glassy-cluster-card kiosk-pulse-btn" onClick={() => { setScreenState("chat"); setKioskCategory(null); setKioskResult(null); }} style={{ margin: 0, padding: 32, minHeight: 180, display: 'flex', justifyContent: 'center', border: 'none' }}>
-                  <div style={{ fontSize: 16, opacity: 0.9, fontWeight: 700, marginBottom: 4 }}>Interactive AI Assistant</div>
-                  <div style={{ fontSize: 36, fontWeight: 800, marginBottom: 20 }}>Talk with ChatCIT</div>
+               <div className="glassy-cluster-card kiosk-pulse-btn" onClick={() => { setScreenState("chat"); setKioskCategory(null); setKioskResult(null); }} style={{ margin: 0, padding: 28, minHeight: 160, display: 'flex', justifyContent: 'center', border: 'none' }}>
+                  <div style={{ fontSize: 15, opacity: 0.9, fontWeight: 700, marginBottom: 4 }}>Interactive AI Assistant</div>
+                  <div style={{ fontSize: 32, fontWeight: 800, marginBottom: 16 }}>Talk with ChatCIT</div>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                     <span style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.2)', padding: '10px 20px', borderRadius: 24, fontSize: 15, fontWeight: 700 }}><MessageSquare size={18}/> Ask anything</span>
-                     <span style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.2)', padding: '10px 20px', borderRadius: 24, fontSize: 15, fontWeight: 700 }}><Search size={18}/> Search records</span>
+                     <span style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.2)', padding: '8px 16px', borderRadius: 24, fontSize: 14, fontWeight: 700 }}><MessageSquare size={16}/> Ask anything</span>
+                     <span style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.2)', padding: '8px 16px', borderRadius: 24, fontSize: 14, fontWeight: 700 }}><Search size={16}/> Search records</span>
                   </div>
-                  <Bot size={160} style={{ position: 'absolute', right: -10, bottom: -20, opacity: 0.15 }} />
+                  <Bot size={140} style={{ position: 'absolute', right: -10, bottom: -20, opacity: 0.15 }} />
                </div>
             </div>
           </div>
@@ -543,16 +590,18 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
         {/* SUB-MENU DIRECTORY LISTING MAPS */}
         {screenState === "home" && kioskCategory && (
             <div className="kiosk-main-scroll no-scrollbar">
-              <div style={{ width: '100%', maxWidth: 720, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}><button onClick={goHome} className="back-btn-modern"><ArrowLeft size={20}/> Back</button><h2 style={{ fontSize: 32, fontWeight: 800, color: theme.text, margin: 0, textShadow: dark ? '0 4px 12px rgba(0,0,0,0.3)' : 'none' }}>{kioskCategory}</h2></div>
+              <div style={{ width: '100%', maxWidth: 720, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}><button onClick={goHome} className="back-btn-modern"><ArrowLeft size={18}/> Back</button><h2 style={{ fontSize: 28, fontWeight: 800, color: theme.text, margin: 0, textShadow: dark ? '0 4px 12px rgba(0,0,0,0.3)' : 'none' }}>{kioskCategory}</h2></div>
               </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20, width: '100%', maxWidth: 720 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, width: '100%', maxWidth: 720 }}>
                 {itemsToRender.map((item, idx) => (
                   <div key={idx} className="glassy-dir-card" onClick={() => handleKioskSelectionInternal(kioskCategory, item)}>
-                    <div style={{ color: dark ? theme.accent : theme.cardBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{getIconForCategory(item, 32)}</div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: theme.text, lineHeight: 1.4, wordBreak: 'break-word', textAlign: 'left', display: 'flex', alignItems: 'center' }}>{item.replace('Teachers', 'Professors')}</div>
-                    <div className="card-arrow" style={{ width: 32, height: 32, position: 'absolute', right: 24, bottom: 24, flexShrink: 0, borderColor: dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)', color: theme.textMuted }}><ArrowRight size={16}/></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 0 }}>
+                       <div style={{ color: dark ? theme.accent : theme.cardBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{getIconForCategory(item, 28)}</div>
+                       <div style={{ fontSize: 16, fontWeight: 800, color: theme.text, lineHeight: 1.3, wordBreak: 'break-word', textAlign: 'left' }}>{item.replace('Teachers', 'Professors')}</div>
+                    </div>
+                    <div className="card-arrow" style={{ borderColor: dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)', color: theme.textMuted }}><ArrowRight size={14}/></div>
                   </div>
                 ))}
               </div>
@@ -562,38 +611,43 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
 
         {/* DETAILED RESULTS, GALLERY & FACULTY DIRECTORY */}
         {screenState === "kiosk_result" && (
-          <div className="kiosk-main-scroll no-scrollbar" style={{ paddingTop: 90, paddingBottom: 40 }}>
+          <div className="kiosk-main-scroll no-scrollbar" style={{ paddingTop: 85, paddingBottom: 40 }}>
             <div className={`kiosk-detail-card ${kioskResult?.isPdf ? 'is-pdf' : ''}`}>
               {kioskResult?.isPdf ? (
                 <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 32px', background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.8)', borderBottom: `1px solid ${theme.border}`, zIndex: 20, flexShrink: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}><button onClick={() => { setKioskResult(null); setScreenState("home"); }} style={{ background: "transparent", border: "none", color: theme.text, cursor: "pointer", display: "flex", alignItems: "center" }}><ArrowLeft size={28} /></button><h2 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: theme.text, textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{kioskResult.title}</h2></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 28px', background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.8)', borderBottom: `1px solid ${theme.border}`, zIndex: 20, flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}><button onClick={() => { setKioskResult(null); setScreenState("home"); }} style={{ background: "transparent", border: "none", color: theme.text, cursor: "pointer", display: "flex", alignItems: "center" }}><ArrowLeft size={26} /></button><h2 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: theme.text, textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{kioskResult.title}</h2></div>
                   </div>
                   <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative', background: '#323639', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px', overflow: 'auto', touchAction: 'pan-y' }}>
                      {pdfLoading && (<div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}><div style={{ position: "relative", width: 60, height: 60, display: "flex", justifyContent: "center", alignItems: "center" }}><div style={{ position: "absolute", transform: 'scale(0.5)' }}><GearboxLoader /></div></div></div>)}
                      <canvas ref={canvasRef} style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', opacity: pdfLoading ? 0.3 : 1, transition: 'opacity 0.3s', background: '#fff', borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} />
-                     {pdfRef && (<button onClick={() => { if (canvasRef.current) { setLocalFullScreen(canvasRef.current.toDataURL('image/png')); } }} style={{ position: 'absolute', bottom: 24, right: 24, zIndex: 20, background: theme.accent, color: dark ? '#1C1D55' : '#fff', border: 'none', borderRadius: '50%', width: 64, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform 0.1s', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }} onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.92)'} onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}><Maximize size={28} /></button>)}
+                     
+                     {/* FIXED: Full screen trigger for Handbook and Magna Carta */}
+                     {pdfRef && (
+                        <button onClick={() => { if (canvasRef.current) { setLocalFullScreen(canvasRef.current.toDataURL('image/png')); } }} style={{ position: 'absolute', bottom: 24, right: 24, zIndex: 20, background: theme.accent, color: dark ? '#1C1D55' : '#fff', border: 'none', borderRadius: '50%', width: 58, height: 58, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform 0.1s', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }} onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.92)'} onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+                           <Maximize size={24} />
+                        </button>
+                     )}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, padding: '20px 32px', background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.8)', borderTop: `1px solid ${theme.border}`, zIndex: 20, flexShrink: 0 }}>
-                    <button onClick={() => setPdfPage((p: number) => Math.max(1, p - 5))} className="back-btn-modern" disabled={pdfPage <= 1} style={{ padding: '8px 16px' }}>-5</button>
-                    <button onClick={() => setPdfPage((p: number) => Math.max(1, p - 1))} className="back-btn-modern" disabled={pdfPage <= 1} style={{ padding: '8px 16px' }}><ChevronLeft size={16}/></button>
-                    <span style={{ fontSize: 18, fontWeight: 800, color: theme.text, whiteSpace: 'nowrap', margin: '0 16px' }}>Page {pdfPage} of {totalPages}</span>
-                    <button onClick={() => setPdfPage((p: number) => Math.min(totalPages, p + 1))} className="back-btn-modern" disabled={pdfPage >= totalPages} style={{ padding: '8px 16px' }}><ChevronRight size={16}/></button>
-                    <button onClick={() => setPdfPage((p: number) => Math.min(totalPages, p + 5))} className="back-btn-modern" disabled={pdfPage >= totalPages} style={{ padding: '8px 16px' }}>+5</button>
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, padding: '18px 28px', background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.8)', borderTop: `1px solid ${theme.border}`, zIndex: 20, flexShrink: 0 }}>
+                    <button onClick={() => setPdfPage((p: number) => Math.max(1, p - 5))} className="back-btn-modern" disabled={pdfPage <= 1} style={{ padding: '8px 14px' }}>-5</button>
+                    <button onClick={() => setPdfPage((p: number) => Math.max(1, p - 1))} className="back-btn-modern" disabled={pdfPage <= 1} style={{ padding: '8px 14px' }}><ChevronLeft size={16}/></button>
+                    <span style={{ fontSize: 16, fontWeight: 800, color: theme.text, whiteSpace: 'nowrap', margin: '0 14px' }}>Page {pdfPage} of {totalPages}</span>
+                    <button onClick={() => setPdfPage((p: number) => Math.min(totalPages, p + 1))} className="back-btn-modern" disabled={pdfPage >= totalPages} style={{ padding: '8px 14px' }}><ChevronRight size={16}/></button>
+                    <button onClick={() => setPdfPage((p: number) => Math.min(totalPages, p + 5))} className="back-btn-modern" disabled={pdfPage >= totalPages} style={{ padding: '8px 14px' }}>+5</button>
                   </div>
                 </div>
               ) : kioskResult?.isGallery ? (
                 <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '32px 40px 16px 40px', flexShrink: 0 }}>
-                    <button onClick={() => { setKioskResult(null); setScreenState("home"); }} className="back-btn-modern" style={{ background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}><ArrowLeft size={20}/> Back</button>
-                    <h2 style={{ fontSize: 32, fontWeight: 800, color: theme.text, margin: 0 }}>{kioskResult?.title.replace('Teachers', 'Professors')} Gallery</h2>
+                  <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '32px 36px 16px 36px', flexShrink: 0 }}>
+                    <button onClick={() => { setKioskResult(null); setScreenState("home"); }} className="back-btn-modern" style={{ background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}><ArrowLeft size={18}/> Back</button>
+                    <h2 style={{ fontSize: 28, fontWeight: 800, color: theme.text, margin: 0 }}>{kioskResult?.title.replace('Teachers', 'Professors')} Gallery</h2>
                   </div>
                   
-                  {/* SORT CONTROLS */}
                   {(!loadingDir && dbDirectoryData.length > 0) && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 40px 16px' }}>
-                         <span style={{ fontSize: 16, color: theme.textMuted, fontWeight: 600 }}>{filteredDirectory.length} images found</span>
-                         <div style={{ display: 'flex', gap: 8, background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)', padding: 4, borderRadius: 20 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 36px 16px' }}>
+                         <span style={{ fontSize: 15, color: theme.textMuted, fontWeight: 600 }}>{filteredDirectory.length} images found</span>
+                         <div style={{ display: 'flex', gap: 6, background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)', padding: 4, borderRadius: 20 }}>
                              {isFac && <button onClick={() => setSortMode("hierarchy")} style={sortBtnStyle(sortMode === "hierarchy")}>Hierarchy</button>}
                              <button onClick={() => setSortMode("az")} style={sortBtnStyle(sortMode === "az")}>A-Z</button>
                              <button onClick={() => setSortMode("za")} style={sortBtnStyle(sortMode === "za")}>Z-A</button>
@@ -601,41 +655,39 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                       </div>
                   )}
 
-                  {/* INFINITE SCROLLABLE GALLERY - NO PAGINATION BUTTONS */}
-                  <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: '0 40px 48px' }}>
+                  <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: '0 36px 48px' }}>
                      {loadingDir ? ( <div style={{ display: 'flex', height: 300, alignItems: 'center', justifyContent: 'center' }}><div style={{ transform: 'scale(0.8)' }}><GearboxLoader /></div></div>
                      ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24, width: '100%' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 20, width: '100%' }}>
                            {filteredDirectory.length > 0 && filteredDirectory.map((item) => {
                               const titleText = item.display_name === "-" ? "" : (item.display_name || (item.keyword ? item.keyword.split(',')[0] : ""));
                               const descText = (!item.response || item.response.trim() === "" || item.response === "-") ? "" : item.response;
                               return (
                               <div key={item.id} className="glassy-dir-card" style={{ padding: 16, flexDirection: 'column', alignItems: 'flex-start', cursor: item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? 'zoom-in' : 'default' }} onClick={() => { if (item.picture_url && !item.picture_url.toLowerCase().includes('.pdf')) setFullScreenMedia(item.picture_url); else if (item.picture_url && item.picture_url.toLowerCase().includes('.pdf')) window.open(item.picture_url, '_blank'); }}>
-                                 <div style={{ width: '100%', height: 220, borderRadius: 12, background: dark ? 'rgba(0,0,0,0.3)' : '#fff', border: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', marginBottom: 12 }}>
-                                    {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={optimizeImage(item.picture_url)} alt="Gallery" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: dark ? theme.accent : theme.cardBorder }}><FileText size={40} /></span>}
+                                 <div style={{ width: '100%', height: 210, borderRadius: 12, background: dark ? 'rgba(0,0,0,0.3)' : '#fff', border: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', marginBottom: 10 }}>
+                                    {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={optimizeImage(item.picture_url)} alt="Gallery" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: dark ? theme.accent : theme.cardBorder }}><FileText size={36} /></span>}
                                  </div>
-                                 {titleText && <span style={{ fontSize: 18, fontWeight: 800, color: theme.text, lineHeight: 1.3 }}>{titleText}</span>}
-                                 {descText && <span style={{ fontSize: 14, color: theme.textMuted, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5, marginTop: 4 }}>{descText}</span>}
+                                 {titleText && <span style={{ fontSize: 17, fontWeight: 800, color: theme.text, lineHeight: 1.3 }}>{titleText}</span>}
+                                 {descText && <span style={{ fontSize: 13, color: theme.textMuted, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5, marginTop: 4 }}>{descText}</span>}
                               </div>
-                           )})}
-                           {filteredDirectory.length === 0 && (<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: theme.textMuted, fontWeight: 600, padding: 40, gridColumn: '1 / -1' }}>No images found in this gallery.</div>)}
+                           );})}
+                           {filteredDirectory.length === 0 && (<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: theme.textMuted, fontWeight: 600, padding: 40, gridColumn: '1 / -1' }}>No images found in this gallery.</div>)}
                         </div>
                      )}
                   </div>
                 </div>
               ) : kioskResult?.isDirectory ? (
                 <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '32px 40px 16px 40px', flexShrink: 0 }}>
-                    <button onClick={() => { setKioskResult(null); setScreenState("home"); }} className="back-btn-modern" style={{ background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}><ArrowLeft size={20}/> Back</button>
-                    <h2 style={{ fontSize: 32, fontWeight: 800, color: theme.text, margin: 0 }}>{kioskResult?.title.replace('Teachers', 'Professors')}</h2>
+                  <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '32px 36px 16px 36px', flexShrink: 0 }}>
+                    <button onClick={() => { setKioskResult(null); setScreenState("home"); }} className="back-btn-modern" style={{ background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}><ArrowLeft size={18}/> Back</button>
+                    <h2 style={{ fontSize: 28, fontWeight: 800, color: theme.text, margin: 0 }}>{kioskResult?.title.replace('Teachers', 'Professors')}</h2>
                   </div>
                   
-                  {/* SORT CONTROLS */}
                   {(!dirMajor && subCategories.length > 0) ? null : (
                       (!loadingDir && dbDirectoryData.length > 0) && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 40px 16px' }}>
-                             <span style={{ fontSize: 16, color: theme.textMuted, fontWeight: 600 }}>{filteredDirectory.length} records found</span>
-                             <div style={{ display: 'flex', gap: 8, background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)', padding: 4, borderRadius: 20 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 36px 16px' }}>
+                             <span style={{ fontSize: 15, color: theme.textMuted, fontWeight: 600 }}>{filteredDirectory.length} records found</span>
+                             <div style={{ display: 'flex', gap: 6, background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)', padding: 4, borderRadius: 20 }}>
                                  {isFac && <button onClick={() => setSortMode("hierarchy")} style={sortBtnStyle(sortMode === "hierarchy")}>Hierarchy</button>}
                                  <button onClick={() => setSortMode("az")} style={sortBtnStyle(sortMode === "az")}>A-Z</button>
                                  <button onClick={() => setSortMode("za")} style={sortBtnStyle(sortMode === "za")}>Z-A</button>
@@ -644,16 +696,15 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                       )
                   )}
 
-                  {/* INFINITE SCROLLABLE FACULTY DIRECTORY - NO NEXT/PREV BUTTONS */}
-                  <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: '0 40px 48px', display: 'flex', flexDirection: 'column' }}>
+                  <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: '0 36px 48px', display: 'flex', flexDirection: 'column' }}>
                      {!dirMajor && subCategories.length > 0 ? (
                         <>
-                          <div style={{ fontSize: 22, fontWeight: 700, color: theme.textMuted, marginBottom: 24, textAlign: 'center' }}>Select a Folder to view {kioskResult.title.replace('Teachers', 'Professors')}</div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'center' }}>
+                          <div style={{ fontSize: 20, fontWeight: 700, color: theme.textMuted, marginBottom: 20, textAlign: 'center' }}>Select a Folder to view {kioskResult.title.replace('Teachers', 'Professors')}</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, justifyContent: 'center' }}>
                              {subCategories.map((m, idx) => (
-                               <button key={idx} className="glassy-dir-card" style={{ flex: '1 1 calc(50% - 16px)', minWidth: 280, justifyContent: 'center', padding: '24px', border: 'none', background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)' }} onClick={() => { setDirMajor(m as string); }}>
-                                 <span style={{ color: dark ? theme.accent : theme.cardBorder }}>{getIconForCategory(kioskResult.title, 32)}</span>
-                                 <span style={{ fontSize: 20, fontWeight: 800, color: theme.text, whiteSpace: 'normal', textAlign: 'center' }}>{m as string}</span>
+                               <button key={idx} className="glassy-dir-card" style={{ flex: '1 1 calc(50% - 14px)', minWidth: 260, justifyContent: 'center', padding: '20px', border: 'none', background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)' }} onClick={() => { setDirMajor(m as string); }}>
+                                 <span style={{ color: dark ? theme.accent : theme.cardBorder }}>{getIconForCategory(kioskResult.title, 28)}</span>
+                                 <span style={{ fontSize: 18, fontWeight: 800, color: theme.text, whiteSpace: 'normal', textAlign: 'center' }}>{m as string}</span>
                                </button>
                              ))}
                           </div>
@@ -661,62 +712,75 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                      ) : (
                         loadingDir ? ( <div style={{ display: 'flex', height: 300, alignItems: 'center', justifyContent: 'center' }}><div style={{ transform: 'scale(0.8)' }}><GearboxLoader /></div></div>
                         ) : (
-                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 16, width: '100%' }}>
+                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 14, width: '100%' }}>
                               {filteredDirectory.length > 0 && filteredDirectory.map((item) => {
                                  const titleText = item.display_name === "-" ? "" : (item.display_name || (item.keyword ? item.keyword.split(',')[0] : ""));
                                  const descText = (!item.response || item.response.trim() === "" || item.response === "-") ? "" : item.response;
-                                 const searchTarget = item.display_name && item.display_name !== "-" ? item.display_name : (item.keyword ? item.keyword.split(',')[0] : "");
                                  return (
-                                 <div key={item.id} className="glassy-dir-card" style={{ padding: 24 }} onClick={() => handleKioskSelectionInternal(kioskResult.category || kioskResult.title, searchTarget)}>
-                                    <div style={{ width: 80, height: 80, borderRadius: '50%', background: dark ? 'rgba(0,0,0,0.3)' : '#fff', border: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
-                                       {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={optimizeImage(item.picture_url)} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: dark ? theme.accent : theme.cardBorder }}>{getIconForCategory(kioskResult.title, 40)}</span>}
+                                 <div key={item.id} className="glassy-dir-card" style={{ padding: 20 }} onClick={() => {
+                                    setScreenState("kiosk_result");
+                                    setKioskResult({
+                                       title: item.display_name && item.display_name !== "-" ? item.display_name : (item.keyword ? item.keyword.split(',')[0] : ""),
+                                       loading: false,
+                                       content: item.response,
+                                       image: item.picture_url,
+                                       qr_link: item.qr_link
+                                    });
+                                 }}>
+                                    <div style={{ width: 70, height: 70, borderRadius: '50%', background: dark ? 'rgba(0,0,0,0.3)' : '#fff', border: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                                       {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={optimizeImage(item.picture_url)} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: dark ? theme.accent : theme.cardBorder }}>{getIconForCategory(kioskResult.title, 36)}</span>}
                                     </div>
-                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start', textAlign: 'left' }}>
-                                       {titleText && <span style={{ fontSize: 22, fontWeight: 800, color: theme.text }}>{titleText}</span>}
-                                       {item.subcategory && item.subcategory !== "All" && (<span style={{ fontSize: 16, fontWeight: 700, color: dark ? theme.accent : theme.cardBorder }}>{item.subcategory}</span>)}
-                                       {descText && <span style={{ fontSize: 15, color: theme.textMuted, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5 }}>{descText}</span>}
+                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start', textAlign: 'left', minWidth: 0 }}>
+                                       {titleText && <span style={{ fontSize: 20, fontWeight: 800, color: theme.text, wordBreak: 'break-word' }}>{titleText}</span>}
+                                       {item.subcategory && item.subcategory !== "All" && (<span style={{ fontSize: 15, fontWeight: 700, color: dark ? theme.accent : theme.cardBorder }}>{item.subcategory}</span>)}
+                                       {descText && <span style={{ fontSize: 14, color: theme.textMuted, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5 }}>{descText}</span>}
                                     </div>
-                                    <ChevronRight size={28} color={theme.textMuted} style={{ flexShrink: 0 }} />
+                                    <ChevronRight size={26} color={theme.textMuted} style={{ flexShrink: 0 }} />
                                  </div>
-                              )})}
-                              {filteredDirectory.length === 0 && (<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: theme.textMuted, fontWeight: 600, padding: 40 }}>No records found.</div>)}
+                              );})}
+                              {filteredDirectory.length === 0 && (<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: theme.textMuted, fontWeight: 600, padding: 40 }}>No records found.</div>)}
                            </div>
                         )
                      )}
                   </div>
                 </div>
               ) : (
-                <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: '48px', display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 40 }}>
-                    <button onClick={() => { setKioskResult(null); setScreenState("home"); }} style={{ background: "transparent", border: "none", color: theme.text, cursor: "pointer", display: "flex", alignItems: "center", marginTop: 4 }}><ArrowLeft size={32} /></button>
-                    <h2 style={{ fontSize: 36, fontWeight: 800, margin: 0, color: theme.text, textTransform: 'uppercase', lineHeight: 1.2 }}>{kioskResult?.title === "-" ? "" : kioskResult?.title}</h2>
+                <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: '40px', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 18, marginBottom: 32 }}>
+                    <button onClick={() => { setKioskResult(null); setScreenState("home"); }} style={{ background: "transparent", border: "none", color: theme.text, cursor: "pointer", display: "flex", alignItems: "center", marginTop: 4 }}><ArrowLeft size={28} /></button>
+                    <h2 style={{ fontSize: 32, fontWeight: 800, margin: 0, color: theme.text, textTransform: 'uppercase', lineHeight: 1.2 }}>{kioskResult?.title === "-" ? "" : kioskResult?.title}</h2>
                   </div>
                   {kioskResult?.loading ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 20, marginTop: 60 }}><Bot color={theme.accent} size={80} className="animate-pulse" /><span style={{ fontSize: 26, color: theme.textMuted, fontWeight: 700 }}>inCITe is fetching details...</span></div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 20, marginTop: 60 }}><Bot color={theme.accent} size={80} className="animate-pulse" /><span style={{ fontSize: 24, color: theme.textMuted, fontWeight: 700 }}>inCITe is fetching details...</span></div>
                   ) : (
                     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      {kioskResult?.image && (<div style={{ background: '#fff', borderRadius: 32, padding: 24, marginBottom: 40, boxShadow: '0 12px 32px rgba(0,0,0,0.2)' }}><img src={optimizeImage(kioskResult.image)} alt={`${kioskResult.title} Logo`} style={{ width: 240, height: 240, objectFit: 'contain' }} /></div>)}
-                      {kioskResult?.content && kioskResult.content !== "-" && <div style={{ fontSize: 20, lineHeight: 1.7, color: theme.text, width: '100%', whiteSpace: 'pre-wrap', paddingBottom: 20, fontWeight: 500 }}>{formatText(kioskResult?.content)}</div>}
+                      {kioskResult?.image && (<div style={{ background: '#fff', borderRadius: 28, padding: 20, marginBottom: 32, boxShadow: '0 12px 32px rgba(0,0,0,0.2)' }}><img src={optimizeImage(kioskResult.image)} alt={`${kioskResult.title} Logo`} style={{ width: 220, height: 220, objectFit: 'contain' }} /></div>)}
+                      {kioskResult?.content && kioskResult.content !== "-" && <div style={{ fontSize: 18, lineHeight: 1.7, color: theme.text, width: '100%', whiteSpace: 'pre-wrap', paddingBottom: 20, fontWeight: 500 }}>{formatText(kioskResult?.content)}</div>}
                       
-                      {(() => {
-                         const urlMatch = kioskResult?.content?.match(/(https?:\/\/[^\s]+[^.,;:"'\s])/);
-                         if (urlMatch) {
-                             return (
-                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 20, padding: '32px 48px', background: dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, boxShadow: '0 12px 40px rgba(0,0,0,0.1)' }}>
-                                     <span style={{ fontSize: 18, fontWeight: 800, color: theme.textMuted, marginBottom: 20, textTransform: 'uppercase', letterSpacing: '1px' }}>Scan for more info</span>
-                                     <div style={{ background: '#fff', padding: 12, borderRadius: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
-                                         <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(urlMatch[0])}`} alt="QR Code" style={{ display: 'block', borderRadius: 8 }} />
-                                     </div>
-                                 </div>
-                             )
-                         }
-                         return null;
-                      })()}
+                      {/* ROBUST AUTO-GENERATED QR CODE */}
+                      {detectedQrUrl && (
+                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 20, padding: '28px 40px', background: dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, boxShadow: '0 12px 40px rgba(0,0,0,0.1)' }}>
+                             <span style={{ fontSize: 16, fontWeight: 800, color: theme.textMuted, marginBottom: 16, textTransform: 'uppercase', letterSpacing: '1px' }}>Scan for more info</span>
+                             <div style={{ background: '#fff', padding: 12, borderRadius: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
+                                 <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(detectedQrUrl)}`} alt="QR Code" style={{ display: 'block', borderRadius: 8 }} />
+                             </div>
+                         </div>
+                      )}
                     </div>
                   )}
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* FULLSCREEN LIGHTBOX FOR PDF CANVAS */}
+        {localFullScreen && (
+          <div onClick={() => setLocalFullScreen(null)} style={{ position: 'fixed', inset: 0, zIndex: 99999999, background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
+            <button onClick={() => setLocalFullScreen(null)} style={{ position: 'absolute', top: 24, right: 24, background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: '50%', width: 50, height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 100 }}>
+               <X size={28} />
+            </button>
+            <img src={localFullScreen} alt="Fullscreen PDF Page" style={{ maxWidth: '96%', maxHeight: '96%', objectFit: 'contain', borderRadius: 12, boxShadow: '0 20px 50px rgba(0,0,0,0.8)' }} />
           </div>
         )}
       </div>
