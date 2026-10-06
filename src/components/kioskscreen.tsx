@@ -45,19 +45,17 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     
     .greeting-box {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 18px 24px; border-radius: 28px;
+      border-radius: 28px;
       background: ${dark ? 'rgba(18, 87, 172, 0.15)' : 'rgba(255, 255, 255, 0.6)'};
       border: 1px solid ${dark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(166, 1, 18, 0.2)'};
       box-shadow: 0 16px 32px rgba(0,0,0,0.1);
       backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-      width: 90%; max-width: 680px; flex-shrink: 0;
-      margin-bottom: 24px; animation: slideDown 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+      flex-shrink: 0; animation: slideDown 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
 
     .omantel-grid {
-      display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px;
-      width: 100%; max-width: 680px; padding: 0 16px; flex-shrink: 0;
-      animation: slideUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+      display: grid; grid-template-columns: repeat(6, 1fr);
+      flex-shrink: 0; animation: slideUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
     }
     
     .glassy-cluster-card {
@@ -114,7 +112,7 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
 
     .glassy-dir-card {
       background: ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.7)'}; border: 1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(166, 1, 18, 0.15)'};
-      border-radius: 20px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      border-radius: 20px; padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
       backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); position: relative; min-height: 80px;
     }
@@ -385,7 +383,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
      itemsToRender = kioskMapping[kioskCategory] || [];
   }
 
-  // ROBUST MULTI-LEVEL BACK ROUTER
   const handleBackFromDetail = () => {
       if (kioskResult?.parentDirectory) {
           setKioskResult({
@@ -476,7 +473,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
         <div className="bg-blob-1" />
         <div className="bg-blob-2" />
         
-        {/* TOP INCITE BRANDING */}
         <div style={{ position: 'absolute', top: 24, left: 32, zIndex: 100, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }} onClick={goHome}>
             <Bot size={40} color={dark ? "#fff" : theme.cardBorder} />
             <span style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-1px' }}><span style={{ color: theme.text }}>in</span><span style={{ color: '#1257AC' }}>CIT</span><span style={{ color: theme.text }}>e</span></span>
@@ -484,7 +480,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
         
         <div style={{ position: "absolute", top: 22, right: 28, zIndex: 100, transform: 'scale(0.85)', transformOrigin: 'top right' }}>{topRightButtons}</div>
 
-        {/* EVENT POPUP MODAL */}
         {showPopupCondition && (
           <div className="event-popup-overlay">
             <div className="event-popup-card" onClick={e => e.stopPropagation()}>
@@ -523,72 +518,69 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
           </div>
         )}
 
+        {/* FIXED: Wrap the Home Screen in a Flex Center container to perfectly balance empty space on tall Kiosks */}
         {screenState === "home" && !kioskCategory && (
-          <div className="kiosk-main-scroll no-scrollbar" style={{ display: 'flex', flexDirection: 'column', flex: 1, width: '100%', alignItems: 'center' }}>
+          <div className="kiosk-main-scroll no-scrollbar" style={{ display: 'flex', flexDirection: 'column', flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', paddingBottom: 85 }}>
             
-            {/* SCALED DOWN GREETING BOX */}
-            <div className="greeting-box" style={{ padding: '18px 24px', marginBottom: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                 <div style={{ width: 56, height: 56, borderRadius: '50%', background: dark ? theme.accent : theme.cardBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}><Bot size={32} color={dark ? '#1C1D55' : '#fff'} /></div>
-                 <div style={{ display: 'flex', flexDirection: 'column' }}><h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: theme.text, letterSpacing: '-0.5px' }}>Good Day CITizen!</h1><p style={{ margin: '4px 0 0', fontSize: 13, color: theme.textMuted, fontWeight: 600 }}>{formattedDate} | {formattedTime}</p></div>
-              </div>
-              <button onClick={() => setShowCalendar(true)} style={{ background: theme.accent, color: dark ? '#1C1D55' : '#fff', border: 'none', padding: '12px 20px', borderRadius: 16, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.95)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}><CalendarIcon size={16} /> View Calendar</button>
-            </div>
-
-            {/* SCALED DOWN CLUSTER CARDS */}
-            <div className="omantel-grid" style={{ gap: 14 }}>
-               {clusterItems.map((item, idx) => (
-                  <div key={idx} onClick={() => setKioskCategory(item.label)} className="glassy-cluster-card" style={{ gridColumn: idx < 3 ? 'span 2' : 'span 3', minHeight: 140, padding: 16 }}>
-                     <div style={{ color: dark ? theme.accent : theme.cardBorder, marginBottom: 12 }}>{item.icon}</div>
-                     <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Browse</div>
-                     <div style={{ fontSize: item.label.length > 12 ? 15 : 18, color: theme.text, fontWeight: 800, lineHeight: 1.2, marginTop: 4, paddingRight: 24, wordBreak: 'break-word' }}>{item.label}</div>
-                     <div className="card-arrow" style={{ position: 'absolute', bottom: 16, right: 16, width: 28, height: 28, borderColor: dark ? theme.accent : theme.cardBorder, color: dark ? theme.accent : theme.cardBorder }}><ArrowRight size={14}/></div>
+            <div style={{ width: '100%', maxWidth: 680, display: 'flex', flexDirection: 'column', padding: '0 16px' }}>
+                <div className="greeting-box" style={{ width: '100%', padding: '18px 24px', marginBottom: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                     <div style={{ width: 56, height: 56, borderRadius: '50%', background: dark ? theme.accent : theme.cardBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}><Bot size={32} color={dark ? '#1C1D55' : '#fff'} /></div>
+                     <div style={{ display: 'flex', flexDirection: 'column' }}><h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: theme.text, letterSpacing: '-0.5px' }}>Good Day CITizen!</h1><p style={{ margin: '4px 0 0', fontSize: 13, color: theme.textMuted, fontWeight: 600 }}>{formattedDate} | {formattedTime}</p></div>
                   </div>
-               ))}
-            </div>
+                  <button onClick={() => setShowCalendar(true)} style={{ background: theme.accent, color: dark ? '#1C1D55' : '#A60112', border: 'none', padding: '12px 20px', borderRadius: 16, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.95)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}><CalendarIcon size={16} /> View Calendar</button>
+                </div>
 
-            <div style={{ width: '100%', maxWidth: 680, marginTop: 24, marginBottom: 16, padding: '0 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-               
-               {/* STRICT COLOR COMPLIANCE FOR TOP MARQUEE */}
-               <div className="marquee-container" style={{ background: dark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(166, 1, 18, 0.05)', borderColor: dark ? '#3b82f6' : 'rgba(166, 1, 18, 0.2)', marginBottom: 16, padding: 12 }}>
-                  <div className="marquee-text" style={{ color: dark ? '#60a5fa' : '#A60112', fontSize: 16 }}>{dark ? '#AMPLIFIEDCIT' : '#ALABULSU'} &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; {dark ? '#AMPLIFIEDCIT' : '#ALABULSU'} &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp;</div>
-               </div>
+                <div className="omantel-grid" style={{ width: '100%', padding: 0, gap: 14 }}>
+                   {clusterItems.map((item, idx) => (
+                      <div key={idx} onClick={() => setKioskCategory(item.label)} className="glassy-cluster-card" style={{ gridColumn: idx < 3 ? 'span 2' : 'span 3', minHeight: 140, padding: 16 }}>
+                         <div style={{ color: dark ? theme.accent : theme.cardBorder, marginBottom: 12 }}>{item.icon}</div>
+                         <div style={{ fontSize: 12, color: theme.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Browse</div>
+                         <div style={{ fontSize: item.label.length > 12 ? 15 : 18, color: theme.text, fontWeight: 800, lineHeight: 1.2, marginTop: 4, paddingRight: 24, wordBreak: 'break-word' }}>{item.label}</div>
+                         <div className="card-arrow" style={{ position: 'absolute', bottom: 16, right: 16, width: 28, height: 28, borderColor: dark ? theme.accent : theme.cardBorder, color: dark ? theme.accent : theme.cardBorder }}><ArrowRight size={14}/></div>
+                      </div>
+                   ))}
+                </div>
 
-               <h3 style={{ color: theme.text, fontSize: 18, fontWeight: 800, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: 10 }}><CalendarIcon size={20} color={theme.accent} /> Highlights of the Month</h3>
-               
-               {/* SCALED DOWN CAROUSEL WITH INTERACTIVE ROUTING */}
-               <div className="carousel-container" style={{ marginBottom: 16 }}>
-                  <div className="carousel-track">
-                     {infiniteHighlights.map((h, i) => (
-                        <div key={i} onClick={() => {
-                            setKioskCategory("Accomplishment");
-                            setScreenState("kiosk_result");
-                            setKioskResult({ title: h.title, isGallery: true, category: "Accomplishment" });
-                        }} style={{ minWidth: 280, height: 200, borderRadius: 20, background: theme.card, border: `1px solid ${theme.border}`, overflow: 'hidden', position: 'relative', flexShrink: 0, cursor: 'pointer', transition: 'transform 0.2s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.98)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>
-                           <img src={optimizeImage(h.img)} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }} />
-                           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '16px 14px', background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)' }}><div style={{ color: '#fff', fontSize: 16, fontWeight: 800 }}>{h.title}</div><div style={{ color: theme.accent, fontSize: 13, fontWeight: 700 }}>{h.date}</div></div>
-                        </div>
-                     ))}
-                  </div>
-               </div>
+                <div style={{ width: '100%', marginTop: 24, display: 'flex', flexDirection: 'column' }}>
+                   
+                   <div className="marquee-container" style={{ background: dark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(166, 1, 18, 0.05)', borderColor: dark ? '#3b82f6' : 'rgba(166, 1, 18, 0.2)', marginBottom: 16, padding: 12 }}>
+                      <div className="marquee-text" style={{ color: dark ? '#60a5fa' : '#A60112', fontSize: 16 }}>{dark ? '#AMPLIFIEDCIT' : '#ALABULSU'} &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; {dark ? '#AMPLIFIEDCIT' : '#ALABULSU'} &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp;</div>
+                   </div>
 
-               {/* STRICT COLOR COMPLIANCE FOR BOTTOM MARQUEE */}
-               <div className="marquee-container" style={{ background: dark ? 'rgba(253, 181, 28, 0.15)' : 'rgba(245, 170, 42, 0.1)', borderColor: dark ? '#FDB51C' : 'rgba(245, 170, 42, 0.3)', marginTop: 0, padding: 12 }}>
-                  <div className="marquee-text" style={{ animationDirection: 'reverse', color: dark ? '#FDB51C' : '#F5AA2A', fontSize: 16 }}>{dark ? '#AMPLIFIEDCIT' : '#ALABULSU'} &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; {dark ? '#AMPLIFIEDCIT' : '#ALABULSU'} &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp;</div>
-               </div>
-               
-               {/* SCALED DOWN BOTTOM ASSISTANT BUTTON */}
-               <div style={{ width: '100%', marginTop: 24, paddingBottom: 16 }}>
-                  <div className="glassy-cluster-card kiosk-pulse-btn" onClick={() => { setScreenState("chat"); setKioskCategory(null); setKioskResult(null); }} style={{ margin: 0, padding: 24, minHeight: 160, display: 'flex', justifyContent: 'center', border: 'none' }}>
-                     <div style={{ fontSize: 14, opacity: 0.9, fontWeight: 700, marginBottom: 4 }}>Interactive AI Assistant</div>
-                     <div style={{ fontSize: 32, fontWeight: 800, marginBottom: 16 }}>Talk with ChatCIT</div>
-                     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.2)', padding: '10px 20px', borderRadius: 24, fontSize: 14, fontWeight: 700 }}><MessageSquare size={16}/> Ask anything</span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.2)', padding: '10px 20px', borderRadius: 24, fontSize: 14, fontWeight: 700 }}><Search size={16}/> Search records</span>
-                     </div>
-                     <Bot size={140} style={{ position: 'absolute', right: -10, bottom: -20, opacity: 0.15 }} />
-                  </div>
-               </div>
+                   <h3 style={{ color: theme.text, fontSize: 18, fontWeight: 800, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: 10 }}><CalendarIcon size={20} color={theme.accent} /> Highlights of the Month</h3>
+                   
+                   <div className="carousel-container" style={{ marginBottom: 16 }}>
+                      <div className="carousel-track">
+                         {infiniteHighlights.map((h, i) => (
+                            <div key={i} onClick={() => {
+                                setKioskCategory("Accomplishment");
+                                setScreenState("kiosk_result");
+                                setKioskResult({ title: h.title, isGallery: true, category: "Accomplishment" });
+                            }} style={{ minWidth: 280, height: 200, borderRadius: 20, background: theme.card, border: `1px solid ${theme.border}`, overflow: 'hidden', position: 'relative', flexShrink: 0, cursor: 'pointer', transition: 'transform 0.2s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.98)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>
+                               <img src={optimizeImage(h.img)} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }} />
+                               <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '16px 14px', background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)' }}><div style={{ color: '#fff', fontSize: 16, fontWeight: 800 }}>{h.title}</div><div style={{ color: theme.accent, fontSize: 13, fontWeight: 700 }}>{h.date}</div></div>
+                            </div>
+                         ))}
+                      </div>
+                   </div>
+
+                   <div className="marquee-container" style={{ background: dark ? 'rgba(253, 181, 28, 0.15)' : 'rgba(245, 170, 42, 0.1)', borderColor: dark ? '#FDB51C' : 'rgba(245, 170, 42, 0.3)', marginTop: 0, padding: 12 }}>
+                      <div className="marquee-text" style={{ animationDirection: 'reverse', color: dark ? '#FDB51C' : '#F5AA2A', fontSize: 16 }}>{dark ? '#AMPLIFIEDCIT' : '#ALABULSU'} &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; {dark ? '#AMPLIFIEDCIT' : '#ALABULSU'} &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp;</div>
+                   </div>
+                </div>
+
+                <div style={{ width: '100%', marginTop: 20 }}>
+                   <div className="glassy-cluster-card kiosk-pulse-btn" onClick={() => { setScreenState("chat"); setKioskCategory(null); setKioskResult(null); }} style={{ margin: 0, padding: 24, minHeight: 160, display: 'flex', justifyContent: 'center', border: 'none' }}>
+                      <div style={{ fontSize: 14, opacity: 0.9, fontWeight: 700, marginBottom: 4 }}>Interactive AI Assistant</div>
+                      <div style={{ fontSize: 32, fontWeight: 800, marginBottom: 16 }}>Talk with ChatCIT</div>
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                         <span style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.2)', padding: '10px 20px', borderRadius: 24, fontSize: 14, fontWeight: 700 }}><MessageSquare size={16}/> Ask anything</span>
+                         <span style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.2)', padding: '10px 20px', borderRadius: 24, fontSize: 14, fontWeight: 700 }}><Search size={16}/> Search records</span>
+                      </div>
+                      <Bot size={140} style={{ position: 'absolute', right: -10, bottom: -20, opacity: 0.15 }} />
+                   </div>
+                </div>
 
             </div>
           </div>
