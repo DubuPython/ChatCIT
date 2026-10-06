@@ -36,7 +36,7 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     .kiosk-main-scroll {
       position: relative; z-index: 10; width: 100%; height: 100%; flex: 1 1 auto; min-height: 0;
       display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-      padding-top: 85px; padding-bottom: 60px;
+      padding-top: 90px; padding-bottom: 60px;
       overflow-y: auto !important; overflow-x: hidden !important;
       -webkit-overflow-scrolling: touch !important;
       touch-action: pan-y !important;
@@ -45,29 +45,29 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     
     .greeting-box {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 20px 28px; border-radius: 28px;
+      padding: 24px 32px; border-radius: 32px;
       background: ${dark ? 'rgba(18, 87, 172, 0.15)' : 'rgba(255, 255, 255, 0.6)'};
       border: 1px solid ${dark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(166, 1, 18, 0.2)'};
       box-shadow: 0 20px 40px rgba(0,0,0,0.1);
       backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
       width: 90%; max-width: 680px; flex-shrink: 0;
-      margin-bottom: 24px; animation: slideDown 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+      margin-bottom: 32px; animation: slideDown 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
 
     .omantel-grid {
-      display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px;
+      display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px;
       width: 100%; max-width: 680px; padding: 0 16px; flex-shrink: 0;
       animation: slideUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
     }
     
     .glassy-cluster-card {
-      border-radius: 24px; padding: 18px; display: flex; flex-direction: column;
+      border-radius: 28px; padding: 20px; display: flex; flex-direction: column;
       background: ${dark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.7)'};
       border: 1px solid ${dark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(166, 1, 18, 0.15)'};
       box-shadow: 0 16px 40px rgba(0,0,0,0.08); 
       backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px);
       cursor: pointer; transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-      position: relative; overflow: hidden; min-height: 150px;
+      position: relative; overflow: hidden; min-height: 160px;
     }
     .glassy-cluster-card:active { transform: scale(0.95); background: ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.9)'}; }
 
@@ -92,12 +92,12 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     
     .marquee-container {
        width: 100%; overflow: hidden; white-space: nowrap; position: relative;
-       padding: 10px; border-radius: 12px; border: 1px solid;
+       padding: 12px; border-radius: 12px; border: 1px solid;
     }
     .marquee-text {
        display: inline-block;
        animation: marquee 35s linear infinite;
-       font-weight: 800; font-size: 15px; letter-spacing: 2px; text-transform: uppercase;
+       font-weight: 800; font-size: 16px; letter-spacing: 2px; text-transform: uppercase;
     }
     @keyframes marquee { 0% { transform: translateX(50%); } 100% { transform: translateX(-100%); } }
     
@@ -107,12 +107,11 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
        mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
     }
     .carousel-track {
-       display: flex; gap: 14px; width: max-content;
+       display: flex; gap: 16px; width: max-content;
        animation: scrollCarousel 30s linear infinite;
     }
-    @keyframes scrollCarousel { 0% { transform: translateX(0); } 100% { transform: translateX(calc(-50% - 7px)); } }
+    @keyframes scrollCarousel { 0% { transform: translateX(0); } 100% { transform: translateX(calc(-50% - 8px)); } }
 
-    /* FIXED: Flexbox layout prevents button and text from overlapping */
     .glassy-dir-card {
       background: ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.7)'}; border: 1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(166, 1, 18, 0.15)'};
       border-radius: 20px; padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
@@ -196,10 +195,10 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
 
   const [currentTime, setCurrentTime] = useState(new Date());
   
-  // EVENT POPUP STATE
   const [dismissedPopup, setDismissedPopup] = useState(false);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
   
+  // THEME DEFINITIONS - Strictly enforced!
   const theme = dark ? {
     bg: '#1C1D55', card: '#1257AC', accent: '#FDB51C', text: '#ffffff', textMuted: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.15)'
   } : {
@@ -244,18 +243,15 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const activeHighlights = (kioskHighlights && kioskHighlights.length > 0) ? kioskHighlights : defaultHighlights;
   const infiniteHighlights = [...activeHighlights, ...activeHighlights];
 
-  // BULLETPROOF JSON PARSER FOR POPUP DATA
   let safePopupState = kioskEventPopup;
   while (typeof safePopupState === 'string') {
-      try { safePopupState = JSON.parse(safePopupState); } 
-      catch (e) { break; }
+      try { safePopupState = JSON.parse(safePopupState); } catch (e) { break; }
   }
   
   const isPopupEnabled = safePopupState?.enabled === true || String(safePopupState?.enabled) === "true";
   const popupImgs = Array.isArray(safePopupState?.imgs) ? safePopupState.imgs : [];
   const showPopupCondition = screenState === "home" && isPopupEnabled && !dismissedPopup;
 
-  // BACKGROUND IMAGE PRELOADER
   useEffect(() => {
      const preloadUrls = [ ...activeSlides, ...infiniteHighlights.map(h => h.img), ...popupImgs ];
      preloadUrls.forEach(url => {
@@ -263,7 +259,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
      });
   }, [activeSlides, infiniteHighlights, popupImgs]);
 
-  // RESET POPUP WHEN SCREEN GOES BACK TO PRESENTATION (IDLE)
   useEffect(() => {
     if (screenState === 'presentation') {
       const timer = setInterval(() => setCurrentSlide(s => (s + 1) % activeSlides.length), 6000);
@@ -273,7 +268,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     }
   }, [screenState, activeSlides.length]);
 
-  // FACULTY & SORTING LOGIC
   const isFac = (kioskResult?.title || "").toLowerCase().includes("facul") || (kioskResult?.title || "").toLowerCase().includes("prof") || (kioskResult?.title || "").toLowerCase().includes("committee");
   const [sortMode, setSortMode] = useState<"hierarchy" | "az" | "za">(isFac ? "hierarchy" : "az");
 
@@ -384,7 +378,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const sortBtnStyle = (active: boolean) => ({
       padding: "8px 16px", borderRadius: 16, fontSize: 14, fontWeight: 800, cursor: "pointer", border: "none",
       background: active ? theme.accent : "transparent",
-      color: active ? (dark ? "#1C1D55" : "#fff") : theme.textMuted,
+      color: active ? (dark ? "#1C1D55" : "#A60112") : theme.textMuted,
       transition: "all 0.2s"
   });
 
@@ -410,7 +404,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
 
   const goHome = () => { setScreenState("home"); setKioskCategory(null); setKioskResult(null); };
 
-  // ROBUST QR CODE RESOLVER
   const getQrUrl = () => {
       if (kioskResult?.qr_link && kioskResult.qr_link.trim()) {
           let url = kioskResult.qr_link.trim();
@@ -426,7 +419,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
           return url;
       }
       
-      // Fallback: cross check database items in case the content had formatting issues
       if (kioskResult?.title && dbDirectoryData.length > 0) {
           const found = dbDirectoryData.find(d => 
              (d.display_name && d.display_name.toLowerCase() === kioskResult.title.toLowerCase()) ||
@@ -479,10 +471,9 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
             <span style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-1px' }}><span style={{ color: theme.text }}>in</span><span style={{ color: '#1257AC' }}>CIT</span><span style={{ color: theme.text }}>e</span></span>
         </div>
         
-        {/* FIXED: Top right buttons are scaled down slightly to avoid header crowding */}
         <div style={{ position: "absolute", top: 22, right: 28, zIndex: 100, transform: 'scale(0.85)', transformOrigin: 'top right' }}>{topRightButtons}</div>
 
-        {/* EVENT POPUP MODAL (NO BACKGROUND GHOST CLICKS) */}
+        {/* EVENT POPUP MODAL */}
         {showPopupCondition && (
           <div className="event-popup-overlay">
             <div className="event-popup-card" onClick={e => e.stopPropagation()}>
@@ -491,7 +482,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                 <X size={24} />
               </button>
               
-              {/* IMAGE SCROLLER ENGINE */}
               {popupImgs.length > 0 && (
                  <div className="gallery-snap-scroll" onScroll={(e) => { const el = e.target as HTMLDivElement; setActiveGalleryIndex(Math.round(el.scrollLeft / el.clientWidth)); }} style={{ display: 'flex', overflowX: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-x', scrollSnapType: 'x mandatory', width: '100%', position: 'relative' }}>
                      {popupImgs.map((imgUrl: string, idx: number) => (
@@ -500,7 +490,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                  </div>
               )}
               
-              {/* PAGINATION DOTS */}
               {popupImgs.length > 1 && (
                  <div style={{ position: 'absolute', top: 350, width: '100%', display: 'flex', justifyContent: 'center', gap: 8, pointerEvents: 'none' }}>
                      {popupImgs.map((_: any, idx: number) => (
@@ -519,7 +508,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                     </div>
                 )}
 
-                <button onClick={(e) => { e.preventDefault(); setDismissedPopup(true); }} style={{ marginTop: 24, padding: "16px 56px", borderRadius: 32, background: theme.accent, color: dark ? "#1C1D55" : "#fff", border: "none", fontSize: 18, fontWeight: 800, cursor: "pointer", boxShadow: "0 8px 24px rgba(0,0,0,0.2)" }}>Continue</button>
+                <button onClick={(e) => { e.preventDefault(); setDismissedPopup(true); }} style={{ marginTop: 24, padding: "16px 56px", borderRadius: 32, background: theme.accent, color: dark ? "#1C1D55" : "#A60112", border: "none", fontSize: 18, fontWeight: 800, cursor: "pointer", boxShadow: "0 8px 24px rgba(0,0,0,0.2)" }}>Continue</button>
               </div>
             </div>
           </div>
@@ -530,10 +519,10 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
             
             <div className="greeting-box">
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                 <div style={{ width: 56, height: 56, borderRadius: '50%', background: dark ? theme.accent : theme.cardBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}><Bot size={32} color={dark ? '#1C1D55' : '#fff'} /></div>
-                 <div style={{ display: 'flex', flexDirection: 'column' }}><h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: theme.text, letterSpacing: '-0.5px' }}>Good Day CITizen!</h1><p style={{ margin: '4px 0 0', fontSize: 13, color: theme.textMuted, fontWeight: 600 }}>{formattedDate} | {formattedTime}</p></div>
+                 <div style={{ width: 64, height: 64, borderRadius: '50%', background: dark ? theme.accent : theme.cardBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}><Bot size={36} color={dark ? '#1C1D55' : '#fff'} /></div>
+                 <div style={{ display: 'flex', flexDirection: 'column' }}><h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: theme.text, letterSpacing: '-0.5px' }}>Good Day CITizen!</h1><p style={{ margin: '4px 0 0', fontSize: 13, color: theme.textMuted, fontWeight: 600 }}>{formattedDate} | {formattedTime}</p></div>
               </div>
-              <button onClick={() => setShowCalendar(true)} style={{ background: theme.accent, color: dark ? '#1C1D55' : '#fff', border: 'none', padding: '12px 20px', borderRadius: 16, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.95)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}><CalendarIcon size={16} /> View Calendar</button>
+              <button onClick={() => setShowCalendar(true)} style={{ background: theme.accent, color: dark ? '#1C1D55' : '#A60112', border: 'none', padding: '12px 20px', borderRadius: 16, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.95)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}><CalendarIcon size={16} /> View Calendar</button>
             </div>
 
             {/* 5-BUTTON CLUSTER GRID */}
@@ -551,8 +540,9 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
             {/* MARQUEE SANDWICH & HIGHLIGHTS OF THE MONTH */}
             <div style={{ width: '100%', maxWidth: 680, marginTop: 36, marginBottom: 20, padding: '0 16px' }}>
                
+               {/* FIXED: Top Marquee is strictly Alab BulSU Maroon in Light Mode, Amplified CIT Blue in Dark Mode */}
                <div className="marquee-container" style={{ background: dark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(166, 1, 18, 0.05)', borderColor: dark ? '#3b82f6' : 'rgba(166, 1, 18, 0.2)', marginBottom: 20 }}>
-                  <div className="marquee-text" style={{ color: dark ? '#60a5fa' : '#A60112' }}>#ALABULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #ALABULSU &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp;</div>
+                  <div className="marquee-text" style={{ color: dark ? '#60a5fa' : '#A60112' }}>{dark ? '#AMPLIFIEDCIT' : '#ALABULSU'} &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; {dark ? '#AMPLIFIEDCIT' : '#ALABULSU'} &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp;</div>
                </div>
 
                <h3 style={{ color: theme.text, fontSize: 18, fontWeight: 800, margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: 10 }}><CalendarIcon size={20} color={theme.accent} /> Highlights of the Month</h3>
@@ -568,12 +558,14 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                   </div>
                </div>
 
+               {/* FIXED: Bottom Marquee is strictly Alab BulSU Gold in Light Mode, Amplified CIT Yellow in Dark Mode */}
                <div className="marquee-container" style={{ background: dark ? 'rgba(253, 181, 28, 0.15)' : 'rgba(245, 170, 42, 0.1)', borderColor: dark ? '#FDB51C' : 'rgba(245, 170, 42, 0.3)', marginTop: 0 }}>
-                  <div className="marquee-text" style={{ animationDirection: 'reverse', color: dark ? '#FDB51C' : '#F5AA2A' }}>#AMPLIFIEDCIT &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; #AMPLIFIEDCIT &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp;</div>
+                  <div className="marquee-text" style={{ animationDirection: 'reverse', color: dark ? '#FDB51C' : '#F5AA2A' }}>{dark ? '#AMPLIFIEDCIT' : '#ALABULSU'} &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; {dark ? '#AMPLIFIEDCIT' : '#ALABULSU'} &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp;</div>
                </div>
             </div>
 
-            <div style={{ width: '100%', padding: '0 24px', position: 'absolute', bottom: 32, maxWidth: 680 }}>
+            {/* FIXED: Removed Absolute Bottom positioning so it flows naturally and eliminates white space gap */}
+            <div style={{ width: '100%', padding: '0 16px', marginTop: 16, marginBottom: 40, maxWidth: 680 }}>
                <div className="glassy-cluster-card kiosk-pulse-btn" onClick={() => { setScreenState("chat"); setKioskCategory(null); setKioskResult(null); }} style={{ margin: 0, padding: 28, minHeight: 160, display: 'flex', justifyContent: 'center', border: 'none' }}>
                   <div style={{ fontSize: 15, opacity: 0.9, fontWeight: 700, marginBottom: 4 }}>Interactive AI Assistant</div>
                   <div style={{ fontSize: 32, fontWeight: 800, marginBottom: 16 }}>Talk with ChatCIT</div>
@@ -622,9 +614,9 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                      {pdfLoading && (<div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}><div style={{ position: "relative", width: 60, height: 60, display: "flex", justifyContent: "center", alignItems: "center" }}><div style={{ position: "absolute", transform: 'scale(0.5)' }}><GearboxLoader /></div></div></div>)}
                      <canvas ref={canvasRef} style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', opacity: pdfLoading ? 0.3 : 1, transition: 'opacity 0.3s', background: '#fff', borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} />
                      
-                     {/* FIXED: Full screen trigger for Handbook and Magna Carta */}
+                     {/* FIXED: Canvas directly sets fullScreen trigger to the parent modal */}
                      {pdfRef && (
-                        <button onClick={() => { if (canvasRef.current) { setLocalFullScreen(canvasRef.current.toDataURL('image/png')); } }} style={{ position: 'absolute', bottom: 24, right: 24, zIndex: 20, background: theme.accent, color: dark ? '#1C1D55' : '#fff', border: 'none', borderRadius: '50%', width: 58, height: 58, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform 0.1s', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }} onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.92)'} onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+                        <button onClick={() => { if (canvasRef.current) { setLocalFullScreen(canvasRef.current.toDataURL('image/png')); } }} style={{ position: 'absolute', bottom: 24, right: 24, zIndex: 20, background: theme.accent, color: dark ? '#1C1D55' : '#A60112', border: 'none', borderRadius: '50%', width: 58, height: 58, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform 0.1s', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }} onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.92)'} onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
                            <Maximize size={24} />
                         </button>
                      )}
@@ -716,6 +708,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                               {filteredDirectory.length > 0 && filteredDirectory.map((item) => {
                                  const titleText = item.display_name === "-" ? "" : (item.display_name || (item.keyword ? item.keyword.split(',')[0] : ""));
                                  const descText = (!item.response || item.response.trim() === "" || item.response === "-") ? "" : item.response;
+                                 const searchTarget = item.display_name && item.display_name !== "-" ? item.display_name : (item.keyword ? item.keyword.split(',')[0] : "");
                                  return (
                                  <div key={item.id} className="glassy-dir-card" style={{ padding: 20 }} onClick={() => {
                                     setScreenState("kiosk_result");
@@ -757,7 +750,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                       {kioskResult?.image && (<div style={{ background: '#fff', borderRadius: 28, padding: 20, marginBottom: 32, boxShadow: '0 12px 32px rgba(0,0,0,0.2)' }}><img src={optimizeImage(kioskResult.image)} alt={`${kioskResult.title} Logo`} style={{ width: 220, height: 220, objectFit: 'contain' }} /></div>)}
                       {kioskResult?.content && kioskResult.content !== "-" && <div style={{ fontSize: 18, lineHeight: 1.7, color: theme.text, width: '100%', whiteSpace: 'pre-wrap', paddingBottom: 20, fontWeight: 500 }}>{formatText(kioskResult?.content)}</div>}
                       
-                      {/* ROBUST AUTO-GENERATED QR CODE */}
+                      {/* FIXED: Robust Auto-Generated QR Code Fallback and Cross-check */}
                       {detectedQrUrl && (
                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 20, padding: '28px 40px', background: dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, boxShadow: '0 12px 40px rgba(0,0,0,0.1)' }}>
                              <span style={{ fontSize: 16, fontWeight: 800, color: theme.textMuted, marginBottom: 16, textTransform: 'uppercase', letterSpacing: '1px' }}>Scan for more info</span>
