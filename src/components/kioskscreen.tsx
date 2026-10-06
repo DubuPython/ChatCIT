@@ -725,4 +725,77 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                                        image: item.picture_url,
                                        qr_link: item.qr_link,
                                        parentDirectory: kioskResult.title, // Pass parent to allow backward navigation
-                                       parentCategory: kiosk
+                                       parentCategory: kioskCategory 
+                                    });
+                                 }}>
+                                    <div style={{ width: 70, height: 70, borderRadius: '50%', background: dark ? 'rgba(0,0,0,0.3)' : '#fff', border: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                                       {item.picture_url && !item.picture_url.toLowerCase().includes('.pdf') ? (<img src={optimizeImage(item.picture_url)} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: dark ? theme.accent : theme.cardBorder }}>{getIconForCategory(kioskResult.title, 36)}</span>}
+                                    </div>
+                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start', textAlign: 'left', minWidth: 0 }}>
+                                       {titleText && <span style={{ fontSize: 20, fontWeight: 800, color: theme.text, wordBreak: 'break-word' }}>{titleText}</span>}
+                                       {item.subcategory && item.subcategory !== "All" && (<span style={{ fontSize: 15, fontWeight: 700, color: dark ? theme.accent : theme.cardBorder }}>{item.subcategory}</span>)}
+                                       {descText && <span style={{ fontSize: 14, color: theme.textMuted, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5 }}>{descText}</span>}
+                                    </div>
+                                    <ChevronRight size={26} color={theme.textMuted} style={{ flexShrink: 0 }} />
+                                 </div>
+                              );})}
+                              {filteredDirectory.length === 0 && (<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: theme.textMuted, fontWeight: 600, padding: 40 }}>No records found.</div>)}
+                           </div>
+                        )
+                     )}
+                  </div>
+                </div>
+              ) : (
+                <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', padding: '40px', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 18, marginBottom: 32 }}>
+                    {/* FIXED MULTI-LEVEL BACK ROUTING */}
+                    <button onClick={() => { 
+                        if (kioskResult?.parentDirectory) {
+                            setKioskResult({
+                                title: kioskResult.parentDirectory,
+                                isDirectory: true,
+                                category: kioskResult.parentCategory
+                            });
+                        } else {
+                            setKioskResult(null); 
+                            setScreenState("home"); 
+                        }
+                    }} style={{ background: "transparent", border: "none", color: theme.text, cursor: "pointer", display: "flex", alignItems: "center", marginTop: 4 }}><ArrowLeft size={28} /></button>
+                    <h2 style={{ fontSize: 32, fontWeight: 800, margin: 0, color: theme.text, textTransform: 'uppercase', lineHeight: 1.2 }}>{kioskResult?.title === "-" ? "" : kioskResult?.title}</h2>
+                  </div>
+                  {kioskResult?.loading ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 20, marginTop: 60 }}><Bot color={theme.accent} size={80} className="animate-pulse" /><span style={{ fontSize: 24, color: theme.textMuted, fontWeight: 700 }}>inCITe is fetching details...</span></div>
+                  ) : (
+                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      {kioskResult?.image && (<div style={{ background: '#fff', borderRadius: 28, padding: 20, marginBottom: 32, boxShadow: '0 12px 32px rgba(0,0,0,0.2)' }}><img src={optimizeImage(kioskResult.image)} alt={`${kioskResult.title} Logo`} style={{ width: 220, height: 220, objectFit: 'contain' }} /></div>)}
+                      {kioskResult?.content && kioskResult.content !== "-" && <div style={{ fontSize: 18, lineHeight: 1.7, color: theme.text, width: '100%', whiteSpace: 'pre-wrap', paddingBottom: 20, fontWeight: 500 }}>{formatText(kioskResult?.content)}</div>}
+                      
+                      {detectedQrUrl && (
+                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 20, padding: '28px 40px', background: dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, boxShadow: '0 12px 40px rgba(0,0,0,0.1)' }}>
+                             <span style={{ fontSize: 16, fontWeight: 800, color: theme.textMuted, marginBottom: 16, textTransform: 'uppercase', letterSpacing: '1px' }}>Scan for more info</span>
+                             <div style={{ background: '#fff', padding: 12, borderRadius: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
+                                 <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(detectedQrUrl)}`} alt="QR Code" style={{ display: 'block', borderRadius: 8 }} />
+                             </div>
+                         </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* FULLSCREEN LIGHTBOX FOR PDF CANVAS */}
+        {localFullScreen && (
+          <div onClick={() => setLocalFullScreen(null)} style={{ position: 'fixed', inset: 0, zIndex: 99999999, background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
+            <button onClick={() => setLocalFullScreen(null)} style={{ position: 'absolute', top: 24, right: 24, background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: '50%', width: 50, height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 100 }}>
+               <X size={28} />
+            </button>
+            <img src={localFullScreen} alt="Fullscreen PDF Page" style={{ maxWidth: '96%', maxHeight: '96%', objectFit: 'contain', borderRadius: 12, boxShadow: '0 20px 50px rgba(0,0,0,0.8)' }} />
+          </div>
+        )}
+      </div>
+    </>
+  );
+};
