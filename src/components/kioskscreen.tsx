@@ -33,10 +33,12 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
       animation: floatBg 25s ease-in-out infinite reverse;
     }
 
+    /* FIXED: Added a strict 36px inward padding barrier to prevent edge touching on ANY resolution */
     .kiosk-main-scroll {
       position: relative; z-index: 10; width: 100%; height: 100%; flex: 1 1 auto; min-height: 0;
       display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-      padding-top: 85px; padding-bottom: 32px;
+      padding: 90px 36px 40px 36px;
+      box-sizing: border-box;
       overflow-y: auto !important; overflow-x: hidden !important;
       -webkit-overflow-scrolling: touch !important;
       touch-action: pan-y !important;
@@ -133,7 +135,7 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     .back-btn-modern:active { transform: scale(0.92); }
 
     .kiosk-detail-card {
-       width: 90%; max-width: 860px; min-height: 800px;
+       width: 100%; max-width: 860px; min-height: 800px;
        background: ${dark ? 'rgba(18, 87, 172, 0.15)' : 'rgba(255,255,255,0.85)'};
        border-radius: 32px; border: 1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(166, 1, 18, 0.2)'}; display: flex; flex-direction: column; box-shadow: 0 30px 60px rgba(0,0,0,0.3);
        margin-bottom: 40px; z-index: 10; backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px);
@@ -143,7 +145,7 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
 
     .event-popup-overlay {
        position: fixed; inset: 0; z-index: 9999999; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px);
-       display: flex; align-items: center; justify-content: center; padding: 32px;
+       display: flex; align-items: center; justify-content: center; padding: 36px;
        animation: fadeIn 0.3s ease;
     }
     .event-popup-card {
@@ -518,11 +520,10 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
           </div>
         )}
 
-        {/* FIXED: Wrap the Home Screen in a Flex Center container to perfectly balance empty space on tall Kiosks */}
         {screenState === "home" && !kioskCategory && (
-          <div className="kiosk-main-scroll no-scrollbar" style={{ display: 'flex', flexDirection: 'column', flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', paddingBottom: 85 }}>
+          <div className="kiosk-main-scroll no-scrollbar" style={{ justifyContent: 'center', paddingBottom: 85 }}>
             
-            <div style={{ width: '100%', maxWidth: 680, display: 'flex', flexDirection: 'column', padding: '0 16px' }}>
+            <div style={{ width: '100%', maxWidth: 720, display: 'flex', flexDirection: 'column' }}>
                 <div className="greeting-box" style={{ width: '100%', padding: '18px 24px', marginBottom: 20 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                      <div style={{ width: 56, height: 56, borderRadius: '50%', background: dark ? theme.accent : theme.cardBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}><Bot size={32} color={dark ? '#1C1D55' : '#fff'} /></div>
@@ -543,7 +544,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                 </div>
 
                 <div style={{ width: '100%', marginTop: 24, display: 'flex', flexDirection: 'column' }}>
-                   
                    <div className="marquee-container" style={{ background: dark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(166, 1, 18, 0.05)', borderColor: dark ? '#3b82f6' : 'rgba(166, 1, 18, 0.2)', marginBottom: 16, padding: 12 }}>
                       <div className="marquee-text" style={{ color: dark ? '#60a5fa' : '#A60112', fontSize: 16 }}>{dark ? '#AMPLIFIEDCIT' : '#ALABULSU'} &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; {dark ? '#AMPLIFIEDCIT' : '#ALABULSU'} &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp;</div>
                    </div>
@@ -593,7 +593,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}><button onClick={goHome} className="back-btn-modern"><ArrowLeft size={18}/> Back</button><h2 style={{ fontSize: 28, fontWeight: 800, color: theme.text, margin: 0, textShadow: dark ? '0 4px 12px rgba(0,0,0,0.3)' : 'none' }}>{kioskCategory}</h2></div>
               </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, width: '100%', maxWidth: 720 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, width: '100%', maxWidth: 720 }}>
                 {itemsToRender.map((item, idx) => (
                   <div key={idx} className="glassy-dir-card" onClick={() => handleKioskSelectionInternal(kioskCategory, item)}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 0 }}>
@@ -610,7 +610,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
 
         {/* DETAILED RESULTS, GALLERY & FACULTY DIRECTORY */}
         {screenState === "kiosk_result" && (
-          <div className="kiosk-main-scroll no-scrollbar" style={{ paddingTop: 85, paddingBottom: 40 }}>
+          <div className="kiosk-main-scroll no-scrollbar">
             <div className={`kiosk-detail-card ${kioskResult?.isPdf ? 'is-pdf' : ''}`}>
               {kioskResult?.isPdf ? (
                 <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
