@@ -33,7 +33,6 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
       animation: floatBg 25s ease-in-out infinite reverse;
     }
 
-    /* FIXED: Added a strict 36px inward padding barrier to prevent edge touching on ANY resolution */
     .kiosk-main-scroll {
       position: relative; z-index: 10; width: 100%; height: 100%; flex: 1 1 auto; min-height: 0;
       display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
@@ -399,19 +398,24 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
       }
   };
 
+  // FIXED: Intercept router. Force everything non-document to open naturally as inCITe Directory/Gallery
   const handleKioskSelectionInternal = async (category: string, item: string) => {
       const lowerCat = (category || '').toLowerCase();
-      const isGallery = lowerCat.includes('accomp') || lowerCat.includes('exten');
-
-      if (isGallery) {
-          setScreenState("kiosk_result");
-          setKioskResult({ title: item, isGallery: true, category: category });
+      const lowerItem = (item || '').toLowerCase();
+      
+      const isDoc = lowerItem === "handbook" || lowerItem === "magna carta" || lowerCat === "documents" || lowerItem.includes("form");
+      if (isDoc) {
+          if (handleKioskSelection) {
+              handleKioskSelection(category, item);
+          }
           return;
       }
+
+      const isGallery = lowerCat.includes('accomp') || lowerCat.includes('exten');
       
-      if (handleKioskSelection) {
-          handleKioskSelection(category, item);
-      }
+      // Forces everything to stay inside the native kiosk screen instead of ChatCIT
+      setScreenState("kiosk_result");
+      setKioskResult({ title: item, isGallery: isGallery, isDirectory: !isGallery, category: category });
   };
 
   const goHome = () => { setScreenState("home"); setKioskCategory(null); setKioskResult(null); };
@@ -544,6 +548,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                 </div>
 
                 <div style={{ width: '100%', marginTop: 24, display: 'flex', flexDirection: 'column' }}>
+                   
                    <div className="marquee-container" style={{ background: dark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(166, 1, 18, 0.05)', borderColor: dark ? '#3b82f6' : 'rgba(166, 1, 18, 0.2)', marginBottom: 16, padding: 12 }}>
                       <div className="marquee-text" style={{ color: dark ? '#60a5fa' : '#A60112', fontSize: 16 }}>{dark ? '#AMPLIFIEDCIT' : '#ALABULSU'} &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp; {dark ? '#AMPLIFIEDCIT' : '#ALABULSU'} &nbsp; • &nbsp; COMPLIANCE &nbsp; • &nbsp; INTEGRITY &nbsp; • &nbsp; TRANSPARENCY &nbsp; • &nbsp;</div>
                    </div>
@@ -586,7 +591,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
           </div>
         )}
 
-        {/* SUB-MENU DIRECTORY LISTING MAPS */}
         {screenState === "home" && kioskCategory && (
             <div className="kiosk-main-scroll no-scrollbar">
               <div style={{ width: '100%', maxWidth: 720, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
@@ -608,7 +612,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
             </div>
         )}
 
-        {/* DETAILED RESULTS, GALLERY & FACULTY DIRECTORY */}
         {screenState === "kiosk_result" && (
           <div className="kiosk-main-scroll no-scrollbar">
             <div className={`kiosk-detail-card ${kioskResult?.isPdf ? 'is-pdf' : ''}`}>
@@ -643,8 +646,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                   </div>
                   
                   {(!loadingDir && dbDirectoryData.length > 0) && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 36px 16px' }}>
-                         <span style={{ fontSize: 15, color: theme.textMuted, fontWeight: 600 }}>{filteredDirectory.length} images found</span>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '0 36px 16px' }}>
                          <div style={{ display: 'flex', gap: 6, background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)', padding: 4, borderRadius: 20 }}>
                              {isFac && <button onClick={() => setSortMode("hierarchy")} style={sortBtnStyle(sortMode === "hierarchy")}>Hierarchy</button>}
                              <button onClick={() => setSortMode("az")} style={sortBtnStyle(sortMode === "az")}>A-Z</button>
@@ -689,8 +691,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                   
                   {(!dirMajor && subCategories.length > 0) ? null : (
                       (!loadingDir && dbDirectoryData.length > 0) && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 36px 16px' }}>
-                             <span style={{ fontSize: 15, color: theme.textMuted, fontWeight: 600 }}>{filteredDirectory.length} records found</span>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '0 36px 16px' }}>
                              <div style={{ display: 'flex', gap: 6, background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)', padding: 4, borderRadius: 20 }}>
                                  {isFac && <button onClick={() => setSortMode("hierarchy")} style={sortBtnStyle(sortMode === "hierarchy")}>Hierarchy</button>}
                                  <button onClick={() => setSortMode("az")} style={sortBtnStyle(sortMode === "az")}>A-Z</button>
