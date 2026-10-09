@@ -36,8 +36,7 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
     .kiosk-main-scroll {
       position: relative; z-index: 10; width: 100%; height: 100%; flex: 1 1 auto; min-height: 0;
       display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-      padding: 90px 36px 40px 36px;
-      box-sizing: border-box;
+      padding-top: 85px; padding-bottom: 32px;
       overflow-y: auto !important; overflow-x: hidden !important;
       -webkit-overflow-scrolling: touch !important;
       touch-action: pan-y !important;
@@ -335,18 +334,21 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     });
   };
 
+  // FIXED HIERARCHY ENGINE
   const getHierarchyRank = (item: any) => {
       const text = (item.response || "").toLowerCase();
       const title = (item.display_name || item.keyword || "").toLowerCase();
       
-      if (text.includes("chancellor") || title.includes("chancellor")) return 1;
-      if ((text.includes("dean") && !text.includes("associate")) || (title.includes("dean") && !title.includes("associate"))) return 2;
-      if (text.includes("associate dean") || title.includes("associate dean")) return 3;
-      if (text.includes("chairman") || text.includes("chairperson") || text.includes("head")) return 4;
-      if (text.includes("coordinator")) return 5;
-      if (text.includes("part-time") || text.includes("part time") || text.includes("guest")) return 7;
-      if (text.includes("faculty") || text.includes("instructor") || text.includes("professor")) return 6;
-      return 8;
+      if ((text.includes("president") && !text.includes("vice president")) || (title.includes("president") && !title.includes("vice president"))) return 1;
+      if (text.includes("vice president") || title.includes("vice president")) return 2;
+      if (text.includes("chancellor") || title.includes("chancellor")) return 3;
+      if ((text.includes("dean") && !text.includes("associate")) || (title.includes("dean") && !title.includes("associate"))) return 4;
+      if (text.includes("associate dean") || title.includes("associate dean")) return 5;
+      if (text.includes("chairman") || text.includes("chairperson") || text.includes("head")) return 6;
+      if (text.includes("coordinator")) return 7;
+      if (text.includes("part-time") || text.includes("part time") || text.includes("guest")) return 9;
+      if (text.includes("faculty") || text.includes("instructor") || text.includes("professor")) return 8;
+      return 10;
   };
 
   const filteredDirectory = useMemo(() => {
@@ -398,7 +400,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
       }
   };
 
-  // FIXED: Intercept router. Force everything non-document to open naturally as inCITe Directory/Gallery
   const handleKioskSelectionInternal = async (category: string, item: string) => {
       const lowerCat = (category || '').toLowerCase();
       const lowerItem = (item || '').toLowerCase();
@@ -413,7 +414,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
 
       const isGallery = lowerCat.includes('accomp') || lowerCat.includes('exten');
       
-      // Forces everything to stay inside the native kiosk screen instead of ChatCIT
       setScreenState("kiosk_result");
       setKioskResult({ title: item, isGallery: isGallery, isDirectory: !isGallery, category: category });
   };
@@ -525,9 +525,9 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
         )}
 
         {screenState === "home" && !kioskCategory && (
-          <div className="kiosk-main-scroll no-scrollbar" style={{ justifyContent: 'center', paddingBottom: 85 }}>
+          <div className="kiosk-main-scroll no-scrollbar" style={{ display: 'flex', flexDirection: 'column', flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', paddingBottom: 85 }}>
             
-            <div style={{ width: '100%', maxWidth: 720, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ width: '100%', maxWidth: 680, display: 'flex', flexDirection: 'column', padding: '0 16px' }}>
                 <div className="greeting-box" style={{ width: '100%', padding: '18px 24px', marginBottom: 20 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                      <div style={{ width: 56, height: 56, borderRadius: '50%', background: dark ? theme.accent : theme.cardBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}><Bot size={32} color={dark ? '#1C1D55' : '#fff'} /></div>
@@ -591,6 +591,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
           </div>
         )}
 
+        {/* SUB-MENU DIRECTORY LISTING MAPS */}
         {screenState === "home" && kioskCategory && (
             <div className="kiosk-main-scroll no-scrollbar">
               <div style={{ width: '100%', maxWidth: 720, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
@@ -612,6 +613,7 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
             </div>
         )}
 
+        {/* DETAILED RESULTS, GALLERY & FACULTY DIRECTORY */}
         {screenState === "kiosk_result" && (
           <div className="kiosk-main-scroll no-scrollbar">
             <div className={`kiosk-detail-card ${kioskResult?.isPdf ? 'is-pdf' : ''}`}>
