@@ -689,16 +689,16 @@ export function AdminPanel({
                       <td style={{ padding: "10px 12px", verticalAlign: "middle" }}>{u.department || "Others"}</td>
                       <td style={{ padding: "10px 12px", verticalAlign: "middle" }}>
                         {currentUser?.role?.toLowerCase() === 'superadmin' ? (
-                          <select
-                            value={u.role?.toLowerCase() || "user"}
-                            onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                            style={{ background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: textPrimary, padding: "4px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, outline: "none", cursor: "pointer", width: "100%" }}
-                          >
-                            <option value="superadmin">superadmin</option>
-                            <option value="admin">admin</option>
-                            <option value="student">student</option>
-                            <option value="user">user</option>
-                          </select>
+                        <select
+                          value={u.role?.toLowerCase() || "user"}
+                          onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                          style={{ background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: textPrimary, padding: "4px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, outline: "none", cursor: "pointer", width: "100%" }}
+                        >
+                          <option value="superadmin" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>superadmin</option>
+                          <option value="admin" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>admin</option>
+                          <option value="student" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>student</option>
+                          <option value="user" style={{ background: dark ? '#1e1e24' : '#fff', color: dark ? '#fff' : '#000' }}>user</option>
+                        </select>
                         ) : (
                           <span style={{ background: u.role === "superadmin" || u.role === "admin" ? "rgba(66, 133, 244, 0.1)" : "rgba(107, 114, 128, 0.1)", color: u.role === "superadmin" || u.role === "admin" ? "#4285f4" : textMuted, padding: "4px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600 }}>
                             {u.role || "User"}
