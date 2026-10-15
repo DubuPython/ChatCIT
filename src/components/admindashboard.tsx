@@ -404,12 +404,12 @@ export function AdminPanel({
                     return (
                     <div key={cluster} style={{ background: dark ? 'rgba(255,255,255,0.03)' : '#f9fafb', border: `1px solid ${border}`, borderRadius: 16, padding: 20 }}>
                        <h3 style={{ fontSize: 16, fontWeight: 700, color: textPrimary, margin: '0 0 12px' }}>{cluster}</h3>
-                       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                          <select id={`select-${cluster}`} style={{ flex: 1, padding: '8px', borderRadius: 6, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: textPrimary, border: `1px solid ${border}`, outline: 'none' }}>
+                       <div style={{ display: 'flex', gap: 8, marginBottom: 12, width: '100%' }}>
+                          <select id={`select-${cluster}`} style={{ flex: 1, minWidth: 0, padding: '8px', borderRadius: 6, background: dark ? 'rgba(0,0,0,0.2)' : '#fff', color: textPrimary, border: `1px solid ${border}`, outline: 'none' }}>
                              <option value="" style={{ color: '#000' }}>Add category...</option>
                              {safeCategories.filter(c => !safeClusterArray.includes(c)).map(c => (<option key={c} value={c} style={{ color: '#000' }}>{c}</option>))}
                           </select>
-                          <button onClick={() => { const sel = document.getElementById(`select-${cluster}`) as HTMLSelectElement; if (sel.value) { addDraftCat(cluster, sel.value); sel.value = ""; setIsDraftingKiosk(true); } }} style={{ background: '#4285f4', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Add</button>
+                          <button onClick={() => { const sel = document.getElementById(`select-${cluster}`) as HTMLSelectElement; if (sel.value) { addDraftCat(cluster, sel.value); sel.value = ""; setIsDraftingKiosk(true); } }} style={{ flexShrink: 0, background: '#4285f4', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Add</button>
                        </div>
                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                           {safeClusterArray.map((cat: string) => (
@@ -644,13 +644,53 @@ export function AdminPanel({
       )}
 
       {activeTab === 'users' && (
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-          {Object.entries(departmentCounts).filter(([dept]) => dept === "Total Users" || dept === "Others").sort((a,b) => b[1]-a[1]).map(([dept, count]) => (
-            <div key={dept} style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", display: "flex", flexDirection: "column", minWidth: 120, flex: 1 }}>
-              <span style={{ fontSize: 10, color: textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: 2 }}>{dept}</span>
-              <span style={{ fontSize: 20, color: dept === "Total Users" ? "#4285f4" : (dark ? "#fff" : "#000"), fontWeight: 700 }}>{count}</span>
-            </div>
-          ))}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* Top Stat Boxes */}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {Object.entries(departmentCounts).filter(([dept]) => dept === "Total Users" || dept === "Others").sort((a,b) => b[1]-a[1]).map(([dept, count]) => (
+              <div key={dept} style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", display: "flex", flexDirection: "column", minWidth: 120, flex: 1 }}>
+                <span style={{ fontSize: 10, color: textMuted, textTransform: "uppercase", fontWeight: 600, marginBottom: 2 }}>{dept}</span>
+                <span style={{ fontSize: 20, color: dept === "Total Users" ? "#4285f4" : (dark ? "#fff" : "#000"), fontWeight: 700 }}>{count}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* ADDED: Missing Users Table */}
+          <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", maxHeight: "60vh" }}>
+            {filteredUsers.length === 0 ? (
+              <div style={{ padding: 30, textAlign: "center", color: textMuted, fontSize: 13 }}>No user records found.</div>
+            ) : (
+              <table style={{ width: "100%", minWidth: 500, borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
+                <thead style={{ position: "sticky", top: 0, zIndex: 10, background: dark ? "#25242c" : "#fff" }}>
+                  <tr style={{ borderBottom: `1px solid ${border}` }}>
+                    <th style={{ padding: "10px 12px", fontWeight: 600 }}>User / Email</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 600, width: 120 }}>Department</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 600, width: 100 }}>Role</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 600, width: 80, textAlign: "right" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map((u: any) => (
+                    <tr key={u.id} style={{ borderBottom: `1px solid ${border}` }}>
+                      <td style={{ padding: "10px 12px", verticalAlign: "middle" }}>
+                        <div style={{ fontWeight: 600, color: dark ? '#fff' : '#000' }}>{u.username || u.name || "Unknown"}</div>
+                        <div style={{ fontSize: 11, color: textMuted }}>{u.email}</div>
+                      </td>
+                      <td style={{ padding: "10px 12px", verticalAlign: "middle" }}>{u.department || "Others"}</td>
+                      <td style={{ padding: "10px 12px", verticalAlign: "middle" }}>
+                        <span style={{ background: u.role === "Superadmin" || u.role === "Admin" ? "rgba(66, 133, 244, 0.1)" : "rgba(107, 114, 128, 0.1)", color: u.role === "Superadmin" || u.role === "Admin" ? "#4285f4" : textMuted, padding: "4px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600 }}>
+                          {u.role || "User"}
+                        </span>
+                      </td>
+                      <td style={{ padding: "10px 12px", verticalAlign: "middle", textAlign: "right" }}>
+                        <button onClick={() => handleDelete('users', u.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4 }} title="Delete"><Trash2 size={14} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
       )}
 
