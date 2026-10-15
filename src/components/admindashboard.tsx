@@ -64,10 +64,9 @@ export function AdminPanel({
          setDraftScreensaver(safeScreensavers.map((s: any) => typeof s === 'string' ? s : s.img).filter(Boolean));
          setDraftHighlights(Array.isArray(kioskHighlights) ? kioskHighlights : []);
          
-         // Fix: Map old "img" property to new "imgs" array to prevent data loss
          const safePopup = kioskEventPopup && typeof kioskEventPopup === 'object' ? kioskEventPopup : {};
          const migratedImgs = Array.isArray(safePopup.imgs) ? safePopup.imgs : (safePopup.img ? [safePopup.img] : []);
-         setDraftEventPopup({ enabled: false, title: "", subtitle: "", ...safePopup, imgs: migratedImgs });
+         setDraftEventPopup({ enabled: safePopup.enabled || false, title: safePopup.title || "", subtitle: safePopup.subtitle || "", ...safePopup, imgs: migratedImgs });
      }
   }, [kioskMapping, screensaverSlides, kioskHighlights, kioskEventPopup, isDraftingKiosk]);
 
@@ -199,7 +198,6 @@ export function AdminPanel({
     } catch (e: any) { showToast(e.message, "error"); }
   };
 
-  // KIOSK EDITOR SAFE SAVING ACTIONS
   const handleSaveKioskLayout = async () => {
      try {
         showToast("Saving Layout...", "info");
@@ -231,12 +229,24 @@ export function AdminPanel({
      } catch(e) { showToast("Failed to save screensaver.", "error"); }
   };
 
+  // RESOLVED EVENT POPUP FIX
   const handleSaveEventPopup = async () => {
      try {
         showToast("Saving Event Popup...", "info");
-        const res = await fetch(`${API_URL}/settings/kiosk_event_popup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: JSON.stringify(draftEventPopup) }) });
+        
+        const payload = {
+            ...draftEventPopup,
+            // Fallback for older frontend logic expecting 'img' instead of 'imgs'
+            img: draftEventPopup.imgs && draftEventPopup.imgs.length > 0 ? draftEventPopup.imgs[0] : ""
+        };
+
+        const res = await fetch(`${API_URL}/settings/kiosk_event_popup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: JSON.stringify(payload) }) });
         if (!res.ok) throw new Error("Server error");
-        if (setKioskEventPopup) setKioskEventPopup(draftEventPopup);
+        if (setKioskEventPopup) setKioskEventPopup(payload);
+        
+        // Push explicitly to local storage to sync the physical Kiosk UI
+        localStorage.setItem('chatcit_kiosk_event_popup', JSON.stringify(payload));
+        
         setIsDraftingKiosk(false); showToast("Event Popup configuration saved!", "success");
      } catch(e) { showToast("Failed to save Event Popup.", "error"); }
   };
@@ -643,6 +653,7 @@ export function AdminPanel({
         </div>
       )}
 
+      {/* RESOLVED USERS TAB: Superadmin can now edit roles via dropdown and click Key icon to reset passwords */}
       {activeTab === 'users' && (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           {/* Top Stat Boxes */}
@@ -655,7 +666,6 @@ export function AdminPanel({
             ))}
           </div>
 
-          {/* ADDED: Missing Users Table */}
           <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", maxHeight: "60vh" }}>
             {filteredUsers.length === 0 ? (
               <div style={{ padding: 30, textAlign: "center", color: textMuted, fontSize: 13 }}>No user records found.</div>
@@ -665,8 +675,8 @@ export function AdminPanel({
                   <tr style={{ borderBottom: `1px solid ${border}` }}>
                     <th style={{ padding: "10px 12px", fontWeight: 600 }}>User / Email</th>
                     <th style={{ padding: "10px 12px", fontWeight: 600, width: 120 }}>Department</th>
-                    <th style={{ padding: "10px 12px", fontWeight: 600, width: 100 }}>Role</th>
-                    <th style={{ padding: "10px 12px", fontWeight: 600, width: 80, textAlign: "right" }}>Actions</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 600, width: 120 }}>Role</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 600, width: 100, textAlign: "right" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -678,11 +688,27 @@ export function AdminPanel({
                       </td>
                       <td style={{ padding: "10px 12px", verticalAlign: "middle" }}>{u.department || "Others"}</td>
                       <td style={{ padding: "10px 12px", verticalAlign: "middle" }}>
-                        <span style={{ background: u.role === "Superadmin" || u.role === "Admin" ? "rgba(66, 133, 244, 0.1)" : "rgba(107, 114, 128, 0.1)", color: u.role === "Superadmin" || u.role === "Admin" ? "#4285f4" : textMuted, padding: "4px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600 }}>
-                          {u.role || "User"}
-                        </span>
+                        {currentUser?.role?.toLowerCase() === 'superadmin' ? (
+                          <select
+                            value={u.role?.toLowerCase() || "user"}
+                            onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                            style={{ background: dark ? "rgba(255,255,255,0.05)" : "#f3f4f6", border: `1px solid ${border}`, color: textPrimary, padding: "4px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, outline: "none", cursor: "pointer", width: "100%" }}
+                          >
+                            <option value="superadmin">superadmin</option>
+                            <option value="admin">admin</option>
+                            <option value="student">student</option>
+                            <option value="user">user</option>
+                          </select>
+                        ) : (
+                          <span style={{ background: u.role === "superadmin" || u.role === "admin" ? "rgba(66, 133, 244, 0.1)" : "rgba(107, 114, 128, 0.1)", color: u.role === "superadmin" || u.role === "admin" ? "#4285f4" : textMuted, padding: "4px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600 }}>
+                            {u.role || "User"}
+                          </span>
+                        )}
                       </td>
-                      <td style={{ padding: "10px 12px", verticalAlign: "middle", textAlign: "right" }}>
+                      <td style={{ padding: "10px 12px", verticalAlign: "middle", textAlign: "right", whiteSpace: "nowrap" }}>
+                        {currentUser?.role?.toLowerCase() === 'superadmin' && (
+                          <button onClick={() => handleResetPassword(u.id, u.email)} style={{ background: "none", border: "none", color: "#f59e0b", cursor: "pointer", padding: 4, marginRight: 8 }} title="Reset Password"><Key size={14} /></button>
+                        )}
                         <button onClick={() => handleDelete('users', u.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4 }} title="Delete"><Trash2 size={14} /></button>
                       </td>
                     </tr>
