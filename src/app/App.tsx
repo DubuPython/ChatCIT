@@ -18,9 +18,6 @@ import { API_URL, MID_CHOICES } from "../config";
 
 const SIDEBAR_W = 280;
 
-// =====================================================================
-// WEB CALENDAR MODAL
-// =====================================================================
 const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToast }: any) => {
   const [calendarData, setCalendarData] = useState<any[]>([]);
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -148,9 +145,9 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }} /><span style={{ fontSize: 12, color: dark ? '#94a3b8' : '#64748b', fontWeight: 600 }}>Examination</span></div>
            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }} /><span style={{ fontSize: 12, color: dark ? '#94a3b8' : '#64748b', fontWeight: 600 }}>Holiday</span></div>
         </div>
-     </div>
+      </div>
 
-     <div style={{ width: 320, background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)', borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, padding: 24, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ width: 320, background: dark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)', borderLeft: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, padding: 24, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: dark ? '#fff' : '#0f172a' }}>
               {selectedDate ? new Date(currentYear, currentMonth, selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : 'Select a date'}
@@ -254,9 +251,6 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
   );
 };
 
-// =====================================================================
-// MAIN APP COMPONENT
-// =====================================================================
 export default function App() {
   const [simKiosk, setSimKiosk] = useState(() => {
      if (typeof window !== 'undefined') {
@@ -278,6 +272,7 @@ export default function App() {
   const [kioskCategory, setKioskCategory] = useState<string | null>(null);
   const [kioskResult, setKioskResult] = useState<any>(null);
   const [kbOpen, setKbOpen] = useState(false); 
+  const [aiTimeout, setAiTimeout] = useState(false); // NEW STATE: AI 429 Timeout protection
 
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && (window.innerWidth <= 1280));
   const isPhysicalKiosk = useMemo(() => { if (typeof window === "undefined") return false; return window.screen.height >= window.screen.width; }, []);
@@ -504,7 +499,8 @@ export default function App() {
   const [gear3Idx, setGear3Idx] = useState(0);
 
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
-  const [topFaqs, setTopFaqs] = useState<{keyword: string, display_name?: string}[]>([]);
+  // UPDATE: Ensure response is part of the topFaqs type signature for mapping in Kiosk
+  const [topFaqs, setTopFaqs] = useState<{keyword: string, display_name?: string, response?: string}[]>([]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdfPage, setPdfPage] = useState(1);
@@ -595,8 +591,17 @@ export default function App() {
     } catch (err: any) { showToast(err.message, "error"); } finally { setIsResetting(false); }
   };
 
+  const handleRateMessage = async (msgId: string, rating: number) => {
+    try {
+      await fetch(`${API_URL}/chat/rate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: msgId, rating }) });
+      showToast(rating === 1 ? "Thank you for the feedback!" : "Feedback logged for review.", "success");
+    } catch (e) {
+      showToast("Error recording feedback.", "error");
+    }
+  };
+
   const sendMessage = async (text: string = input) => {
-    if (!text.trim() || isTyping) return;
+    if (!text.trim() || isTyping || aiTimeout) return;
     const content = text.trim(); setInput(""); setDirectoryMode(null); 
     
     if (simKiosk && (screenState === "presentation" || screenState === "home" || screenState === "kiosk_result")) {
@@ -623,6 +628,14 @@ export default function App() {
     setIsTyping(true);
     try {
       const response = await fetch(`${API_URL}/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chatId: chatId, message: content, history: messagesToSend }) });
+      
+      // NEW AI TIMEOUT (429) PROTECTION
+      if (response.status === 429) {
+          setAiTimeout(true);
+          setTimeout(() => setAiTimeout(false), 30000); // 30-second wait block
+          throw new Error("System is cooling down due to high traffic. Please wait 30 seconds.");
+      }
+
       const data = await response.json(); if (data.error) throw new Error(data.error);
       const mMsg: Message = { id: `msg-${Date.now()}`, role: "model", content: data.reply || "Sorry, I encountered an error communicating with my database.", timestamp: new Date(), pictures: data.pictures };
       setChats((p) => p.map((c) => c.id === chatId ? { ...c, messages: [...c.messages, mMsg] } : c));
@@ -642,6 +655,22 @@ export default function App() {
          if (isDoc) {
            setScreenState("kiosk_result");
            let safeFile = item.replace(/\s+/g, '-').toLowerCase(); if (lowerItem === "magna carta") safeFile = "magna-carta"; if (lowerItem === "handbook") safeFile = "handbook"; setKioskResult({ title: item, isPdf: true, pdfUrl: `/${safeFile}.pdf` }); return;
+         }
+
+         // NEW FAQ OVERRIDE INTERCEPTOR
+         if (category === 'FAQs') {
+           const faqItem = topFaqs.find(f => {
+              const titleText = f.display_name && f.display_name !== '-' ? f.display_name : f.keyword.split(',')[0].trim();
+              return titleText === item;
+           });
+           setScreenState("kiosk_result");
+           setKioskResult({
+              title: item,
+              loading: false,
+              content: faqItem?.response || "Content not available.",
+              image: null
+           });
+           return;
          }
 
          if (matchedCat || lowerItem.includes('partner') || lowerItem.includes('industry') || lowerItem.includes('organ') || lowerItem.includes('major') || lowerItem.includes('facul')) {
@@ -705,6 +734,12 @@ export default function App() {
   const textFaint = dark ? "#5f6368" : "#9ca3af";
   const sb = { text: "#fff", muted: "rgba(255,255,255,0.70)", faint: "rgba(255,255,255,0.42)", hover: "rgba(255,255,255,0.10)", active: "rgba(255,255,255,0.20)", border: "rgba(255,255,255,0.14)" };
 
+  // INJECT FAQS INTO DYNAMIC MAPPING FOR KIOSK
+  const dynamicKioskMapping = { ...kioskMapping };
+  if (topFaqs.length > 0) {
+      dynamicKioskMapping['FAQs'] = topFaqs.slice(0, 10).map(f => f.display_name && f.display_name !== '-' ? f.display_name : f.keyword.split(',')[0].trim());
+  }
+
   if (appLoading) return (<div className={dark ? "dark-mode" : "light-mode"} style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: bg, alignItems: "center", justifyContent: "center", zIndex: 99999 }}><div style={{ width: 100, height: 100, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ position: "absolute", transform: 'scale(1.2)' }}><GearboxLoader /></div></div><div style={{ color: textPrimary, fontSize: 14, fontWeight: 700, letterSpacing: "0.2em", marginTop: 40 }}>INITIALIZING SYSTEM...</div></div>);
 
   const containerStyle: React.CSSProperties = simKiosk ? { position: "fixed", top: isPhysicalKiosk ? 0 : "50%", left: isPhysicalKiosk ? 0 : "50%", width: isPhysicalKiosk ? "100vw" : 768, height: isPhysicalKiosk ? "100vh" : 1366, transform: isPhysicalKiosk ? "none" : `translate(-50%, -50%) scale(${simScale})`, transformOrigin: "center center", display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary, boxShadow: isPhysicalKiosk ? "none" : "0 25px 50px -12px rgba(0,0,0,0.8), 0 0 0 16px #111", borderRadius: isPhysicalKiosk ? 0 : 24, zIndex: 99999 } : { position: "absolute", top: 0, bottom: 0, left: 0, right: 0, display: "flex", overflow: "hidden", background: bg, fontFamily: "'Inter', sans-serif", color: textPrimary };
@@ -757,7 +792,7 @@ export default function App() {
 
       <div className={dark ? "dark-mode" : "light-mode"} style={containerStyle}>
         {(simKiosk && (screenState === "presentation" || screenState === "home" || screenState === "kiosk_result")) && (
-          <KioskScreen dark={dark} screenState={screenState} setScreenState={setScreenState} kioskCategory={kioskCategory} setKioskCategory={setKioskCategory} kioskResult={kioskResult} setKioskResult={setKioskResult} handleKioskSelection={handleKioskSelection} topRightButtons={topRightButtons} setFullScreenMedia={setFullScreenMedia} setShowCalendar={setShowCalendar} kioskMapping={kioskMapping} setKioskMapping={setKioskMapping} allSidebarCategories={allSidebarCategories} isAdmin={currentUser?.role === 'admin' || currentUser?.role === 'superadmin'} screensaverSlides={screensaverSlides} kioskHighlights={kioskHighlights} kioskEventPopup={kioskEventPopup} />
+          <KioskScreen dark={dark} screenState={screenState} setScreenState={setScreenState} kioskCategory={kioskCategory} setKioskCategory={setKioskCategory} kioskResult={kioskResult} setKioskResult={setKioskResult} handleKioskSelection={handleKioskSelection} topRightButtons={topRightButtons} setFullScreenMedia={setFullScreenMedia} setShowCalendar={setShowCalendar} kioskMapping={dynamicKioskMapping} setKioskMapping={setKioskMapping} allSidebarCategories={allSidebarCategories} isAdmin={currentUser?.role === 'admin' || currentUser?.role === 'superadmin'} screensaverSlides={screensaverSlides} kioskHighlights={kioskHighlights} kioskEventPopup={kioskEventPopup} />
         )}
 
         {uiPrompt && (
@@ -944,7 +979,7 @@ export default function App() {
                       <div className="no-scrollbar" style={{ width: "100%", maxWidth: 700, display: "flex", justifyContent: "center", padding: "4px 16px" }}>
                         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10 }}>
                           {topFaqs.slice(0, useMobileLayout ? 5 : topFaqs.length).map((faq, idx) => {
-                            const primaryTag = faq.display_name || (faq.keyword ? faq.keyword.split(',')[0].trim() : "Question");
+                            const primaryTag = faq.display_name && faq.display_name !== "-" ? faq.display_name : (faq.keyword ? faq.keyword.split(',')[0].trim() : "Question");
                             return (<button key={idx} onClick={() => sendMessage(primaryTag)} style={{ flexShrink: 0, padding: "10px 18px", borderRadius: 24, border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, background: dark ? "rgba(255,255,255,0.03)" : "#fff", color: textPrimary, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "normal", wordBreak: "break-word", maxWidth: "100%", lineHeight: 1.4, textAlign: "center" }}>{primaryTag}</button>);
                           })}
                         </div>
@@ -958,7 +993,7 @@ export default function App() {
                       return activeChat.messages.map((msg: Message) => {
                         let displayPics = msg.pictures;
                         if (msg.role === 'model' && msg.pictures) { displayPics = msg.pictures.filter(p => !seenPics.has(p)); msg.pictures.forEach(p => seenPics.add(p)); }
-                        return <ChatMessageBubble key={msg.id} msg={{...msg, pictures: displayPics}} dark={dark} currentUser={currentUser} isMobile={useMobileLayout} onEnlarge={setFullScreenMedia} onOpenIframe={setFullScreenPdf} onLoad={scrollToBottom} />;
+                        return <ChatMessageBubble key={msg.id} msg={{...msg, pictures: displayPics}} dark={dark} currentUser={currentUser} isMobile={useMobileLayout} onEnlarge={setFullScreenMedia} onOpenIframe={setFullScreenPdf} onLoad={scrollToBottom} onRate={(rating) => handleRateMessage(msg.id, rating)} />;
                       });
                     })()}
                     {isTyping && (<div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}><div style={{ flexShrink: 0, marginTop: 4, width: 28, height: 28, display: "flex", justifyContent: "center", alignItems: "center" }}><Bot color={dark ? "#60a5fa" : "#2563eb"} size={28} className="animate-pulse" /></div><div style={{ paddingTop: 3 }}><ChatLoader /></div></div>)}
@@ -969,7 +1004,16 @@ export default function App() {
               {viewMode === "chat" && !directoryMode && (
                 <div style={{ flexShrink: 0, padding: useMobileLayout ? "8px 12px 12px" : "8px 16px 16px" }}>
                   <div style={{ maxWidth: 960, width: "100%", margin: "0 auto" }}>
-                    <div onClick={scrollToBottom} onFocus={scrollToBottom}><CosmicInput input={input} setInput={setInput} onSend={() => sendMessage()} isTyping={isTyping} dark={dark} /></div>
+                    <div onClick={scrollToBottom} onFocus={scrollToBottom}>
+                        <CosmicInput 
+                            input={input} 
+                            setInput={setInput} 
+                            onSend={() => sendMessage()} 
+                            isTyping={isTyping || aiTimeout} 
+                            dark={dark} 
+                            placeholder={aiTimeout ? "System Cooling Down. Please wait 30 seconds..." : "Explore ChatCIT..."} 
+                        />
+                    </div>
                     <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, color: textFaint, letterSpacing: "0.2px" }}>ChatCIT is AI. By using it, you agree to our <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Terms</span> & <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Privacy Policy</span>.</div>
                   </div>
                 </div>
