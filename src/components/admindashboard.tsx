@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Database, HelpCircle, Bug, Plus, Save, Edit2, Trash2, CheckCircle, UploadCloud, Users, Key, Search, X, TrendingUp, RotateCcw, RefreshCw, Monitor, Calendar, LayoutGrid } from "lucide-react";
+import { 
+  Database, HelpCircle, Bug, Plus, Save, Edit2, Trash2, CheckCircle, 
+  UploadCloud, Users, Key, Search, X, TrendingUp, RotateCcw, RefreshCw, 
+  Monitor, Calendar, LayoutGrid, ThumbsDown, ArrowDown, ArrowUp, Clock 
+} from "lucide-react";
 import { GearboxLoader } from "./ui/helpers";
 import { Knowledge, Unanswered, BugReport, User } from "../types";
 import { API_URL } from "../config";
@@ -33,6 +37,7 @@ export function AdminPanel({
   const [bugs, setBugs] = useState<BugReport[]>([]);
   const [users, setUsers] = useState<User[]>([]); 
   const [calendarData, setCalendarData] = useState<any[]>([]);
+  const [ratings, setRatings] = useState<any[]>([]); // NEW STATE FOR RATINGS
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({ keyword: "", response: "", picture_url: "", category: "Handbook", subcategory: "All", display_name: "", qr_link: "" });
@@ -46,6 +51,9 @@ export function AdminPanel({
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false); 
   const [fullScreenMedia, setFullScreenMedia] = useState<string | null>(null);
+
+  // NEW STATE FOR UNANSWERED SORTING
+  const [unansweredSort, setUnansweredSort] = useState<'desc' | 'asc'>('desc'); 
 
   const [modal, setModal] = useState<{ isOpen: boolean, type: 'confirm' | 'prompt', title: string, message: string, inputValue: string, onConfirm: (val?: string) => void }>({ isOpen: false, type: 'confirm', title: '', message: '', inputValue: '', onConfirm: () => {} });
 
@@ -85,11 +93,16 @@ export function AdminPanel({
         } catch (e) { return []; } 
       };
 
-      const [kData, uData, bData, userRes, calRes] = await Promise.all([ 
-        safeFetch('/knowledge'), safeFetch('/unanswered'), safeFetch('/bugs'), safeFetch('/users'), safeFetch('/calendar')
+      const [kData, uData, bData, userRes, calRes, ratRes] = await Promise.all([ 
+        safeFetch('/knowledge'), 
+        safeFetch('/unanswered'), 
+        safeFetch('/bugs'), 
+        safeFetch('/users'), 
+        safeFetch('/calendar'),
+        safeFetch('/ratings?filter=bad') // Fetch bad ratings
       ]);
 
-      setData(kData); setUnanswered(uData); setBugs(bData); setUsers(userRes); setCalendarData(calRes);
+      setData(kData); setUnanswered(uData); setBugs(bData); setUsers(userRes); setCalendarData(calRes); setRatings(ratRes);
       
       if (kData.length > 0) {
         setDbCategories(Array.from(new Set(kData.map((d: any) => d.category || "Handbook"))));
@@ -148,7 +161,7 @@ export function AdminPanel({
     } catch (e: any) { showToast(e.message, "error"); }
   };
 
-  const handleDelete = (type: 'knowledge'|'unanswered'|'bugs'|'users'|'calendar', id: number) => {
+  const handleDelete = (type: 'knowledge'|'unanswered'|'bugs'|'users'|'calendar'|'ratings', id: number) => {
     setModal({ isOpen: true, type: 'confirm', title: 'Confirm Deletion', message: `Are you sure you want to delete this?`, inputValue: '', onConfirm: async () => { try { const res = await fetch(`${API_URL}/${type}/${id}`, { method: "DELETE" }); if (!res.ok) throw new Error("Server rejected deletion"); fetchDashboardData(); showToast("Deleted successfully.", "info"); } catch (e) { showToast("Error deleting item.", "error"); } } });
   };
 
@@ -229,14 +242,12 @@ export function AdminPanel({
      } catch(e) { showToast("Failed to save screensaver.", "error"); }
   };
 
-  // RESOLVED EVENT POPUP FIX
   const handleSaveEventPopup = async () => {
      try {
         showToast("Saving Event Popup...", "info");
         
         const payload = {
             ...draftEventPopup,
-            // Fallback for older frontend logic expecting 'img' instead of 'imgs'
             img: draftEventPopup.imgs && draftEventPopup.imgs.length > 0 ? draftEventPopup.imgs[0] : ""
         };
 
@@ -244,7 +255,6 @@ export function AdminPanel({
         if (!res.ok) throw new Error("Server error");
         if (setKioskEventPopup) setKioskEventPopup(payload);
         
-        // Push explicitly to local storage to sync the physical Kiosk UI
         localStorage.setItem('chatcit_kiosk_event_popup', JSON.stringify(payload));
         
         setIsDraftingKiosk(false); showToast("Event Popup configuration saved!", "success");
@@ -274,7 +284,19 @@ export function AdminPanel({
   });
 
   const filteredUnanswered = unanswered.filter(u => u.question.toLowerCase().includes(q));
+  
+  // SORT LOGIC FOR UNANSWERED
+  const sortedUnanswered = [...filteredUnanswered].sort((a: any, b: any) => {
+      const timeA = new Date(a.createdAt || 0).getTime();
+      const timeB = new Date(b.createdAt || 0).getTime();
+      return unansweredSort === 'desc' ? timeB - timeA : timeA - timeB;
+  });
+
   const filteredBugs = bugs.filter(b => b.user_info.toLowerCase().includes(q) || b.description.toLowerCase().includes(q));
+  
+  // RATINGS FILTER
+  const filteredRatings = ratings.filter(r => (r.prompt || "").toLowerCase().includes(q) || (r.response || "").toLowerCase().includes(q));
+
   const filteredUsers = users.filter(u => {
     const matchesSearch = u.email.toLowerCase().includes(q) || (u.username && u.username.toLowerCase().includes(q));
     const matchesDept = activeDeptTab === "All" || (u.department || "Others") === activeDeptTab;
@@ -389,6 +411,10 @@ export function AdminPanel({
           <button onClick={() => setActiveTab('calendar')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'calendar' ? "#4285f4" : "transparent", color: activeTab === 'calendar' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Calendar size={14} /> Calendar</button>
           <button onClick={() => setActiveTab('faq')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'faq' ? "#4285f4" : "transparent", color: activeTab === 'faq' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><TrendingUp size={14} /> FAQ Analytics</button>
           <button onClick={() => setActiveTab('unanswered')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'unanswered' ? "#4285f4" : "transparent", color: activeTab === 'unanswered' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><HelpCircle size={14} /> Unanswered <span style={{ background: activeTab === 'unanswered' ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.1)", padding: "2px 6px", borderRadius: 12, fontSize: 10 }}>{unanswered.length}</span></button>
+          
+          {/* NEW RATINGS REVIEW TAB */}
+          <button onClick={() => setActiveTab('ratings')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'ratings' ? "#ef4444" : "transparent", color: activeTab === 'ratings' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><ThumbsDown size={14} /> Ratings <span style={{ background: activeTab === 'ratings' ? "rgba(255,255,255,0.3)" : "rgba(239,68,68,0.1)", color: activeTab === 'ratings' ? "#fff" : "#ef4444", padding: "2px 6px", borderRadius: 12, fontSize: 10 }}>{ratings.length}</span></button>
+
           <button onClick={() => setActiveTab('bugs')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'bugs' ? "#4285f4" : "transparent", color: activeTab === 'bugs' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Bug size={14} /> Bugs <span style={{ background: activeTab === 'bugs' ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.1)", padding: "2px 6px", borderRadius: 12, fontSize: 10 }}>{bugs.length}</span></button>
           <button onClick={() => setActiveTab('users')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'users' ? "#4285f4" : "transparent", color: activeTab === 'users' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Users size={14} /> Users</button>
           <button onClick={() => setActiveTab('display')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: activeTab === 'display' ? "#4285f4" : "transparent", color: activeTab === 'display' ? "#fff" : textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}><Monitor size={14} /> Display</button>
@@ -404,7 +430,7 @@ export function AdminPanel({
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                  <div>
                     <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Kiosk Cluster Layout</h3>
-                    <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Map your databank categories to the 5 main Kiosk buttons.</p>
+                    <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Map your databank categories to the main Kiosk buttons.</p>
                  </div>
                  <button onClick={handleSaveKioskLayout} style={{ background: '#10b981', color: '#fff', padding: '10px 20px', borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle size={16} /> Save Layout</button>
               </div>
@@ -533,64 +559,64 @@ export function AdminPanel({
               </div>
            </div>
 
-           {/* 4. EVENT POPUP EDITOR (MULTIPLE IMAGES SUPPORTED) */}
+           {/* 4. EVENT POPUP EDITOR */}
            <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, padding: 24 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                  <div>
                     <h3 style={{ margin: 0, fontSize: 18, color: dark ? '#fff' : '#000' }}>Event Popup</h3>
-                    <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Configure a prominent scrollable photo-gallery popup that appears when users approach the Kiosk (e.g. Event of the Week).</p>
+                    <p style={{ margin: "4px 0 0 0", fontSize: 13, color: textMuted }}>Configure a prominent scrollable photo-gallery popup that appears when users approach the Kiosk.</p>
                  </div>
                  <button onClick={handleSaveEventPopup} style={{ background: '#10b981', color: '#fff', padding: '10px 20px', borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle size={16} /> Save Popup</button>
               </div>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16, background: dark ? 'rgba(0,0,0,0.2)' : '#f9fafb', borderRadius: 12, border: `1px solid ${border}`, padding: 20 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-                      <input type="checkbox" checked={draftEventPopup.enabled || false} onChange={e => { setDraftEventPopup({...draftEventPopup, enabled: e.target.checked}); setIsDraftingKiosk(true); }} style={{ width: 18, height: 18, cursor: 'pointer' }} />
-                      <span style={{ fontSize: 15, fontWeight: 700, color: textPrimary }}>Enable Event Popup</span>
-                  </label>
-                  
-                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                      <div style={{ flex: 1, minWidth: 250, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                          <input value={draftEventPopup.title || ""} onChange={e => { setDraftEventPopup({...draftEventPopup, title: e.target.value}); setIsDraftingKiosk(true); }} placeholder="Popup Title (e.g. Event of the Week)" style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${border}`, background: 'transparent', color: textPrimary, fontSize: 14, outline: 'none', fontWeight: 600 }} />
-                          <textarea value={draftEventPopup.subtitle || ""} onChange={e => { setDraftEventPopup({...draftEventPopup, subtitle: e.target.value}); setIsDraftingKiosk(true); }} placeholder="Short description or Date..." rows={3} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${border}`, background: 'transparent', color: textPrimary, fontSize: 14, outline: 'none', resize: 'vertical' }} />
-                      </div>
-                      
-                      {/* MULTIPLE IMAGE UPLOAD ROW */}
-                      <div style={{ width: '100%', marginTop: 8 }}>
-                          <span style={{ fontSize: 13, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 8 }}>Event Gallery Images</span>
-                          <div className="no-scrollbar" style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, WebkitOverflowScrolling: 'touch' }}>
-                              {(draftEventPopup.imgs || []).map((imgUrl: string, idx: number) => (
-                                  <div key={idx} style={{ position: 'relative', width: 140, height: 140, flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1px solid ${border}` }}>
-                                      <button onClick={() => { 
-                                          const newImgs = [...draftEventPopup.imgs];
-                                          newImgs.splice(idx, 1);
-                                          setDraftEventPopup({...draftEventPopup, imgs: newImgs}); 
-                                          setIsDraftingKiosk(true); 
-                                      }} style={{ position: "absolute", top: 8, right: 8, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}><X size={12}/></button>
-                                      <img src={imgUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                  </div>
-                              ))}
-                              
-                              <label style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', borderRadius: 8, border: `1px dashed ${border}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: 140, height: 140, flexShrink: 0, cursor: uploadingImage ? "wait" : "pointer", gap: 8 }}>
-                                  <UploadCloud size={24} color={textMuted} />
-                                  <span style={{ fontSize: 11, color: textMuted, fontWeight: 600 }}>{uploadingImage ? "Uploading..." : "Add Picture"}</span>
-                                  <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingImage} onChange={async (e) => {
-                                      const file = e.target.files?.[0]; if (!file) return; setUploadingImage(true);
-                                      const formData = new FormData(); formData.append("file", file); formData.append("upload_preset", UPLOAD_PRESET); formData.append("cloud_name", CLOUD_NAME);
-                                      try {
-                                         const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
-                                         const data = await res.json();
-                                         if (data.secure_url) {
+                 <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+                     <input type="checkbox" checked={draftEventPopup.enabled || false} onChange={e => { setDraftEventPopup({...draftEventPopup, enabled: e.target.checked}); setIsDraftingKiosk(true); }} style={{ width: 18, height: 18, cursor: 'pointer' }} />
+                     <span style={{ fontSize: 15, fontWeight: 700, color: textPrimary }}>Enable Event Popup</span>
+                 </label>
+                 
+                 <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                     <div style={{ flex: 1, minWidth: 250, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                         <input value={draftEventPopup.title || ""} onChange={e => { setDraftEventPopup({...draftEventPopup, title: e.target.value}); setIsDraftingKiosk(true); }} placeholder="Popup Title (e.g. Event of the Week)" style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${border}`, background: 'transparent', color: textPrimary, fontSize: 14, outline: 'none', fontWeight: 600 }} />
+                         <textarea value={draftEventPopup.subtitle || ""} onChange={e => { setDraftEventPopup({...draftEventPopup, subtitle: e.target.value}); setIsDraftingKiosk(true); }} placeholder="Short description or Date..." rows={3} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${border}`, background: 'transparent', color: textPrimary, fontSize: 14, outline: 'none', resize: 'vertical' }} />
+                     </div>
+                     
+                     {/* MULTIPLE IMAGE UPLOAD ROW */}
+                     <div style={{ width: '100%', marginTop: 8 }}>
+                         <span style={{ fontSize: 13, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 8 }}>Event Gallery Images</span>
+                         <div className="no-scrollbar" style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, WebkitOverflowScrolling: 'touch' }}>
+                             {(draftEventPopup.imgs || []).map((imgUrl: string, idx: number) => (
+                                 <div key={idx} style={{ position: 'relative', width: 140, height: 140, flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1px solid ${border}` }}>
+                                     <button onClick={() => { 
+                                         const newImgs = [...draftEventPopup.imgs];
+                                         newImgs.splice(idx, 1);
+                                         setDraftEventPopup({...draftEventPopup, imgs: newImgs}); 
+                                         setIsDraftingKiosk(true); 
+                                     }} style={{ position: "absolute", top: 8, right: 8, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}><X size={12}/></button>
+                                     <img src={imgUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                 </div>
+                             ))}
+                             
+                             <label style={{ background: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', borderRadius: 8, border: `1px dashed ${border}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: 140, height: 140, flexShrink: 0, cursor: uploadingImage ? "wait" : "pointer", gap: 8 }}>
+                                 <UploadCloud size={24} color={textMuted} />
+                                 <span style={{ fontSize: 11, color: textMuted, fontWeight: 600 }}>{uploadingImage ? "Uploading..." : "Add Picture"}</span>
+                                 <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingImage} onChange={async (e) => {
+                                     const file = e.target.files?.[0]; if (!file) return; setUploadingImage(true);
+                                     const formData = new FormData(); formData.append("file", file); formData.append("upload_preset", UPLOAD_PRESET); formData.append("cloud_name", CLOUD_NAME);
+                                     try {
+                                        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
+                                        const data = await res.json();
+                                        if (data.secure_url) {
                                             const currentImgs = Array.isArray(draftEventPopup.imgs) ? draftEventPopup.imgs : [];
                                             setDraftEventPopup({...draftEventPopup, imgs: [...currentImgs, data.secure_url]});
                                             setIsDraftingKiosk(true);
-                                         } else { showToast(`Upload error`, "error"); }
-                                      } catch(err) { showToast("Upload failed", "error"); } finally { setUploadingImage(false); e.target.value = ''; }
-                                  }} />
-                              </label>
-                          </div>
-                      </div>
-                  </div>
+                                        } else { showToast(`Upload error`, "error"); }
+                                     } catch(err) { showToast("Upload failed", "error"); } finally { setUploadingImage(false); e.target.value = ''; }
+                                 }} />
+                             </label>
+                         </div>
+                     </div>
+                 </div>
               </div>
            </div>
         </div>
@@ -653,10 +679,8 @@ export function AdminPanel({
         </div>
       )}
 
-      {/* RESOLVED USERS TAB: Superadmin can now edit roles via dropdown and click Key icon to reset passwords */}
       {activeTab === 'users' && (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {/* Top Stat Boxes */}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {Object.entries(departmentCounts).filter(([dept]) => dept === "Total Users" || dept === "Others").sort((a,b) => b[1]-a[1]).map(([dept, count]) => (
               <div key={dept} style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${border}`, background: dark ? "rgba(255,255,255,0.02)" : "#f9fafb", display: "flex", flexDirection: "column", minWidth: 120, flex: 1 }}>
@@ -720,6 +744,7 @@ export function AdminPanel({
         </div>
       )}
 
+      {/* TOP SEARCH BAR (VISIBLE ON MOST TABS) */}
       {activeTab !== 'display' && activeTab !== 'kiosk' && (
         <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, background: bg, border: `1px solid ${border}`, padding: "8px 12px", borderRadius: 8, flex: 1, minWidth: 200 }}>
@@ -734,13 +759,10 @@ export function AdminPanel({
               <button onClick={() => { 
                 setEditingId(0); 
                 setForm({ 
-                  keyword: "", 
-                  response: "", 
-                  picture_url: "", 
+                  keyword: "", response: "", picture_url: "", qr_link: "",
                   category: activeCategoryTab !== "All" ? activeCategoryTab : "Handbook", 
                   subcategory: activeDeptTab !== "All" ? activeDeptTab : "All", 
-                  display_name: "",
-                  qr_link: "" 
+                  display_name: ""
                 }); 
                 setKeywordInput(""); 
               }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#4285f4", color: "#fff", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontWeight: 500, fontSize: 13, flex: 1, whiteSpace: "nowrap" }}>
@@ -759,6 +781,93 @@ export function AdminPanel({
         </div>
       )}
 
+      {/* RATINGS REVIEW TAB */}
+      {activeTab === 'ratings' && (
+        <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", maxHeight: "60vh" }}>
+          {filteredRatings.length === 0 ? (
+            <div style={{ padding: 40, textAlign: "center", color: textMuted }}>
+              <ThumbsDown size={32} style={{ opacity: 0.3, margin: '0 auto 12px' }} />
+              <div style={{ fontSize: 15, fontWeight: 600 }}>No negative ratings found!</div>
+              <div style={{ fontSize: 13, marginTop: 4 }}>Your AI is performing well. When users dislike an answer, it will appear here.</div>
+            </div>
+          ) : (
+            <table style={{ width: "100%", minWidth: 600, borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
+              <thead style={{ position: "sticky", top: 0, zIndex: 10, background: dark ? "#25242c" : "#fff" }}>
+                <tr style={{ borderBottom: `1px solid ${border}` }}>
+                  <th style={{ padding: "10px 12px", fontWeight: 600, width: 120 }}>Date Rated</th>
+                  <th style={{ padding: "10px 12px", fontWeight: 600 }}>Student Prompt</th>
+                  <th style={{ padding: "10px 12px", fontWeight: 600 }}>AI Response Given</th>
+                  <th style={{ padding: "10px 12px", fontWeight: 600, width: 120, textAlign: "right" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRatings.map((row: any) => (
+                  <tr key={row.id} style={{ borderBottom: `1px solid ${border}` }}>
+                    <td style={{ padding: "10px 12px", verticalAlign: "top", color: textMuted, fontSize: 12 }}>
+                      <Clock size={12} style={{ display: "inline", marginRight: 4, marginBottom: -2 }} />
+                      {row.createdAt ? new Date(row.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "-"}
+                    </td>
+                    <td style={{ padding: "10px 12px", verticalAlign: "top", fontWeight: 600, color: dark ? '#fff' : '#000' }}>"{row.prompt}"</td>
+                    <td style={{ padding: "10px 12px", verticalAlign: "top", opacity: 0.9, lineHeight: 1.4 }}><div style={{ maxHeight: 60, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", background: dark ? 'rgba(239, 68, 68, 0.05)' : '#fef2f2', padding: 8, borderRadius: 6, border: `1px solid ${dark ? 'rgba(239, 68, 68, 0.1)' : '#fecaca'}` }}>{row.response}</div></td>
+                    <td style={{ padding: "10px 12px", verticalAlign: "top", textAlign: "right", whiteSpace: "nowrap" }}>
+                      <button onClick={() => { setActiveTab('knowledge'); setSearchQuery(row.prompt); }} style={{ background: "none", border: "none", color: "#4285f4", cursor: "pointer", padding: "4px 8px", fontWeight: 600, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }} title="Search Database"><Search size={12} /> Edit Data</button>
+                      <button onClick={() => handleDelete('ratings', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4, marginLeft: 4 }} title="Dismiss Warning"><Trash2 size={14} /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* UNANSWERED TAB (UPDATED WITH LATEST/OLDEST SORT & TIMESTAMPS) */}
+      {activeTab === 'unanswered' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button onClick={() => setUnansweredSort('desc')} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, border: `1px solid ${border}`, background: unansweredSort === 'desc' ? (dark ? 'rgba(255,255,255,0.1)' : '#e5e7eb') : 'transparent', color: textPrimary, cursor: "pointer", fontWeight: 600, fontSize: 12 }}>
+              <ArrowDown size={12} /> Latest First
+            </button>
+            <button onClick={() => setUnansweredSort('asc')} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, border: `1px solid ${border}`, background: unansweredSort === 'asc' ? (dark ? 'rgba(255,255,255,0.1)' : '#e5e7eb') : 'transparent', color: textPrimary, cursor: "pointer", fontWeight: 600, fontSize: 12 }}>
+              <ArrowUp size={12} /> Oldest First
+            </button>
+          </div>
+
+          <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", maxHeight: "60vh" }}>
+            {sortedUnanswered.length === 0 ? (
+              <div style={{ padding: 30, textAlign: "center", color: textMuted, fontSize: 13 }}>No unanswered queries found.</div>
+            ) : (
+              <table style={{ width: "100%", minWidth: 500, borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
+                <thead style={{ position: "sticky", top: 0, zIndex: 10, background: dark ? "#25242c" : "#fff" }}>
+                  <tr style={{ borderBottom: `1px solid ${border}` }}>
+                    <th style={{ padding: "10px 12px", fontWeight: 600, width: 120 }}>Date Asked</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 600 }}>Unanswered Question</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 600, width: 160, textAlign: "right" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedUnanswered.map((row: any) => (
+                    <tr key={row.id} style={{ borderBottom: `1px solid ${border}` }}>
+                      <td style={{ padding: "10px 12px", verticalAlign: "middle", color: textMuted, fontSize: 12 }}>
+                        {row.createdAt ? new Date(row.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "Unknown Date"}
+                      </td>
+                      <td style={{ padding: "10px 12px", verticalAlign: "middle", fontWeight: 500, color: dark ? '#fff' : '#000' }}>"{row.question}"</td>
+                      <td style={{ padding: "10px 12px", verticalAlign: "middle", textAlign: "right", whiteSpace: "nowrap" }}>
+                        <button onClick={() => convertToKnowledge(row.question, row.id)} style={{ background: "none", border: "none", color: "#10b981", cursor: "pointer", padding: "4px 8px", fontWeight: 600, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}><Plus size={12} /> Add DB</button>
+                        <button onClick={() => handleDelete('unanswered', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4, marginLeft: 4 }} title="Delete"><Trash2 size={14} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* KEEPING THE REST OF YOUR EXISTING TABS BELOW (CALENDAR, DB, FAQ, BUGS) EXACTLY AS THEY WERE... */}
+      
       {activeTab === 'calendar' && (
         <>
           {editingCalId === 0 && (
@@ -766,7 +875,6 @@ export function AdminPanel({
               {renderCalendarForm("Add New Event")}
             </div>
           )}
-
           <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", width: "100%" }}>
             {calendarData.length === 0 ? (
               <div style={{ padding: 30, textAlign: "center", opacity: 0.5, fontSize: 13 }}>No events found.</div>
@@ -786,8 +894,6 @@ export function AdminPanel({
                       <tr style={{ borderBottom: editingCalId === row.id ? 'none' : `1px solid ${border}`, background: editingCalId === row.id ? (dark ? "rgba(255,255,255,0.02)" : "#f9fafb") : "transparent", transition: "background 0.2s" }}>
                         <td style={{ padding: "10px 12px", verticalAlign: "top", fontWeight: 600 }}>
                           {new Date(row.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          
-                          {/* SHOW END DATE IF DIFFERENT FROM START DATE */}
                           {row.endDate && row.endDate !== row.date && (
                              <>
                                 <br/><span style={{ fontSize: 11, color: textMuted }}>to</span><br/>
@@ -839,7 +945,6 @@ export function AdminPanel({
               {renderEditForm("Add New Knowledge")}
             </div>
           )}
-
           <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", width: "100%" }}>
             {filteredData.length === 0 ? (
               <div style={{ padding: 30, textAlign: "center", opacity: 0.5, fontSize: 13 }}>No results found.</div>
@@ -949,34 +1054,6 @@ export function AdminPanel({
               </table>
             )}
           </div>
-        </div>
-      )}
-
-      {activeTab === 'unanswered' && (
-        <div style={{ background: bg, borderRadius: 12, border: `1px solid ${border}`, overflowX: "auto", maxHeight: "60vh" }}>
-          {filteredUnanswered.length === 0 ? (
-            <div style={{ padding: 30, textAlign: "center", color: textMuted, fontSize: 13 }}>No unanswered queries found.</div>
-          ) : (
-            <table style={{ width: "100%", minWidth: 500, borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
-              <thead style={{ position: "sticky", top: 0, zIndex: 10, background: dark ? "#25242c" : "#fff" }}>
-                <tr style={{ borderBottom: `1px solid ${border}` }}>
-                  <th style={{ padding: "10px 12px", fontWeight: 600 }}>Unanswered Question</th>
-                  <th style={{ padding: "10px 12px", fontWeight: 600, width: 160, textAlign: "right" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUnanswered.map((row) => (
-                  <tr key={row.id} style={{ borderBottom: `1px solid ${border}` }}>
-                    <td style={{ padding: "10px 12px", verticalAlign: "middle", fontWeight: 500 }}>"{row.question}"</td>
-                    <td style={{ padding: "10px 12px", verticalAlign: "middle", textAlign: "right", whiteSpace: "nowrap" }}>
-                      <button onClick={() => convertToKnowledge(row.question, row.id)} style={{ background: "none", border: "none", color: "#10b981", cursor: "pointer", padding: "4px 8px", fontWeight: 600, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}><Plus size={12} /> Add DB</button>
-                      <button onClick={() => handleDelete('unanswered', row.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4, marginLeft: 4 }} title="Delete"><Trash2 size={14} /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
         </div>
       )}
 
