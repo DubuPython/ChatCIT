@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Bot, CheckCircle, Copy } from "lucide-react";
+import { Bot, CheckCircle, Copy, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Avatar, MarkdownText } from "./ui/helpers";
 import { CanvasPDFViewer } from "./ui/canvaspdfviewer";
 import { Message, User } from "../types";
@@ -12,9 +12,10 @@ interface Props {
   onEnlarge: (url: string) => void;
   onOpenIframe: (url: string) => void; 
   onLoad: () => void;
+  onRate?: (rating: number) => void; // ADDED THIS PROP
 }
 
-export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onEnlarge, onOpenIframe, onLoad }: Props) {
+export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onEnlarge, onOpenIframe, onLoad, onRate }: Props) {
   const [copied, setCopied] = useState(false);
   const textMuted = dark ? "#9aa0a6" : "#6b7280";
   const isUser = msg.role === 'user';
@@ -29,7 +30,7 @@ export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onEnlarge,
   const urlMatch = !isUser && msg.content ? msg.content.match(/(https?:\/\/[^\s]+[^.,;:"'\s])/) : null;
 
   return (
-    <div className="group" style={{ display: "flex", gap: 10, flexDirection: msg.role === "user" ? "row-reverse" : "row", alignItems: "flex-start" }}>
+    <div className="group" style={{ display: "flex", gap: 10, flexDirection: msg.role === "user" ? "row-reverse" : "row", alignItems: "flex-start", marginBottom: 16 }}>
       {msg.role === "model" && (
         <div style={{ flexShrink: 0, marginTop: 4, width: 28, height: 28, display: "flex", justifyContent: "center", alignItems: "center" }}>
           <Bot color="#4285f4" size={28} />
@@ -71,11 +72,31 @@ export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onEnlarge,
                </div>
             )}
 
-            <div style={{ marginTop: 6, display: "flex" }}>
+            {/* ACTION BUTTONS: COPY AND RATINGS */}
+            <div style={{ marginTop: 6, display: "flex", gap: 16, alignItems: "center" }}>
               <button onClick={handleCopy} style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: "none", color: textMuted, fontSize: 12, fontWeight: 500, cursor: "pointer", transition: "color 0.2s" }}>
                 {copied ? <CheckCircle size={14} color="#10b981" /> : <Copy size={14} />}
                 {copied ? <span style={{ color: "#10b981" }}>Copied!</span> : "Copy"}
               </button>
+              
+              {/* RATING BUTTONS */}
+              {onRate && (
+                <>
+                  <div style={{ width: 1, height: 14, background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} />
+                  <button 
+                    onClick={() => onRate(1)} 
+                    style={{ background: 'transparent', border: 'none', color: textMuted, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}
+                  >
+                    <ThumbsUp size={14} /> Helpful
+                  </button>
+                  <button 
+                    onClick={() => onRate(-1)} 
+                    style={{ background: 'transparent', border: 'none', color: textMuted, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}
+                  >
+                    <ThumbsDown size={14} /> Inaccurate
+                  </button>
+                </>
+              )}
             </div>
           </> 
         )}
