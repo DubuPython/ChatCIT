@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
-import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, ArrowRight, Menu, UserCog, X, MoreVertical, Bot, Calendar as CalendarIcon, Folder, Smartphone, Edit2, FileText, Maximize, ChevronLeft, ChevronRight, LayoutGrid } from "lucide-react";
+import { Plus, Settings, Database, Trash2, LogOut, Bug, AlertCircle, CheckCircle, Info, ArrowLeft, ArrowRight, Menu, UserCog, X, MoreVertical, Bot, Calendar as CalendarIcon, Folder, Smartphone, Edit2, FileText, Maximize, ChevronLeft, ChevronRight, LayoutGrid, ThumbsDown, ArrowDown, ArrowUp, Clock } from "lucide-react";
 
 import { AuthScreen } from "../components/authmodal";
-import { AdminPanel } from "../components/admindashboard";
+import { AdminPanel as AdminPanelBase } from "../components/admindashboard";
 import { ProfileModal } from "../components/modals/profilemodal";
 import { BugModal } from "../components/modals/bugsmodal";
 import { ChatDirectory } from "../components/chatdirectory";
@@ -13,11 +13,14 @@ import { ChatLoader } from "../components/ui/chatloader";
 import { CosmicInput } from "../components/ui/inputbar";
 import { ChatMessageBubble } from "../components/chatmessagebubble";
 
-import { Message, Chat, User as ChatUser, ToastMsg } from "../types";
+import { Message, Chat, User as ChatUser, ToastMsg, Knowledge, Unanswered, BugReport, User } from "../types";
 import { API_URL, MID_CHOICES } from "../config";
 
 const SIDEBAR_W = 280;
 
+// =====================================================================
+// WEB CALENDAR MODAL
+// =====================================================================
 const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToast }: any) => {
   const [calendarData, setCalendarData] = useState<any[]>([]);
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -251,6 +254,9 @@ const WebCalendarModal = ({ dark, setShowCalendar, currentUser, API_URL, showToa
   );
 };
 
+// =====================================================================
+// MAIN APP COMPONENT
+// =====================================================================
 export default function App() {
   const [simKiosk, setSimKiosk] = useState(() => {
      if (typeof window !== 'undefined') {
@@ -591,9 +597,23 @@ export default function App() {
     } catch (err: any) { showToast(err.message, "error"); } finally { setIsResetting(false); }
   };
 
+  // UPDATED: Correctly extract prompt/response and dispatch to backend
   const handleRateMessage = async (msgId: string, rating: number) => {
+    if (!activeChat) return;
+    
+    const msgIndex = activeChat.messages.findIndex((m: any) => m.id === msgId);
+    const aiMsg = activeChat.messages[msgIndex];
+    const userMsg = activeChat.messages.slice(0, msgIndex).reverse().find((m: any) => m.role === 'user');
+    
+    const promptText = userMsg ? userMsg.content : "Unknown Prompt";
+    const responseText = aiMsg ? aiMsg.content : "Unknown Response";
+
     try {
-      await fetch(`${API_URL}/chat/rate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: msgId, rating }) });
+      await fetch(`${API_URL}/ratings`, { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ prompt: promptText, response: responseText, rating }) 
+      });
       showToast(rating === 1 ? "Thank you for the feedback!" : "Feedback logged for review.", "success");
     } catch (e) {
       showToast("Error recording feedback.", "error");
@@ -965,7 +985,7 @@ export default function App() {
                 {viewMode === "admin" && currentUser && !simKiosk ? (
                   <div className="admin-panel-wrapper" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, paddingBottom: useMobileLayout ? 120 : 24, display: "flex", flexDirection: "column" }}>
                      <div style={{ flex: 1, overflowY: "auto", padding: "16px", WebkitOverflowScrolling: "touch" }}>
-                       <AdminPanel dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allSidebarCategories} mergedSubCategoriesMap={mergedSubCategoriesMap} setDbCategories={setDbCategories} setDbSubCategories={setDbSubCategories} fetchData={fetchGlobalKnowledge} layoutConfig={layoutConfig} saveLayoutConfig={saveLayoutConfig} syncTrigger={syncTrigger} kioskMapping={kioskMapping} setKioskMapping={setKioskMapping} screensaverSlides={screensaverSlides} setScreensaverSlides={setScreensaverSlides} kioskHighlights={kioskHighlights} setKioskHighlights={setKioskHighlights} kioskEventPopup={kioskEventPopup} setKioskEventPopup={setKioskEventPopup} />
+                       <AdminPanelBase dark={dark} showToast={showToast} currentUser={currentUser} activeTab={adminTab} setActiveTab={setAdminTab} activeCategoryTab={adminCategory} activeDeptTab={adminDept} allCategories={allSidebarCategories} mergedSubCategoriesMap={mergedSubCategoriesMap} setDbCategories={setDbCategories} setDbSubCategories={setDbSubCategories} fetchData={fetchGlobalKnowledge} layoutConfig={layoutConfig} saveLayoutConfig={saveLayoutConfig} syncTrigger={syncTrigger} kioskMapping={kioskMapping} setKioskMapping={setKioskMapping} screensaverSlides={screensaverSlides} setScreensaverSlides={setScreensaverSlides} kioskHighlights={kioskHighlights} setKioskHighlights={setKioskHighlights} kioskEventPopup={kioskEventPopup} setKioskEventPopup={setKioskEventPopup} />
                      </div>
                   </div>
                 ) : directoryMode ? (
@@ -1011,7 +1031,6 @@ export default function App() {
                             onSend={() => sendMessage()} 
                             isTyping={isTyping || aiTimeout} 
                             dark={dark} 
-                            placeholder={aiTimeout ? "System Cooling Down. Please wait 30 seconds..." : "Explore ChatCIT..."} 
                         />
                     </div>
                     <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, color: textFaint, letterSpacing: "0.2px" }}>ChatCIT is AI. By using it, you agree to our <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Terms</span> & <span style={{ textDecoration: "underline", cursor: "pointer", color: textMuted }}>Privacy Policy</span>.</div>
