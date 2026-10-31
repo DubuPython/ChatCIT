@@ -1,5 +1,9 @@
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import { Users, GraduationCap, FileText, ChevronLeft, ChevronRight, MessageSquare, Bot, Maximize, Search, UserSquare, Briefcase, ArrowRight, ArrowLeft, Calendar as CalendarIcon, X, LayoutGrid, Building } from "lucide-react";
+import { 
+  Users, GraduationCap, FileText, ChevronLeft, ChevronRight, 
+  MessageSquare, Bot, Maximize, Search, UserSquare, Briefcase, 
+  ArrowRight, ArrowLeft, Calendar as CalendarIcon, X, LayoutGrid, Building, HelpCircle 
+} from "lucide-react";
 import { GearboxLoader } from "./ui/helpers";
 import { API_URL } from "../config";
 
@@ -161,6 +165,10 @@ const GlobalKioskStyles = ({ dark, theme }: { dark: boolean, theme: any }) => (
 const getIconForCategory = (cat: string, size = 20) => {
   if (!cat) return <LayoutGrid size={size} />;
   const lower = cat.toLowerCase();
+  
+  // NEW FAQ ICON BINDING
+  if (lower.includes("faq") || lower.includes("general") || lower.includes("question")) return <HelpCircle size={size} />;
+  
   if (lower.includes("affair") || lower.includes("org")) return <Users size={size} />;
   if (lower.includes("curric") || lower.includes("exten") || lower.includes("major")) return <GraduationCap size={size} />;
   if (lower.includes("doc") || lower.includes("carta") || lower.includes("handbook")) return <FileText size={size} />;
@@ -209,11 +217,12 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const formattedDate = currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const formattedTime = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
+  // REPLACED CURRICULUM WITH FAQS
   const clusterItems = [
     { label: "Faculty", alias: "Faculty & Professors", icon: <UserSquare size={36} /> },
     { label: "Accomplishment", alias: "Accomplishments", icon: <Briefcase size={36} /> },
     { label: "Student Affairs", alias: "Organizations", icon: <Users size={36} /> },
-    { label: "Curriculum", alias: "Majors", icon: <GraduationCap size={36} /> },
+    { label: "FAQs", alias: "General", icon: <HelpCircle size={36} /> },
     { label: "Extensions", alias: "Extensions", icon: <FileText size={36} /> }
   ];
 
@@ -334,7 +343,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
     });
   };
 
-  // FIXED HIERARCHY ENGINE
   const getHierarchyRank = (item: any) => {
       const text = (item.response || "").toLowerCase();
       const title = (item.display_name || item.keyword || "").toLowerCase();
@@ -723,7 +731,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
                               {filteredDirectory.length > 0 && filteredDirectory.map((item) => {
                                  const titleText = item.display_name === "-" ? "" : (item.display_name || (item.keyword ? item.keyword.split(',')[0] : ""));
                                  const descText = (!item.response || item.response.trim() === "" || item.response === "-") ? "" : item.response;
-                                 const searchTarget = item.display_name && item.display_name !== "-" ? item.display_name : (item.keyword ? item.keyword.split(',')[0] : "");
                                  return (
                                  <div key={item.id} className="glassy-dir-card" style={{ padding: 20 }} onClick={() => {
                                     setScreenState("kiosk_result");
