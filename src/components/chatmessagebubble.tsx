@@ -12,11 +12,13 @@ interface Props {
   onEnlarge: (url: string) => void;
   onOpenIframe: (url: string) => void; 
   onLoad: () => void;
-  onRate?: (rating: number) => void; // ADDED THIS PROP
+  onRate?: (rating: number) => void;
 }
 
 export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onEnlarge, onOpenIframe, onLoad, onRate }: Props) {
   const [copied, setCopied] = useState(false);
+  const [ratingGiven, setRatingGiven] = useState<number | null>(null); // NEW: Tracks selected rating
+  
   const textMuted = dark ? "#9aa0a6" : "#6b7280";
   const isUser = msg.role === 'user';
 
@@ -26,7 +28,12 @@ export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onEnlarge,
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // MAGIC QR GENERATOR: Auto-extracts the first URL it finds in the response text
+  const handleRateClick = (val: number) => {
+    if (ratingGiven === val) return; // Prevent spam clicking
+    setRatingGiven(val);
+    if (onRate) onRate(val);
+  };
+
   const urlMatch = !isUser && msg.content ? msg.content.match(/(https?:\/\/[^\s]+[^.,;:"'\s])/) : null;
 
   return (
@@ -64,7 +71,6 @@ export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onEnlarge,
               </div>
             )}
             
-            {/* AUTO QR CODE RENDERER */}
             {urlMatch && (
                <div style={{ marginTop: 16, padding: 16, background: dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', borderRadius: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }}>
                   <span style={{ fontSize: 12, fontWeight: 800, color: dark ? '#94a3b8' : '#64748b', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '1px' }}>Scan Link</span>
@@ -72,26 +78,24 @@ export function ChatMessageBubble({ msg, dark, currentUser, isMobile, onEnlarge,
                </div>
             )}
 
-            {/* ACTION BUTTONS: COPY AND RATINGS */}
             <div style={{ marginTop: 6, display: "flex", gap: 16, alignItems: "center" }}>
               <button onClick={handleCopy} style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: "none", color: textMuted, fontSize: 12, fontWeight: 500, cursor: "pointer", transition: "color 0.2s" }}>
                 {copied ? <CheckCircle size={14} color="#10b981" /> : <Copy size={14} />}
                 {copied ? <span style={{ color: "#10b981" }}>Copied!</span> : "Copy"}
               </button>
               
-              {/* RATING BUTTONS */}
               {onRate && (
                 <>
                   <div style={{ width: 1, height: 14, background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} />
                   <button 
-                    onClick={() => onRate(1)} 
-                    style={{ background: 'transparent', border: 'none', color: textMuted, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}
+                    onClick={() => handleRateClick(1)} 
+                    style={{ background: 'transparent', border: 'none', color: ratingGiven === 1 ? '#10b981' : textMuted, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, transition: 'color 0.2s' }}
                   >
                     <ThumbsUp size={14} /> Helpful
                   </button>
                   <button 
-                    onClick={() => onRate(-1)} 
-                    style={{ background: 'transparent', border: 'none', color: textMuted, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}
+                    onClick={() => handleRateClick(-1)} 
+                    style={{ background: 'transparent', border: 'none', color: ratingGiven === -1 ? '#ef4444' : textMuted, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, transition: 'color 0.2s' }}
                   >
                     <ThumbsDown size={14} /> Inaccurate
                   </button>
