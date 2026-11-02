@@ -278,7 +278,7 @@ export default function App() {
   const [kioskCategory, setKioskCategory] = useState<string | null>(null);
   const [kioskResult, setKioskResult] = useState<any>(null);
   const [kbOpen, setKbOpen] = useState(false); 
-  const [aiTimeout, setAiTimeout] = useState(false); // NEW STATE: AI 429 Timeout protection
+  const [aiTimeout, setAiTimeout] = useState(false);
 
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && (window.innerWidth <= 1280));
   const isPhysicalKiosk = useMemo(() => { if (typeof window === "undefined") return false; return window.screen.height >= window.screen.width; }, []);
@@ -505,7 +505,6 @@ export default function App() {
   const [gear3Idx, setGear3Idx] = useState(0);
 
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
-  // UPDATE: Ensure response is part of the topFaqs type signature for mapping in Kiosk
   const [topFaqs, setTopFaqs] = useState<{keyword: string, display_name?: string, response?: string}[]>([]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -597,10 +596,8 @@ export default function App() {
     } catch (err: any) { showToast(err.message, "error"); } finally { setIsResetting(false); }
   };
 
-  // UPDATED: Correctly extract prompt/response and dispatch to backend
   const handleRateMessage = async (msgId: string, rating: number) => {
     if (!activeChat) return;
-    
     const msgIndex = activeChat.messages.findIndex((m: any) => m.id === msgId);
     const aiMsg = activeChat.messages[msgIndex];
     const userMsg = activeChat.messages.slice(0, msgIndex).reverse().find((m: any) => m.role === 'user');
@@ -610,8 +607,7 @@ export default function App() {
 
     try {
       await fetch(`${API_URL}/ratings`, { 
-        method: "POST", 
-        headers: { "Content-Type": "application/json" }, 
+        method: "POST", headers: { "Content-Type": "application/json" }, 
         body: JSON.stringify({ prompt: promptText, response: responseText, rating }) 
       });
       showToast(rating === 1 ? "Thank you for the feedback!" : "Feedback logged for review.", "success");
@@ -649,10 +645,9 @@ export default function App() {
     try {
       const response = await fetch(`${API_URL}/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chatId: chatId, message: content, history: messagesToSend }) });
       
-      // NEW AI TIMEOUT (429) PROTECTION
       if (response.status === 429) {
           setAiTimeout(true);
-          setTimeout(() => setAiTimeout(false), 30000); // 30-second wait block
+          setTimeout(() => setAiTimeout(false), 30000); 
           throw new Error("System is cooling down due to high traffic. Please wait 30 seconds.");
       }
 
@@ -677,19 +672,13 @@ export default function App() {
            let safeFile = item.replace(/\s+/g, '-').toLowerCase(); if (lowerItem === "magna carta") safeFile = "magna-carta"; if (lowerItem === "handbook") safeFile = "handbook"; setKioskResult({ title: item, isPdf: true, pdfUrl: `/${safeFile}.pdf` }); return;
          }
 
-         // NEW FAQ OVERRIDE INTERCEPTOR
          if (category === 'FAQs') {
            const faqItem = topFaqs.find(f => {
               const titleText = f.display_name && f.display_name !== '-' ? f.display_name : f.keyword.split(',')[0].trim();
               return titleText === item;
            });
            setScreenState("kiosk_result");
-           setKioskResult({
-              title: item,
-              loading: false,
-              content: faqItem?.response || "Content not available.",
-              image: null
-           });
+           setKioskResult({ title: item, loading: false, content: faqItem?.response || "Content not available.", image: null });
            return;
          }
 
@@ -995,7 +984,7 @@ export default function App() {
                     <div style={{ width: 140, height: 140, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}><div style={{ position: "absolute", transform: useMobileLayout ? "scale(0.65)" : "scale(0.85)" }}><GearboxLoader /></div></div>
                     <h1 style={{ fontSize: useMobileLayout ? 24 : 30, fontWeight: 300, color: textPrimary, marginBottom: 8, letterSpacing: "-0.5px", textAlign: "center" }}>Hello, <strong style={{ fontWeight: 700 }}>{simKiosk ? "CITizen" : (currentUser && Number(currentUser.id) === -1 ? "Guest" : currentUser?.username || currentUser?.email?.split('@')[0] || "Bulsuan")}!</strong></h1>
                     <p style={{ color: textMuted, fontSize: 15, marginBottom: 32, textAlign: "center" }}>How can I help you today?</p>
-                    {topFaqs.length > 0 && (!currentUser || Number(currentUser.id) !== -1) && (
+                    {topFaqs.length > 0 && (
                       <div className="no-scrollbar" style={{ width: "100%", maxWidth: 700, display: "flex", justifyContent: "center", padding: "4px 16px" }}>
                         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10 }}>
                           {topFaqs.slice(0, useMobileLayout ? 5 : topFaqs.length).map((faq, idx) => {
