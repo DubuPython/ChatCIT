@@ -1,9 +1,5 @@
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import { 
-  Users, GraduationCap, FileText, ChevronLeft, ChevronRight, 
-  MessageSquare, Bot, Maximize, Search, UserSquare, Briefcase, 
-  ArrowRight, ArrowLeft, Calendar as CalendarIcon, X, LayoutGrid, Building, HelpCircle 
-} from "lucide-react";
+import { Users, GraduationCap, FileText, ChevronLeft, ChevronRight, MessageSquare, Bot, Maximize, Search, UserSquare, Briefcase, ArrowRight, ArrowLeft, Calendar as CalendarIcon, X, LayoutGrid, Building, HelpCircle } from "lucide-react";
 import { GearboxLoader } from "./ui/helpers";
 import { API_URL } from "../config";
 
@@ -166,9 +162,7 @@ const getIconForCategory = (cat: string, size = 20) => {
   if (!cat) return <LayoutGrid size={size} />;
   const lower = cat.toLowerCase();
   
-  // NEW FAQ ICON BINDING
   if (lower.includes("faq") || lower.includes("general") || lower.includes("question")) return <HelpCircle size={size} />;
-  
   if (lower.includes("affair") || lower.includes("org")) return <Users size={size} />;
   if (lower.includes("curric") || lower.includes("exten") || lower.includes("major")) return <GraduationCap size={size} />;
   if (lower.includes("doc") || lower.includes("carta") || lower.includes("handbook")) return <FileText size={size} />;
@@ -217,7 +211,6 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
   const formattedDate = currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const formattedTime = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-  // REPLACED CURRICULUM WITH FAQS
   const clusterItems = [
     { label: "Faculty", alias: "Faculty & Professors", icon: <UserSquare size={36} /> },
     { label: "Accomplishment", alias: "Accomplishments", icon: <Briefcase size={36} /> },
@@ -414,6 +407,14 @@ export const KioskScreen = ({ dark, screenState, setScreenState, kioskCategory, 
       
       const isDoc = lowerItem === "handbook" || lowerItem === "magna carta" || lowerCat === "documents" || lowerItem.includes("form");
       if (isDoc) {
+          if (handleKioskSelection) {
+              handleKioskSelection(category, item);
+          }
+          return;
+      }
+
+      // Intercept FAQs and send to parent handler for text rendering
+      if (category === 'FAQs') {
           if (handleKioskSelection) {
               handleKioskSelection(category, item);
           }
